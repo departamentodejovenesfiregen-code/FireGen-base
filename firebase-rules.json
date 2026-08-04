@@ -1,0 +1,34 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "miembros": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "asistencias": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "informes": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "estrategias": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "analisis": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "alertasRescate": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "configuracion": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}

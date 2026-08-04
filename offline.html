@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FireGen | Offline</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+        h1 { font-size: 2rem; color: #f97316; margin-bottom: 10px; }
+        p { color: #94a3b8; margin-bottom: 20px; max-width: 300px; }
+        button {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4);
+        }
+        button:hover { opacity: 0.9; }
+    </style>
+</head>
+<body>
+    <div style="width: 80px; height: 80px; background-color: #f97316; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+        <svg fill="white" viewBox="0 0 24 24" width="40" height="40">
+            <path d="M2 22h20L12 2 2 22zm11-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+        </svg>
+    </div>
+    <h1>Sin conexión</h1>
+    <p>Parece que has perdido la conexión a internet. Revisa tu red e intenta de nuevo.</p>
+    <button onclick="window.location.reload()">Reintentar</button>
+</body>
+</html>
