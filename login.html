@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="assets/icons/icon-192x192.png">
     <link rel="icon" type="image/png" href="assets/icons/icon-192x192.png">
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="manifest.webmanifest">
     <title>FireGen V3.0 | Login</title>
     
     <!-- Tailwind CSS (CDN para compatibilidad actual) -->
@@ -154,6 +154,16 @@
                     });
             });
         });
+    </script>
+    <!-- ════ PWA: Registro del Service Worker ════ -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(reg => console.log('[PWA] Service Worker registrado desde login:', reg.scope))
+                    .catch(err => console.error('[PWA] Error al registrar SW:', err));
+            });
+        }
     </script>
 </body>
 </html>
