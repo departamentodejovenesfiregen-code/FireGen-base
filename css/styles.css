@@ -107,17 +107,6 @@ input, select, textarea { font-size: 16px !important; }
 .bn-btn.bn-active { color: #ea580c; }
 .bn-btn.bn-active i { transform: scale(1.15); }
 
-@media (max-width: 767px) {
-  #bottomNav { display: block; }
-  #topNav { display: none !important; }
-  body { padding-bottom: 70px; }
-  .table-container table { min-width: 600px; }
-  .card { border-radius: 10px; }
-  #chartCard .relative { height: 220px !important; }
-  .kpi-grid { grid-template-columns: repeat(2,1fr) !important; gap: 10px !important; }
-  .kpi-card { padding: 14px 12px !important; }
-  .kpi-card h3 { font-size: 1.8rem !important; }
-}
 
 /* ── MOBILE CARDS Base Maestro ── */
 .mobile-member-card { background: white; border-radius: 12px; padding: 12px; display: flex; gap: 12px; box-shadow: 0 1px 6px rgba(0,0,0,0.06); border: 1px solid #f1f5f9; margin-bottom: 8px; transition: box-shadow 0.2s; }
@@ -153,6 +142,87 @@ input, select, textarea { font-size: 16px !important; }
 /* ── UPDATE MODAL ── */
 #updateModal { position: fixed; bottom: 20px; right: 20px; z-index: 9998; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); padding: 20px; max-width: 320px; transform: translateY(150%); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 #updateModal.show { transform: translateY(0); }
+
+/* ════════════════════ OPTIMIZACIÓN UI/UX MÓVIL (V3.0) ════════════════════ */
 @media (max-width: 767px) {
+  /* 1. Navegación y Estructura Global */
+  #bottomNav { display: block; }
+  #topNav { display: none !important; }
+  body { padding-bottom: 70px; }
   #updateModal { bottom: 80px; left: 20px; right: 20px; max-width: 100%; }
+
+  /* 2. Tarjetas y Contenedores (Reducir scroll vertical) */
+  .card { 
+    border-radius: 12px !important; 
+    padding: 16px !important; 
+    margin-bottom: 12px !important; 
+  }
+
+  /* 3. Formularios, Selects y Buscadores (Reducir altura) */
+  input[type="text"], input[type="date"], input[type="month"], input[type="number"], select, textarea {
+    padding: 10px 12px !important; 
+    border-radius: 8px !important;
+  }
+  
+  /* Textarea de Análisis: ocupa mucho espacio, se reduce altura inicial */
+  #analysisTextarea {
+    min-height: 70px !important;
+  }
+
+  /* Buscador Maestro */
+  #searchInput {
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+    padding-left: 40px !important;
+  }
+
+  /* Gap de formularios para reducir separación vertical */
+  form.grid, .grid.gap-4, .grid.gap-6, .grid.gap-8 {
+    gap: 12px !important;
+  }
+
+  /* 4. Botones (Reducir altura táctil sin perder usabilidad) */
+  button:not(.bn-btn, .btn-attendance) {
+    padding: 10px 16px !important;
+    border-radius: 8px !important;
+  }
+
+  /* 5. KPIs */
+  .kpi-grid { 
+    grid-template-columns: repeat(2, 1fr) !important; 
+    gap: 8px !important; 
+    margin-bottom: 12px !important;
+  }
+  .kpi-card { 
+    padding: 12px 10px !important; 
+  }
+  .kpi-card h3 { 
+    font-size: 1.5rem !important; 
+    margin-top: 2px !important;
+  }
+  .kpi-card p {
+    margin-top: 4px !important;
+  }
+
+  /* 6. Tablas y Gráficas (Evitar paneo excesivo) */
+  .table-container {
+    max-height: 55vh !important;
+  }
+  .table-container table { 
+    min-width: 500px !important; 
+  }
+  #chartCard .relative { 
+    height: 200px !important; 
+  }
+
+  /* 7. Modales (Estandarización visual) */
+  #userModal .p-4, #userModal .p-8 {
+    padding: 16px !important;
+  }
+  #userModal form {
+    gap: 12px !important;
+  }
+  #userModal h2 {
+    font-size: 1.25rem !important;
+  }
 }

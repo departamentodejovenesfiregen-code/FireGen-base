@@ -8,7 +8,7 @@ const AppConfig = {
         churchName: "La Casa de Dios - 2da Iglesia Cuadrangular",
         adminEmail: "admin@firegen.com",
         period: {
-            start: "2026-08-01", // 01 de agosto de 2026
+            start: "2026-07-25", // 25 de julio de 2026
             end: "2029-07-31"    // 31 de julio de 2029
         },
         colors: {
@@ -76,13 +76,6 @@ const AppConfig = {
             input.max = endMonth;
             if (input.value && input.value < startMonth) input.value = startMonth;
             if (input.value && input.value > endMonth) input.value = endMonth;
-        });
-
-        document.querySelectorAll('input[type="date"]').forEach(input => {
-            input.min = this.current.period.start;
-            input.max = this.current.period.end;
-            if (input.value && input.value < this.current.period.start) input.value = this.current.period.start;
-            if (input.value && input.value > this.current.period.end) input.value = this.current.period.end;
         });
     },
 
