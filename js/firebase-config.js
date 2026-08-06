@@ -1,4 +1,4 @@
-﻿/**
+/**
  * FireGen V3.0 — js/firebase-config.js
  * ─────────────────────────────────────────────────────────────
  * CONFIGURACIÓN CENTRALIZADA DE FIREBASE
@@ -40,4 +40,4 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(err => {
     console.warn("[FireGen] No se pudo configurar persistencia de sesión:", err.message);
 });
 
-console.log("[FireGen] Firebase inicializado correctamente — Proyecto:", firebaseConfig.projectId);
+

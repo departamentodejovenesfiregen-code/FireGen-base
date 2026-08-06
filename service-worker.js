@@ -3,14 +3,10 @@
  * ─────────────────────────────────────────────────────────────
  * PWA Service Worker — Estrategia: Cache-First para assets estáticos,
  * Network-First para navegación. Compatible con GitHub Pages.
- * 
- * IMPORTANTE: Todas las rutas son RELATIVAS para funcionar
- * correctamente bajo cualquier subdirectorio de GitHub Pages.
  * ─────────────────────────────────────────────────────────────
  */
 
-// ── Incrementar este número en cada deploy para forzar actualización ──
-const CACHE_VERSION = 'firegen-v3.1';
+const CACHE_VERSION = 'firegen-v3.1-modern';
 const OFFLINE_URL = 'offline.html';
 
 // Assets locales a pre-cachear (rutas relativas al SW)
@@ -30,8 +26,7 @@ const STATIC_ASSETS = [
   'js/reports.js',
   'js/strategy.js',
   'js/charts.js',
-  'js/utils.js',
-  'version.json'
+  'js/utils.js'
 ];
 
 // ── INSTALL: Pre-cachear solo assets locales ──────────────────────────
@@ -39,18 +34,22 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_VERSION)
       .then(cache => {
-        // addAll falla si uno falla; usamos Promise.allSettled para robustez
+        // Usamos Promise.allSettled para robustez si algún archivo falta
         return Promise.allSettled(
-          STATIC_ASSETS.map(url => cache.add(url).catch(() => {
-            console.warn(`[SW] No se pudo cachear: ${url}`);
+          STATIC_ASSETS.map(url => cache.add(url).catch(err => {
+            console.warn(`[SW] No se pudo cachear: ${url}`, err);
           }))
         );
       })
-      .then(() => {
-        // Forzar activación inmediata sin esperar a que cierren las pestañas
-        return self.skipWaiting();
-      })
   );
+  // NOTA: No usamos self.skipWaiting() aquí para permitir actualización controlada por el usuario
+});
+
+// ── LISTENERS DE MENSAJES (Para actualización manual) ────────────────
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // ── ACTIVATE: Limpiar cachés antiguas y tomar control ─────────────────
@@ -59,14 +58,13 @@ self.addEventListener('activate', event => {
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames
-          .filter(name => name !== CACHE_VERSION)
+          .filter(name => name.startsWith('firegen-') && name !== CACHE_VERSION)
           .map(name => {
             console.log(`[SW] Eliminando caché antigua: ${name}`);
             return caches.delete(name);
           })
       );
     }).then(() => {
-      // Tomar control inmediato de todas las pestañas abiertas
       return self.clients.claim();
     })
   );
@@ -76,14 +74,15 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // ① Ignorar completamente peticiones a Firebase (Auth + Database)
+  // ① Ignorar completamente peticiones a Firebase y APIs externas (Cross-origin)
   if (
     url.hostname.includes('firebaseio.com') ||
     url.hostname.includes('googleapis.com') ||
     url.hostname.includes('gstatic.com') ||
-    url.hostname.includes('firebaseapp.com')
+    url.hostname.includes('firebaseapp.com') ||
+    url.hostname !== self.location.hostname // No cachear peticiones externas como CDNs
   ) {
-    return; // Dejar pasar sin interceptar
+    return; // Dejar pasar sin interceptar por el caché
   }
 
   // ② Ignorar peticiones que no sean GET
@@ -93,10 +92,13 @@ self.addEventListener('fetch', event => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
-        .catch(() => {
-          // Sin red: devolver la página offline
-          return caches.match(OFFLINE_URL);
+        .then(networkResponse => {
+          // Opcional: Actualizar caché con la última versión de la página
+          const clone = networkResponse.clone();
+          caches.open(CACHE_VERSION).then(cache => cache.put(event.request, clone));
+          return networkResponse;
         })
+        .catch(() => caches.match(OFFLINE_URL))
     );
     return;
   }
@@ -108,7 +110,6 @@ self.addEventListener('fetch', event => {
         if (cachedResponse) {
           return cachedResponse;
         }
-        // No está en caché: ir a la red y agregar al caché
         return fetch(event.request)
           .then(networkResponse => {
             if (networkResponse && networkResponse.status === 200 && networkResponse.type !== 'opaque') {
@@ -118,7 +119,7 @@ self.addEventListener('fetch', event => {
             return networkResponse;
           })
           .catch(() => {
-            // Sin red y sin caché: para imágenes devolver nothing, para navegación devolver offline
+            // Sin red y sin caché: devolver offline si es documento
             if (event.request.destination === 'document') {
               return caches.match(OFFLINE_URL);
             }

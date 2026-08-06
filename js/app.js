@@ -126,12 +126,43 @@ function initPWA() {
     const appBody = document.getElementById('appBody');
     if (appBody) appBody.style.display = 'block';
 
-    // 2. Registro de Service Worker
+    // 2. Registro y Actualización de Service Worker
+    let newWorker;
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./service-worker.js')
-                .then(reg => console.log('[PWA] Service Worker registrado', reg.scope))
+                .then(reg => {
+                    console.log('[PWA] Service Worker registrado', reg.scope);
+                    
+                    reg.addEventListener('updatefound', () => {
+                        newWorker = reg.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // Nueva versión disponible
+                                const updateModal = document.getElementById('updateModal');
+                                if (updateModal) {
+                                    updateModal.classList.add('show');
+                                    // Modificar el botón para que envíe SKIP_WAITING
+                                    const updateBtn = updateModal.querySelector('button');
+                                    if (updateBtn) {
+                                        updateBtn.onclick = function() {
+                                            newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                        };
+                                    }
+                                }
+                            }
+                        });
+                    });
+                })
                 .catch(err => console.error('[PWA] Error SW:', err));
+
+            // Recargar cuando el SW tome el control
+            let refreshing;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (refreshing) return;
+                refreshing = true;
+                window.location.reload();
+            });
         });
     }
 
@@ -149,35 +180,4 @@ function initPWA() {
     window.addEventListener('online', updateOnlineStatus);
     window.addEventListener('offline', updateOnlineStatus);
     updateOnlineStatus();
-
-    // 4. Polling de Versión (comprueba actualizaciones)
-    let currentVersion = null;
-    
-    function checkVersion() {
-        if (!navigator.onLine) return; // No verificar si está offline
-        
-        fetch('version.json?t=' + new Date().getTime())
-            .then(res => res.json())
-            .then(data => {
-                if (!currentVersion) {
-                    currentVersion = data.version;
-                } else if (data.version !== currentVersion) {
-                    // Nueva versión detectada
-                    const updateModal = document.getElementById('updateModal');
-                    if (updateModal) updateModal.classList.add('show');
-                }
-            })
-            .catch(err => console.log('[PWA] Error comprobando versión:', err));
-    }
-    
-    // Comprobar versión al inicio y luego cada 5 minutos
-    checkVersion();
-    setInterval(checkVersion, 5 * 60 * 1000);
-    
-    // También comprobar al volver a la pestaña
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-            checkVersion();
-        }
-    });
 }

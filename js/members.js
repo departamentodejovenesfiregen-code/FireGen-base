@@ -1,4 +1,4 @@
-﻿/**
+/**
  * FireGen V3.0 — js/members.js
  * ─────────────────────────────────────────────────────────────
  * MÓDULO DE MIEMBROS (Base Maestro)
@@ -478,4 +478,4 @@ function exportMaster() {
     downloadCSV(csv, "FireGen_BaseMaestro.csv");
 }
 
-console.log("[FireGen] members.js cargado");
+

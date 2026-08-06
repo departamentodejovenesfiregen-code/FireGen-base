@@ -170,5 +170,4 @@ function exportMonthlyReport() {
     csv += `\nMETRICAS CLAVE\nBautismos,${document.getElementById('inp-bautismos').value}\nAl Servicio,${document.getElementById('inp-servicio').value}\nAlejados,${document.getElementById('inp-alejados').value}\nRescatados,${document.getElementById('inp-rescatados').value}\nPromedio,${document.getElementById('rep-avg').innerText}\n`;
     downloadCSV(csv, `FireGen_InformeMensual_${per}.csv`);
 }
-
-console.log("[FireGen] reports.js cargado");
+

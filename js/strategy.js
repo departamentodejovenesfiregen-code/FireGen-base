@@ -199,5 +199,4 @@ function exportStrategy() {
     });
     downloadCSV(csv, "FireGen_CrecimientoHistorico.csv");
 }
-
-console.log("[FireGen] strategy.js cargado");
+

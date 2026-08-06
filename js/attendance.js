@@ -349,5 +349,4 @@ function exportAttendance() {
     });
     downloadCSV(csv, `FireGen_Asistencia_${period}.csv`);
 }
-
-console.log("[FireGen] attendance.js cargado");
+

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * FireGen V3.0 — js/auth.js
  * ─────────────────────────────────────────────────────────────
  * SISTEMA DE AUTENTICACIÓN
@@ -59,4 +59,4 @@ function logout() {
         });
 }
 
-console.log("[FireGen] auth.js cargado");
+

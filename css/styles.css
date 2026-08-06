@@ -1,9 +1,8 @@
 /* ═══════════════════════════════════════════════════════════════════
    FireGen V3.0 — styles.css
    Centralizado desde index.html V2.75 — no duplicar en otros archivos.
+   Nota: La fuente Inter se carga desde <link> en los HTML con preconnect.
 ═══════════════════════════════════════════════════════════════════ */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
 
 /* ── BASE ── */
 body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #1e293b; }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * FireGen V3.0 — js/utils.js
  * ─────────────────────────────────────────────────────────────
  * UTILIDADES COMPARTIDAS
@@ -158,4 +158,4 @@ function hideConnectionError() {
     if (banner) banner.classList.remove('show');
 }
 
-console.log("[FireGen] utils.js cargado");
+

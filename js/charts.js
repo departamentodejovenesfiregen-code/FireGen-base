@@ -143,4 +143,4 @@ function refreshChart() {
     }, 300);
 }
 
-console.log("[FireGen] charts.js cargado");
+

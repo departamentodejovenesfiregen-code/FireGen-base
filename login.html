@@ -4,22 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description" content="FireGen V3.0 - Plataforma Profesional para la Administración del Departamento de Jóvenes.">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://www.gstatic.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';">
     <meta name="theme-color" content="#ea580c">
-    <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="assets/icons/icon-192x192.png">
-    <link rel="icon" type="image/png" href="assets/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+    <link rel="icon" href="assets/icons/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" href="assets/icons/icon-192.png">
     <link rel="manifest" href="manifest.webmanifest">
     <title>FireGen V3.0 | Login</title>
-    
-    <!-- Tailwind CSS (CDN para compatibilidad actual) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Font Awesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
-    <!-- Google Fonts -->
+    <!-- Preconnect para reducir latencia de fuentes -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome 6.0.0 con SRI -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+          rel="stylesheet"
+          integrity="sha384-3B6NwesSXE7YJlcLI9RpRqGf2p/EgVH8BgoKTaUrmKNDkHPStTQ3EyoYjCGXaOTS"
+          crossorigin="anonymous">
     
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; }
@@ -48,7 +52,7 @@
         <div class="text-center mb-8">
             <div class="w-24 h-24 mx-auto mb-4 relative">
                 <!-- Mostramos el logo/icono oficial. Si no carga, se muestra el icono default de respaldo -->
-                <img src="assets/icons/icon-192x192.png" alt="FireGen Logo" 
+                <img src="assets/icons/icon-192.png" alt="FireGen Logo" 
                     class="w-full h-full object-contain rounded-2xl shadow-lg shadow-orange-500/30 bg-white"
                     onerror="this.onerror=null; this.outerHTML='<div class=\'w-20 h-20 bg-gradient-to-tr from-orange-600 to-orange-400 rounded-2xl mx-auto flex items-center justify-center shadow-lg shadow-orange-500/30\'><i class=\'fas fa-fire text-4xl text-white\'></i></div>'">
             </div>
@@ -92,10 +96,10 @@
         </div>
     </div>
 
-    <!-- Firebase SDK Compat -->
+    <!-- Firebase SDK Compat v9.18.0 (solo Auth necesario en login) -->
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-database-compat.js"></script>
+
 
     <!-- App Scripts -->
     <script src="js/firebase-config.js"></script>
