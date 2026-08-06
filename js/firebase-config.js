@@ -29,15 +29,17 @@ const firebaseConfig = {
 };
 
 // Inicializar Firebase (solo una vez por sesión)
-firebase.initializeApp(firebaseConfig);
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 
 // Instancias globales — importadas por todos los demás módulos
-const db   = firebase.database();
-const auth = firebase.auth();
+const db   = typeof firebase.database === 'function' ? firebase.database() : null;
+const auth = typeof firebase.auth === 'function' ? firebase.auth() : null;
 
 // Configurar persistencia de sesión: LOCAL = sobrevive cierres del navegador
-auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(err => {
-    console.warn("[FireGen] No se pudo configurar persistencia de sesión:", err.message);
-});
-
-
+if (auth) {
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(err => {
+        console.warn("[FireGen] No se pudo configurar persistencia de sesión:", err.message);
+    });
+}
