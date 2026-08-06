@@ -6,7 +6,7 @@
  * ─────────────────────────────────────────────────────────────
  */
 
-const CACHE_VERSION = 'firegen-v3.1-modern';
+const CACHE_VERSION = 'firegen-v3.2-stable';
 const OFFLINE_URL = 'offline.html';
 
 // Assets locales a pre-cachear (rutas relativas al SW)
