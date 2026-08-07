@@ -115,7 +115,28 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
+ * applyPWAUpdate — Activa el Service Worker pendiente y recarga.
+ * Usado por el modal de actualización (HTML + JS).
+ */
+function applyPWAUpdate() {
+    if (!('serviceWorker' in navigator)) {
+        window.location.reload();
+        return;
+    }
+    navigator.serviceWorker.getRegistration().then(reg => {
+        const waiting = reg && reg.waiting;
+        if (waiting) {
+            waiting.postMessage({ type: 'SKIP_WAITING' });
+            return;
+        }
+        window.location.reload();
+    }).catch(() => window.location.reload());
+}
+
+/**
  * initPWA — Inicializa el Service Worker, monitor de conexión y polling de versión.
+ * IMPORTANTE: NO esperar a window.load — initPWA corre después de auth async,
+ * cuando load ya ocurrió; si se escucha load aquí, las actualizaciones nunca se detectan.
  */
 function initPWA() {
     // 1. Quitar splash screen
@@ -127,43 +148,56 @@ function initPWA() {
     const appBody = document.getElementById('appBody');
     if (appBody) appBody.style.display = 'block';
 
-    // 2. Registro y Actualización de Service Worker
+    // 2. Registro y Actualización de Service Worker (inmediato)
     let newWorker;
     if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./service-worker.js')
-                .then(reg => {
-                    console.log('[PWA] Service Worker registrado', reg.scope);
-                    
-                    reg.addEventListener('updatefound', () => {
-                        newWorker = reg.installing;
-                        newWorker.addEventListener('statechange', () => {
-                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                // Nueva versión disponible
-                                const updateModal = document.getElementById('updateModal');
-                                if (updateModal) {
-                                    updateModal.classList.add('show');
-                                    // Modificar el botón para que envíe SKIP_WAITING
-                                    const updateBtn = updateModal.querySelector('button');
-                                    if (updateBtn) {
-                                        updateBtn.onclick = function() {
-                                            newWorker.postMessage({ type: 'SKIP_WAITING' });
-                                        };
-                                    }
-                                }
-                            }
-                        });
-                    });
-                })
-                .catch(err => console.error('[PWA] Error SW:', err));
+        const showUpdateModal = (worker) => {
+            const updateModal = document.getElementById('updateModal');
+            if (!updateModal) return;
+            updateModal.classList.add('show');
+            const updateBtn = updateModal.querySelector('button');
+            if (updateBtn) {
+                updateBtn.onclick = function () {
+                    if (worker) worker.postMessage({ type: 'SKIP_WAITING' });
+                    else applyPWAUpdate();
+                };
+            }
+        };
 
-            // Recargar cuando el SW tome el control
-            let refreshing;
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (refreshing) return;
-                refreshing = true;
-                window.location.reload();
-            });
+        navigator.serviceWorker.register('./service-worker.js')
+            .then(reg => {
+                console.log('[PWA] Service Worker registrado', reg.scope);
+
+                // Ya hay un SW esperando (p. ej. tras visita previa)
+                if (reg.waiting && navigator.serviceWorker.controller) {
+                    showUpdateModal(reg.waiting);
+                }
+
+                reg.addEventListener('updatefound', () => {
+                    newWorker = reg.installing;
+                    if (!newWorker) return;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            showUpdateModal(newWorker);
+                        }
+                    });
+                });
+
+                // Forzar búsqueda de nueva versión al abrir la app
+                reg.update().catch(() => {});
+
+                // Revisar periódicamente (celulares con PWA instalada suelen no refrescar)
+                setInterval(() => {
+                    reg.update().catch(() => {});
+                }, 60 * 60 * 1000);
+            })
+            .catch(err => console.error('[PWA] Error SW:', err));
+
+        let refreshing;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (refreshing) return;
+            refreshing = true;
+            window.location.reload();
         });
     }
 

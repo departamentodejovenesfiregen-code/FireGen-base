@@ -1,12 +1,13 @@
 /**
  * FireGen V3.0 — service-worker.js
  * ─────────────────────────────────────────────────────────────
- * PWA Service Worker — Estrategia: Cache-First para assets estáticos,
+ * PWA Service Worker — Network-First para JS/CSS (evita código
+ * obsoleto en celulares/PCs), Cache-First para assets estáticos,
  * Network-First para navegación. Compatible con GitHub Pages.
  * ─────────────────────────────────────────────────────────────
  */
 
-const CACHE_VERSION = 'firegen-v3.3-stable';
+const CACHE_VERSION = 'firegen-v3.4-pwa-fix';
 const OFFLINE_URL = 'offline.html';
 
 // Assets locales a pre-cachear (rutas relativas al SW)
@@ -30,12 +31,15 @@ const STATIC_ASSETS = [
   'js/utils.js'
 ];
 
+function isCodeAsset(url) {
+  return /\.(js|css)(\?|$)/i.test(url.pathname) || url.pathname.endsWith('/service-worker.js');
+}
+
 // ── INSTALL: Pre-cachear solo assets locales ──────────────────────────
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_VERSION)
       .then(cache => {
-        // Usamos Promise.allSettled para robustez si algún archivo falta
         return Promise.allSettled(
           STATIC_ASSETS.map(url => cache.add(url).catch(err => {
             console.warn(`[SW] No se pudo cachear: ${url}`, err);
@@ -43,7 +47,8 @@ self.addEventListener('install', event => {
         );
       })
   );
-  // NOTA: No usamos self.skipWaiting() aquí para permitir actualización controlada por el usuario
+  // Activar de inmediato para que todos los dispositivos reciban la corrección
+  self.skipWaiting();
 });
 
 // ── LISTENERS DE MENSAJES (Para actualización manual) ────────────────
@@ -81,20 +86,19 @@ self.addEventListener('fetch', event => {
     url.hostname.includes('googleapis.com') ||
     url.hostname.includes('gstatic.com') ||
     url.hostname.includes('firebaseapp.com') ||
-    url.hostname !== self.location.hostname // No cachear peticiones externas como CDNs
+    url.hostname !== self.location.hostname
   ) {
-    return; // Dejar pasar sin interceptar por el caché
+    return;
   }
 
   // ② Ignorar peticiones que no sean GET
   if (event.request.method !== 'GET') return;
 
-  // ③ Peticiones de navegación HTML (ir a una URL): Network-First
+  // ③ Peticiones de navegación HTML: Network-First
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .then(networkResponse => {
-          // Opcional: Actualizar caché con la última versión de la página
           const clone = networkResponse.clone();
           caches.open(CACHE_VERSION).then(cache => cache.put(event.request, clone));
           return networkResponse;
@@ -104,7 +108,23 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // ④ Assets estáticos locales: Cache-First (rápido + offline)
+  // ④ JS/CSS: Network-First (evita que celulares queden con lógica vieja)
+  if (isCodeAsset(url)) {
+    event.respondWith(
+      fetch(event.request)
+        .then(networkResponse => {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type !== 'opaque') {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_VERSION).then(cache => cache.put(event.request, clone));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // ⑤ Otros assets estáticos locales: Cache-First
   event.respondWith(
     caches.match(event.request)
       .then(cachedResponse => {
@@ -120,7 +140,6 @@ self.addEventListener('fetch', event => {
             return networkResponse;
           })
           .catch(() => {
-            // Sin red y sin caché: devolver offline si es documento
             if (event.request.destination === 'document') {
               return caches.match(OFFLINE_URL);
             }

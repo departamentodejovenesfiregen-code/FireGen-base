@@ -31,11 +31,11 @@ const AppConfig = {
 
         try {
             // Intentar cargar configuración desde Firebase si auth está listo
-            if (typeof database !== 'undefined' && typeof auth !== 'undefined') {
+            if (typeof db !== 'undefined' && db && typeof auth !== 'undefined' && auth) {
                 auth.onAuthStateChanged(async (user) => {
                     if (user) {
                         try {
-                            const snapshot = await database.ref('configuracion').once('value');
+                            const snapshot = await db.ref('configuracion').once('value');
                             if (snapshot.exists()) {
                                 const dbConfig = snapshot.val();
                                 // Fusionar configuración (Firebase sobrescribe defaults)

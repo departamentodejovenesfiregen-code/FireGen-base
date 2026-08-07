@@ -36,7 +36,7 @@ function initAuth(onAuthenticated) {
         // Determinar si es admin comparando con adminEmail configurado
         const adminEmail = (AppConfig && AppConfig.current && AppConfig.current.adminEmail)
             ? AppConfig.current.adminEmail.toLowerCase()
-            : 'admin@firegen.com';
+            : 'departamentodejovenesfiregen@gmail.com';
         isAdmin = user.email.toLowerCase() === adminEmail;
 
         // Ocultar tab Config para no-admins (única restricción de UI)
