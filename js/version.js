@@ -7,4 +7,4 @@
  *    al mismo valor (buscar ?v= y reemplazar).
  * 3. Despliega. El Service Worker usa este valor vía importScripts.
  */
-var APP_VERSION = '3.7.0';
+var APP_VERSION = '3.7.1';

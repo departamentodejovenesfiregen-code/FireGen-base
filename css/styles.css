@@ -682,7 +682,7 @@ textarea {
   }
 }
 
-/* ── UPDATE MODAL ── */
+/* ── UPDATE MODAL (oculto por defecto; solo .show lo revela) ── */
 #updateModal {
   position: fixed;
   bottom: 20px;
@@ -694,11 +694,17 @@ textarea {
   padding: 20px;
   max-width: 320px;
   transform: translateY(150%);
-  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform 0.35s ease, opacity 0.25s ease, visibility 0.25s ease;
 }
 
 #updateModal.show {
   transform: translateY(0);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 /* ════════════════════ OPTIMIZACIÓN UI/UX MÓVIL (V3.0) ════════════════════ */

@@ -4,6 +4,7 @@
  * Único responsable del ciclo PWA en el cliente:
  *   registro SW → detección → SKIP_WAITING → controllerchange → 1 reload
  *
+ * La actualización es silenciosa: no deja el modal "Actualizando" visible.
  * No borra caches desde la página (eso lo hace el SW en activate).
  * Dependencia: js/version.js (APP_VERSION)
  * ─────────────────────────────────────────────────────────────
@@ -15,45 +16,32 @@ var FiregenPWA = (function () {
     var RELOAD_FLAG = 'firegen_pending_reload';
     var promoting = false;
     var reloading = false;
-    var safetyTimer = null;
 
     function appVersion() {
         return (typeof APP_VERSION !== 'undefined' && APP_VERSION) ? String(APP_VERSION) : '0';
-    }
-
-    function showUpdateBanner() {
-        var el = document.getElementById('updateModal');
-        if (!el) return;
-        el.classList.add('show');
     }
 
     function hideUpdateBanner() {
         var el = document.getElementById('updateModal');
         if (!el) return;
         el.classList.remove('show');
-    }
-
-    function clearSafetyTimer() {
-        if (safetyTimer) {
-            clearTimeout(safetyTimer);
-            safetyTimer = null;
-        }
+        el.setAttribute('aria-hidden', 'true');
+        el.hidden = true;
     }
 
     /**
      * Pide al SW en waiting/installing que pase a active.
-     * Una sola vía de skipWaiting (mensaje). Sin reload ciego.
+     * Silencioso: sin modal permanente.
      */
     function promoteWorker(worker) {
         if (!worker || promoting || reloading) return;
 
-        // Si ya completamos reload de este build, no re-promover
         try {
             if (sessionStorage.getItem(RELOAD_FLAG) === appVersion()) return;
         } catch (e) { /* ignore */ }
 
         promoting = true;
-        showUpdateBanner();
+        hideUpdateBanner();
         console.log('[PWA] Promoviendo build', appVersion());
 
         try {
@@ -65,13 +53,12 @@ var FiregenPWA = (function () {
             return;
         }
 
-        // Si no hay controllerchange, NO recargar a ciegas: ocultar UI y reintentar luego
-        clearSafetyTimer();
-        safetyTimer = setTimeout(function () {
+        // Si no llega controllerchange, soltar el candado sin molestar al usuario
+        setTimeout(function () {
             if (reloading) return;
             console.warn('[PWA] Activación no completada; se mantiene la versión actual');
-            hideUpdateBanner();
             promoting = false;
+            hideUpdateBanner();
         }, 12000);
     }
 
@@ -111,13 +98,13 @@ var FiregenPWA = (function () {
         options = options || {};
         var version = appVersion();
 
-        // Ciclo de reload completado para este build → estable, sin re-actualizar
+        // Siempre ocultar el aviso al cargar (evita que quede pegado)
+        hideUpdateBanner();
+
         try {
             var pending = sessionStorage.getItem(RELOAD_FLAG);
             if (pending !== null) {
                 sessionStorage.removeItem(RELOAD_FLAG);
-                hideUpdateBanner();
-                clearSafetyTimer();
                 promoting = false;
                 if (pending === version) {
                     console.log('[PWA] Build estable:', version);
@@ -136,12 +123,10 @@ var FiregenPWA = (function () {
             return;
         }
 
-        // Una sola recarga por transición real de controlador
         navigator.serviceWorker.addEventListener('controllerchange', function () {
             if (reloading) return;
             reloading = true;
-            clearSafetyTimer();
-            showUpdateBanner();
+            hideUpdateBanner();
             try {
                 sessionStorage.setItem(RELOAD_FLAG, version);
             } catch (e) { /* ignore */ }
@@ -152,6 +137,7 @@ var FiregenPWA = (function () {
         navigator.serviceWorker.register('./service-worker.js')
             .then(function (reg) {
                 console.log('[PWA] SW registrado · build', version, reg.scope);
+                hideUpdateBanner();
 
                 if (reg.waiting) {
                     promoteWorker(reg.waiting);
