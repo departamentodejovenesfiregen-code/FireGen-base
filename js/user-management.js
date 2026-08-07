@@ -15,16 +15,31 @@ const FIREBASE_API_KEY = 'AIzaSyApvlSVSK6j3CbXJ9Z_jDv60Z6XpvfpAlY';
 /* ── Lista reactiva de usuarios ── */
 let usuariosData = []; // [{uid, email, nombre}]
 
+let usersListenerAttached = false;
+
 /**
  * initUsersListener — Escucha cambios en usuarios/ de Firebase.
  * Solo se activa cuando el tab Config está visible.
  */
 function initUsersListener() {
+    if (usersListenerAttached) return;
+    
     db.ref('usuarios').on('value', snap => {
         const data = snap.val() || {};
         usuariosData = Object.entries(data).map(([uid, v]) => ({ uid, ...v }));
         renderUsersList();
+    }, error => {
+        const container = document.getElementById('usersList');
+        if (container) {
+            container.innerHTML = `
+                <div class="text-center py-6 text-red-500 font-bold text-sm">
+                    <i class="fas fa-exclamation-triangle mr-1"></i> Error de permisos: No se pudieron cargar los líderes.<br>
+                    <span class="text-xs font-normal text-slate-500">¿Actualizaste las Reglas en Firebase Console?</span>
+                </div>`;
+        }
+        console.error("Error cargando usuarios:", error);
     });
+    usersListenerAttached = true;
 }
 
 /**
@@ -54,11 +69,36 @@ function renderUsersList() {
                     <div class="text-xs text-slate-400 truncate">${escHtml(u.email || '—')}</div>
                 </div>
             </div>
-            <button onclick="deleteLeaderAccount('${escHtml(u.uid)}', '${escHtml(u.email)}')"
-                class="ml-3 flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-all" title="Eliminar acceso">
-                <i class="fas fa-trash text-xs"></i>
-            </button>
+            <div class="flex items-center gap-2 ml-3 flex-shrink-0">
+                <button onclick="editLeaderName('${escHtml(u.uid)}', '${escHtml(u.nombre || '')}')"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-orange-100 hover:text-orange-600 transition-all" title="Editar nombre">
+                    <i class="fas fa-pencil-alt text-xs"></i>
+                </button>
+                <button onclick="deleteLeaderAccount('${escHtml(u.uid)}', '${escHtml(u.email)}')"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-all" title="Eliminar acceso">
+                    <i class="fas fa-trash text-xs"></i>
+                </button>
+            </div>
         </div>`).join('');
+}
+
+/**
+ * editLeaderName — Permite editar el nombre de un líder en la base de datos.
+ */
+async function editLeaderName(uid, currentName) {
+    const newName = prompt('Editar nombre del líder:', currentName);
+    if (newName === null || newName.trim() === currentName) return;
+
+    if (!newName.trim()) {
+        alert('El nombre no puede estar vacío.');
+        return;
+    }
+
+    try {
+        await db.ref('usuarios/' + uid + '/nombre').set(newName.trim());
+    } catch (err) {
+        alert('Error al actualizar el nombre: ' + err.message);
+    }
 }
 
 /**
