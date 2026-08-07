@@ -17,7 +17,7 @@
  */
 
 /** Cambiar en CADA publicación junto con ?v= en HTML y js/version.js */
-var BUILD_VERSION = '3.7.2';
+var BUILD_VERSION = '3.7.3';
 var CACHE_NAME = 'firegen-' + BUILD_VERSION;
 var OFFLINE_URL = 'offline.html';
 var V = BUILD_VERSION;
@@ -138,11 +138,9 @@ self.addEventListener('fetch', function (event) {
       fetch(request)
         .then(function (networkResponse) {
           if (networkResponse && networkResponse.ok) {
+            // Solo la URL real de la navegación (index/login/etc).
+            // Nunca reescribir bajo la clave fija 'index.html'.
             putExact(request, networkResponse);
-            var copy = networkResponse.clone();
-            caches.open(CACHE_NAME).then(function (cache) {
-              cache.put('index.html', copy).catch(function () {});
-            });
           }
           return networkResponse;
         })
