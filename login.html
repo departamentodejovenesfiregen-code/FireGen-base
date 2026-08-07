@@ -172,13 +172,38 @@
             });
         });
     </script>
-    <!-- ════ PWA: Registro del Service Worker ════ -->
+    <!-- ════ PWA: Registro + auto-update desde login ════ -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./service-worker.js')
-                    .then(reg => console.log('[PWA] Service Worker registrado desde login:', reg.scope))
+                    .then(reg => {
+                        console.log('[PWA] Service Worker registrado desde login:', reg.scope);
+                        const activateWaiting = (worker) => {
+                            if (!worker) return;
+                            worker.postMessage({ type: 'CLEAR_CACHES' });
+                            worker.postMessage({ type: 'SKIP_WAITING' });
+                        };
+                        if (reg.waiting) activateWaiting(reg.waiting);
+                        reg.addEventListener('updatefound', () => {
+                            const installing = reg.installing;
+                            if (!installing) return;
+                            installing.addEventListener('statechange', () => {
+                                if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                                    activateWaiting(installing);
+                                }
+                            });
+                        });
+                        reg.update().catch(() => {});
+                    })
                     .catch(err => console.error('[PWA] Error al registrar SW:', err));
+
+                let refreshing;
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    if (refreshing) return;
+                    refreshing = true;
+                    window.location.reload();
+                });
             });
         }
     </script>

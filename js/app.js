@@ -114,27 +114,78 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+/** Evita lanzar la auto-actualización más de una vez por sesión */
+let pwaUpdateInProgress = false;
+
 /**
- * applyPWAUpdate — Activa el Service Worker pendiente y recarga.
- * Usado por el modal de actualización (HTML + JS).
+ * showUpdatingUI — Aviso breve mientras se limpia caché y se recarga.
  */
-function applyPWAUpdate() {
-    if (!('serviceWorker' in navigator)) {
-        window.location.reload();
-        return;
-    }
-    navigator.serviceWorker.getRegistration().then(reg => {
-        const waiting = reg && reg.waiting;
-        if (waiting) {
-            waiting.postMessage({ type: 'SKIP_WAITING' });
-            return;
-        }
-        window.location.reload();
-    }).catch(() => window.location.reload());
+function showUpdatingUI() {
+    const updateModal = document.getElementById('updateModal');
+    if (!updateModal) return;
+    updateModal.innerHTML = `
+        <h3 class="font-bold text-slate-800">
+            <i class="fas fa-sync-alt fa-spin text-orange-500 mr-1"></i> Actualizando FireGen
+        </h3>
+        <p class="text-sm text-slate-500 mt-2">Limpiando caché y cargando la nueva versión…</p>
+    `;
+    updateModal.classList.add('show');
 }
 
 /**
- * initPWA — Inicializa el Service Worker, monitor de conexión y polling de versión.
+ * clearAppCaches — Elimina residuos de caché FireGen en el navegador.
+ */
+async function clearAppCaches() {
+    if (!('caches' in window)) return;
+    try {
+        const names = await caches.keys();
+        await Promise.all(
+            names
+                .filter(name => name.startsWith('firegen-'))
+                .map(name => caches.delete(name))
+        );
+        console.log('[PWA] Cachés FireGen eliminadas');
+    } catch (err) {
+        console.warn('[PWA] No se pudieron limpiar cachés:', err);
+    }
+}
+
+/**
+ * applyPWAUpdate — Limpia caché/residuos, activa el SW nuevo y recarga.
+ * Se dispara sola al detectar actualización (también usable desde el botón).
+ */
+async function applyPWAUpdate(worker) {
+    if (pwaUpdateInProgress) return;
+    pwaUpdateInProgress = true;
+    showUpdatingUI();
+
+    try {
+        await clearAppCaches();
+
+        if (worker) {
+            worker.postMessage({ type: 'CLEAR_CACHES' });
+            worker.postMessage({ type: 'SKIP_WAITING' });
+            return; // controllerchange → reload
+        }
+
+        if ('serviceWorker' in navigator) {
+            const reg = await navigator.serviceWorker.getRegistration();
+            const waiting = reg && reg.waiting;
+            if (waiting) {
+                waiting.postMessage({ type: 'CLEAR_CACHES' });
+                waiting.postMessage({ type: 'SKIP_WAITING' });
+                return;
+            }
+        }
+    } catch (err) {
+        console.warn('[PWA] Error aplicando actualización:', err);
+    }
+
+    window.location.reload();
+}
+
+/**
+ * initPWA — Inicializa el Service Worker, monitor de conexión y auto-update.
  * IMPORTANTE: NO esperar a window.load — initPWA corre después de auth async,
  * cuando load ya ocurrió; si se escucha load aquí, las actualizaciones nunca se detectan.
  */
@@ -148,48 +199,39 @@ function initPWA() {
     const appBody = document.getElementById('appBody');
     if (appBody) appBody.style.display = 'block';
 
-    // 2. Registro y Actualización de Service Worker (inmediato)
-    let newWorker;
+    // 2. Registro + actualización automática del Service Worker
     if ('serviceWorker' in navigator) {
-        const showUpdateModal = (worker) => {
-            const updateModal = document.getElementById('updateModal');
-            if (!updateModal) return;
-            updateModal.classList.add('show');
-            const updateBtn = updateModal.querySelector('button');
-            if (updateBtn) {
-                updateBtn.onclick = function () {
-                    if (worker) worker.postMessage({ type: 'SKIP_WAITING' });
-                    else applyPWAUpdate();
-                };
-            }
+        const onNewVersionReady = (worker) => {
+            console.log('[PWA] Nueva versión detectada — limpiando caché y actualizando…');
+            applyPWAUpdate(worker);
         };
 
         navigator.serviceWorker.register('./service-worker.js')
             .then(reg => {
                 console.log('[PWA] Service Worker registrado', reg.scope);
 
-                // Ya hay un SW esperando (p. ej. tras visita previa)
+                // SW ya esperando (visita previa sin activar)
                 if (reg.waiting && navigator.serviceWorker.controller) {
-                    showUpdateModal(reg.waiting);
+                    onNewVersionReady(reg.waiting);
                 }
 
                 reg.addEventListener('updatefound', () => {
-                    newWorker = reg.installing;
-                    if (!newWorker) return;
-                    newWorker.addEventListener('statechange', () => {
-                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            showUpdateModal(newWorker);
+                    const installing = reg.installing;
+                    if (!installing) return;
+                    installing.addEventListener('statechange', () => {
+                        if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                            onNewVersionReady(installing);
                         }
                     });
                 });
 
-                // Forzar búsqueda de nueva versión al abrir la app
+                // Buscar nueva versión al abrir la app
                 reg.update().catch(() => {});
 
-                // Revisar periódicamente (celulares con PWA instalada suelen no refrescar)
+                // Revisión periódica (PWA instalada en celular casi no se refresca sola)
                 setInterval(() => {
-                    reg.update().catch(() => {});
-                }, 60 * 60 * 1000);
+                    if (navigator.onLine) reg.update().catch(() => {});
+                }, 30 * 60 * 1000);
             })
             .catch(err => console.error('[PWA] Error SW:', err));
 

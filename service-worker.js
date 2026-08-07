@@ -7,7 +7,7 @@
  * ─────────────────────────────────────────────────────────────
  */
 
-const CACHE_VERSION = 'firegen-v3.4-pwa-fix';
+const CACHE_VERSION = 'firegen-v3.5-auto-update';
 const OFFLINE_URL = 'offline.html';
 
 // Assets locales a pre-cachear (rutas relativas al SW)
@@ -51,28 +51,33 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-// ── LISTENERS DE MENSAJES (Para actualización manual) ────────────────
+async function clearOldFiregenCaches(keepCurrent) {
+  const cacheNames = await caches.keys();
+  await Promise.all(
+    cacheNames
+      .filter(name => name.startsWith('firegen-') && (!keepCurrent || name !== CACHE_VERSION))
+      .map(name => {
+        console.log(`[SW] Eliminando caché: ${name}`);
+        return caches.delete(name);
+      })
+  );
+}
+
+// ── LISTENERS DE MENSAJES ─────────────────────────────────────────────
 self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+  const type = event.data && event.data.type;
+  if (type === 'SKIP_WAITING') {
     self.skipWaiting();
+  }
+  if (type === 'CLEAR_CACHES') {
+    event.waitUntil(clearOldFiregenCaches(false));
   }
 });
 
 // ── ACTIVATE: Limpiar cachés antiguas y tomar control ─────────────────
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames
-          .filter(name => name.startsWith('firegen-') && name !== CACHE_VERSION)
-          .map(name => {
-            console.log(`[SW] Eliminando caché antigua: ${name}`);
-            return caches.delete(name);
-          })
-      );
-    }).then(() => {
-      return self.clients.claim();
-    })
+    clearOldFiregenCaches(true).then(() => self.clients.claim())
   );
 });
 
