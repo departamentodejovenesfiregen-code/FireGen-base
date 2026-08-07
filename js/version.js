@@ -1,10 +1,13 @@
 /**
- * FireGen — Única fuente de verdad de versión de build.
+ * FireGen — Versión visible para la UI / logs del cliente.
  *
- * Al publicar una nueva versión:
- * 1. Cambia APP_VERSION aquí (ej. "3.7.1")
- * 2. Actualiza TODOS los ?v=APP_VERSION en index.html y login.html
- *    al mismo valor (buscar ?v= y reemplazar).
- * 3. Despliega. El Service Worker usa este valor vía importScripts.
+ * NO controla el Service Worker.
+ * La versión del SW está en service-worker.js → BUILD_VERSION.
+ *
+ * Al publicar (ej. 3.7.3):
+ * 1. Cambia BUILD_VERSION en service-worker.js  (OBLIGATORIO)
+ * 2. Cambia APP_VERSION aquí al mismo valor
+ * 3. Reemplaza TODOS los ?v=... en index.html y login.html
+ * 4. Despliega
  */
-var APP_VERSION = '3.7.1';
+var APP_VERSION = '3.7.2';

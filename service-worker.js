@@ -1,31 +1,33 @@
 /**
  * FireGen V3 — service-worker.js
  * ─────────────────────────────────────────────────────────────
- * Ciclo determinista:
- *   INSTALL  → crear firegen-{APP_VERSION}, precache (sin skipWaiting)
+ * IMPORTANTE: BUILD_VERSION vive AQUÍ.
+ * Cada release DEBE cambiar este valor para que el navegador
+ * detecte un Service Worker nuevo (byte-diff obligatorio).
+ *
+ * Ciclo:
+ *   INSTALL  → crear firegen-{BUILD_VERSION}, precache (sin skipWaiting)
  *   MESSAGE  → SKIP_WAITING (única vía de activación anticipada)
  *   ACTIVATE → borrar caches firegen-* antiguas → clients.claim()
  *
- * Código (JS/CSS): Network-First con fallback EXACTO (sin quitar ?v=).
+ * JS/CSS: Network-First + fallback EXACTO (nunca quitar ?v=).
  * HTML: Network-First → cache exacta → offline.html
  * Firebase/CDN: no se interceptan.
  * ─────────────────────────────────────────────────────────────
  */
 
-importScripts('./js/version.js');
-
-var CACHE_NAME = 'firegen-' + APP_VERSION;
+/** Cambiar en CADA publicación junto con ?v= en HTML y js/version.js */
+var BUILD_VERSION = '3.7.2';
+var CACHE_NAME = 'firegen-' + BUILD_VERSION;
 var OFFLINE_URL = 'offline.html';
-var V = APP_VERSION;
+var V = BUILD_VERSION;
 
 /** Precache atómico: mismas URLs versionadas que index.html / login.html */
 var PRECACHE_URLS = [
-  './',
   'index.html',
   'login.html',
   OFFLINE_URL,
   'css/styles.css?v=' + V,
-  'js/version.js',
   'js/version.js?v=' + V,
   'js/pwa.js?v=' + V,
   'js/firebase-config.js?v=' + V,
@@ -124,9 +126,9 @@ self.addEventListener('fetch', function (event) {
 
   if (isExternal(url)) return;
 
-  // El propio SW siempre desde red
+  // El propio SW siempre desde red (sin cache HTTP del SW script)
   if (url.pathname.indexOf('service-worker.js') !== -1) {
-    event.respondWith(fetch(request));
+    event.respondWith(fetch(request, { cache: 'no-store' }));
     return;
   }
 
@@ -137,7 +139,6 @@ self.addEventListener('fetch', function (event) {
         .then(function (networkResponse) {
           if (networkResponse && networkResponse.ok) {
             putExact(request, networkResponse);
-            // Copia estable para fallback offline del shell
             var copy = networkResponse.clone();
             caches.open(CACHE_NAME).then(function (cache) {
               cache.put('index.html', copy).catch(function () {});
@@ -159,7 +160,6 @@ self.addEventListener('fetch', function (event) {
   }
 
   // JS/CSS: Network-First, fallback SOLO a la URL exacta (incluye ?v=)
-  // Nunca strip de query → no mezclar builds
   if (isCodeAsset(url)) {
     event.respondWith(
       fetch(request)
@@ -168,7 +168,6 @@ self.addEventListener('fetch', function (event) {
             putExact(request, networkResponse);
             return networkResponse;
           }
-          // Respuesta HTTP errónea: intentar exact cache
           return caches.match(request).then(function (cached) {
             return cached || networkResponse;
           });

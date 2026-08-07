@@ -6,7 +6,8 @@
  *
  * La actualización es silenciosa: no deja el modal "Actualizando" visible.
  * No borra caches desde la página (eso lo hace el SW en activate).
- * Dependencia: js/version.js (APP_VERSION)
+ * Dependencia: js/version.js (APP_VERSION solo para logs UI — no controla el SW)
+ * El SW se versiona con BUILD_VERSION dentro de service-worker.js.
  * ─────────────────────────────────────────────────────────────
  */
 
@@ -134,7 +135,7 @@ var FiregenPWA = (function () {
             window.location.reload();
         });
 
-        navigator.serviceWorker.register('./service-worker.js')
+        navigator.serviceWorker.register('./service-worker.js', { updateViaCache: 'none' })
             .then(function (reg) {
                 console.log('[PWA] SW registrado · build', version, reg.scope);
                 hideUpdateBanner();
