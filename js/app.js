@@ -36,6 +36,7 @@ function switchTab(tab) {
     if (tab === 'attendance' && typeof renderAttendance === 'function') renderAttendance();
     if (tab === 'report' && typeof updateMonthlyStats === 'function') updateMonthlyStats();
     if (tab === 'strategy' && typeof refreshChart === 'function') refreshChart();
+    if (tab === 'config') window.dispatchEvent(new Event('configTabOpened'));
 }
 
 /**

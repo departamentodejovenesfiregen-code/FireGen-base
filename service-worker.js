@@ -6,7 +6,7 @@
  * ─────────────────────────────────────────────────────────────
  */
 
-const CACHE_VERSION = 'firegen-v3.2-stable';
+const CACHE_VERSION = 'firegen-v3.3-stable';
 const OFFLINE_URL = 'offline.html';
 
 // Assets locales a pre-cachear (rutas relativas al SW)
@@ -21,6 +21,7 @@ const STATIC_ASSETS = [
   'js/auth.js',
   'js/app.js',
   'js/admin-config.js',
+  'js/user-management.js',
   'js/members.js',
   'js/attendance.js',
   'js/reports.js',

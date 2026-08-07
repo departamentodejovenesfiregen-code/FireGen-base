@@ -28,7 +28,11 @@
     },
     "configuracion": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null && auth.token.email === root.child('configuracion/adminEmail').val()"
+    },
+    "usuarios": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.email === root.child('configuracion/adminEmail').val()"
     }
   }
 }
