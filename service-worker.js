@@ -1,16 +1,16 @@
 /**
  * FireGen V3.0 — service-worker.js
  * ─────────────────────────────────────────────────────────────
- * PWA Service Worker — Network-First para JS/CSS (evita código
- * obsoleto en celulares/PCs), Cache-First para assets estáticos,
- * Network-First para navegación. Compatible con GitHub Pages.
+ * PWA Service Worker seguro:
+ * - Al actualizar: elimina SOLO cachés viejas (nunca la nueva)
+ * - JS/CSS: Network-First con fallback a caché
+ * - Navegación: Network-First con fallback a index/offline
  * ─────────────────────────────────────────────────────────────
  */
 
-const CACHE_VERSION = 'firegen-v3.5-auto-update';
+const CACHE_VERSION = 'firegen-v3.6-safe-update';
 const OFFLINE_URL = 'offline.html';
 
-// Assets locales a pre-cachear (rutas relativas al SW)
 const STATIC_ASSETS = [
   './',
   'index.html',
@@ -32,123 +32,161 @@ const STATIC_ASSETS = [
 ];
 
 function isCodeAsset(url) {
-  return /\.(js|css)(\?|$)/i.test(url.pathname) || url.pathname.endsWith('/service-worker.js');
+  return /\.(js|css)(\?|$)/i.test(url.pathname);
 }
 
-// ── INSTALL: Pre-cachear solo assets locales ──────────────────────────
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_VERSION)
-      .then(cache => {
-        return Promise.allSettled(
-          STATIC_ASSETS.map(url => cache.add(url).catch(err => {
-            console.warn(`[SW] No se pudo cachear: ${url}`, err);
-          }))
-        );
-      })
-  );
-  // Activar de inmediato para que todos los dispositivos reciban la corrección
-  self.skipWaiting();
-});
+/** Busca en caché por URL exacta o sin query (?v=…) */
+async function matchCache(request) {
+  const exact = await caches.match(request);
+  if (exact) return exact;
 
-async function clearOldFiregenCaches(keepCurrent) {
-  const cacheNames = await caches.keys();
+  const url = new URL(request.url);
+  if (!url.search) return undefined;
+
+  url.search = '';
+  return caches.match(url.href);
+}
+
+async function putInCache(request, response) {
+  if (!response || response.status !== 200 || response.type === 'opaque') return;
+  try {
+    const cache = await caches.open(CACHE_VERSION);
+    await cache.put(request, response.clone());
+  } catch (err) {
+    console.warn('[SW] No se pudo guardar en caché:', err);
+  }
+}
+
+async function deleteOldCaches() {
+  const names = await caches.keys();
   await Promise.all(
-    cacheNames
-      .filter(name => name.startsWith('firegen-') && (!keepCurrent || name !== CACHE_VERSION))
+    names
+      .filter(name => name.startsWith('firegen-') && name !== CACHE_VERSION)
       .map(name => {
-        console.log(`[SW] Eliminando caché: ${name}`);
+        console.log('[SW] Eliminando caché antigua:', name);
         return caches.delete(name);
       })
   );
 }
 
-// ── LISTENERS DE MENSAJES ─────────────────────────────────────────────
+// ── INSTALL ───────────────────────────────────────────────────────────
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_VERSION).then(cache =>
+      Promise.allSettled(
+        STATIC_ASSETS.map(url =>
+          cache.add(url).catch(err => console.warn('[SW] No se pudo cachear:', url, err))
+        )
+      )
+    ).then(() => self.skipWaiting())
+  );
+});
+
+// ── MENSAJES ──────────────────────────────────────────────────────────
 self.addEventListener('message', event => {
   const type = event.data && event.data.type;
   if (type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
-  if (type === 'CLEAR_CACHES') {
-    event.waitUntil(clearOldFiregenCaches(false));
+  // Solo limpia versiones viejas — NUNCA borra la caché actual (rompe la app)
+  if (type === 'CLEAR_OLD_CACHES') {
+    event.waitUntil(deleteOldCaches());
   }
 });
 
-// ── ACTIVATE: Limpiar cachés antiguas y tomar control ─────────────────
+// ── ACTIVATE ──────────────────────────────────────────────────────────
 self.addEventListener('activate', event => {
   event.waitUntil(
-    clearOldFiregenCaches(true).then(() => self.clients.claim())
+    deleteOldCaches().then(() => self.clients.claim())
   );
 });
 
-// ── FETCH: Estrategia inteligente según el tipo de petición ──────────
+// ── FETCH ─────────────────────────────────────────────────────────────
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // ① Ignorar completamente peticiones a Firebase y APIs externas (Cross-origin)
+  // No interceptar Firebase / CDN / externos
   if (
     url.hostname.includes('firebaseio.com') ||
     url.hostname.includes('googleapis.com') ||
     url.hostname.includes('gstatic.com') ||
     url.hostname.includes('firebaseapp.com') ||
+    url.hostname.includes('jsdelivr.net') ||
+    url.hostname.includes('cdnjs.cloudflare.com') ||
+    url.hostname.includes('tailwindcss.com') ||
     url.hostname !== self.location.hostname
   ) {
     return;
   }
 
-  // ② Ignorar peticiones que no sean GET
   if (event.request.method !== 'GET') return;
 
-  // ③ Peticiones de navegación HTML: Network-First
+  // Nunca cachear el propio service-worker.js (debe verse siempre fresco)
+  if (url.pathname.endsWith('/service-worker.js') || url.pathname.endsWith('service-worker.js')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // HTML: Network-First → caché index → offline
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
-        .then(networkResponse => {
-          const clone = networkResponse.clone();
-          caches.open(CACHE_VERSION).then(cache => cache.put(event.request, clone));
-          return networkResponse;
-        })
-        .catch(() => caches.match(OFFLINE_URL))
-    );
-    return;
-  }
-
-  // ④ JS/CSS: Network-First (evita que celulares queden con lógica vieja)
-  if (isCodeAsset(url)) {
-    event.respondWith(
-      fetch(event.request)
-        .then(networkResponse => {
-          if (networkResponse && networkResponse.status === 200 && networkResponse.type !== 'opaque') {
-            const clone = networkResponse.clone();
-            caches.open(CACHE_VERSION).then(cache => cache.put(event.request, clone));
+        .then(async networkResponse => {
+          if (networkResponse && networkResponse.ok) {
+            await putInCache(event.request, networkResponse);
+            const cache = await caches.open(CACHE_VERSION);
+            await cache.put('index.html', networkResponse.clone()).catch(() => {});
           }
           return networkResponse;
         })
-        .catch(() => caches.match(event.request))
+        .catch(async () => {
+          return (
+            (await matchCache(event.request)) ||
+            (await caches.match('index.html')) ||
+            (await caches.match(OFFLINE_URL))
+          );
+        })
     );
     return;
   }
 
-  // ⑤ Otros assets estáticos locales: Cache-First
+  // JS/CSS: Network-First con fallback a caché (incluye match sin ?v=)
+  if (isCodeAsset(url)) {
+    event.respondWith(
+      fetch(event.request)
+        .then(async networkResponse => {
+          if (networkResponse && networkResponse.ok) {
+            await putInCache(event.request, networkResponse);
+            // También guardar sin query para fallback estable
+            const clean = new URL(event.request.url);
+            if (clean.search) {
+              clean.search = '';
+              const cache = await caches.open(CACHE_VERSION);
+              await cache.put(clean.href, networkResponse.clone()).catch(() => {});
+            }
+          }
+          // Si la red responde mal, preferir caché
+          if (!networkResponse || !networkResponse.ok) {
+            const cached = await matchCache(event.request);
+            if (cached) return cached;
+          }
+          return networkResponse;
+        })
+        .catch(() => matchCache(event.request))
+    );
+    return;
+  }
+
+  // Otros assets: Cache-First
   event.respondWith(
-    caches.match(event.request)
-      .then(cachedResponse => {
-        if (cachedResponse) {
-          return cachedResponse;
+    matchCache(event.request).then(cached => {
+      if (cached) return cached;
+      return fetch(event.request).then(async networkResponse => {
+        if (networkResponse && networkResponse.ok) {
+          await putInCache(event.request, networkResponse);
         }
-        return fetch(event.request)
-          .then(networkResponse => {
-            if (networkResponse && networkResponse.status === 200 && networkResponse.type !== 'opaque') {
-              const clone = networkResponse.clone();
-              caches.open(CACHE_VERSION).then(cache => cache.put(event.request, clone));
-            }
-            return networkResponse;
-          })
-          .catch(() => {
-            if (event.request.destination === 'document') {
-              return caches.match(OFFLINE_URL);
-            }
-          });
-      })
+        return networkResponse;
+      });
+    })
   );
 });

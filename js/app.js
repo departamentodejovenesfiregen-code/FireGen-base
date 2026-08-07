@@ -114,11 +114,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-/** Evita lanzar la auto-actualización más de una vez por sesión */
+/** Evita lanzar la auto-actualización más de una vez por sesión de página */
 let pwaUpdateInProgress = false;
 
 /**
- * showUpdatingUI — Aviso breve mientras se limpia caché y se recarga.
+ * showUpdatingUI — Aviso breve mientras se activa la nueva versión.
  */
 function showUpdatingUI() {
     const updateModal = document.getElementById('updateModal');
@@ -127,67 +127,55 @@ function showUpdatingUI() {
         <h3 class="font-bold text-slate-800">
             <i class="fas fa-sync-alt fa-spin text-orange-500 mr-1"></i> Actualizando FireGen
         </h3>
-        <p class="text-sm text-slate-500 mt-2">Limpiando caché y cargando la nueva versión…</p>
+        <p class="text-sm text-slate-500 mt-2">Nueva versión lista. Recargando…</p>
     `;
     updateModal.classList.add('show');
 }
 
 /**
- * clearAppCaches — Elimina residuos de caché FireGen en el navegador.
+ * applyPWAUpdate — Activa el SW nuevo y deja que el SW borre solo cachés viejas.
+ * NO borra la caché actual desde el cliente (eso dejaba el celular sin JS).
  */
-async function clearAppCaches() {
-    if (!('caches' in window)) return;
-    try {
-        const names = await caches.keys();
-        await Promise.all(
-            names
-                .filter(name => name.startsWith('firegen-'))
-                .map(name => caches.delete(name))
-        );
-        console.log('[PWA] Cachés FireGen eliminadas');
-    } catch (err) {
-        console.warn('[PWA] No se pudieron limpiar cachés:', err);
-    }
-}
-
-/**
- * applyPWAUpdate — Limpia caché/residuos, activa el SW nuevo y recarga.
- * Se dispara sola al detectar actualización (también usable desde el botón).
- */
-async function applyPWAUpdate(worker) {
+function applyPWAUpdate(worker) {
     if (pwaUpdateInProgress) return;
     pwaUpdateInProgress = true;
     showUpdatingUI();
 
     try {
-        await clearAppCaches();
+        sessionStorage.setItem('firegen_updating', '1');
+    } catch (e) { /* private mode */ }
 
-        if (worker) {
-            worker.postMessage({ type: 'CLEAR_CACHES' });
-            worker.postMessage({ type: 'SKIP_WAITING' });
-            return; // controllerchange → reload
-        }
+    const target = worker;
+    if (target) {
+        target.postMessage({ type: 'CLEAR_OLD_CACHES' });
+        target.postMessage({ type: 'SKIP_WAITING' });
+        // Si en 4s no hubo controllerchange, forzar reload
+        setTimeout(() => {
+            if (sessionStorage.getItem('firegen_updating') === '1') {
+                window.location.reload();
+            }
+        }, 4000);
+        return;
+    }
 
-        if ('serviceWorker' in navigator) {
-            const reg = await navigator.serviceWorker.getRegistration();
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration().then(reg => {
             const waiting = reg && reg.waiting;
             if (waiting) {
-                waiting.postMessage({ type: 'CLEAR_CACHES' });
+                waiting.postMessage({ type: 'CLEAR_OLD_CACHES' });
                 waiting.postMessage({ type: 'SKIP_WAITING' });
                 return;
             }
-        }
-    } catch (err) {
-        console.warn('[PWA] Error aplicando actualización:', err);
+            window.location.reload();
+        }).catch(() => window.location.reload());
+        return;
     }
 
     window.location.reload();
 }
 
 /**
- * initPWA — Inicializa el Service Worker, monitor de conexión y auto-update.
- * IMPORTANTE: NO esperar a window.load — initPWA corre después de auth async,
- * cuando load ya ocurrió; si se escucha load aquí, las actualizaciones nunca se detectan.
+ * initPWA — Service Worker, conexión y auto-update seguro.
  */
 function initPWA() {
     // 1. Quitar splash screen
@@ -195,14 +183,28 @@ function initPWA() {
     if (splash) {
         setTimeout(() => splash.classList.add('fade-out'), 500);
     }
-    
+
     const appBody = document.getElementById('appBody');
     if (appBody) appBody.style.display = 'block';
 
-    // 2. Registro + actualización automática del Service Worker
+    // Tras una recarga por update: no volver a disparar update en esta carga
+    let skipUpdateThisLoad = false;
+    try {
+        if (sessionStorage.getItem('firegen_updating') === '1') {
+            sessionStorage.removeItem('firegen_updating');
+            console.log('[PWA] Actualización aplicada correctamente');
+        }
+        if (sessionStorage.getItem('firegen_just_updated') === '1') {
+            sessionStorage.removeItem('firegen_just_updated');
+            skipUpdateThisLoad = true;
+        }
+    } catch (e) { /* ignore */ }
+
+    // 2. Registro + auto-update
     if ('serviceWorker' in navigator) {
         const onNewVersionReady = (worker) => {
-            console.log('[PWA] Nueva versión detectada — limpiando caché y actualizando…');
+            if (skipUpdateThisLoad) return;
+            console.log('[PWA] Nueva versión detectada — activando…');
             applyPWAUpdate(worker);
         };
 
@@ -210,7 +212,6 @@ function initPWA() {
             .then(reg => {
                 console.log('[PWA] Service Worker registrado', reg.scope);
 
-                // SW ya esperando (visita previa sin activar)
                 if (reg.waiting && navigator.serviceWorker.controller) {
                     onNewVersionReady(reg.waiting);
                 }
@@ -225,25 +226,26 @@ function initPWA() {
                     });
                 });
 
-                // Buscar nueva versión al abrir la app
                 reg.update().catch(() => {});
 
-                // Revisión periódica (PWA instalada en celular casi no se refresca sola)
                 setInterval(() => {
                     if (navigator.onLine) reg.update().catch(() => {});
                 }, 30 * 60 * 1000);
             })
             .catch(err => console.error('[PWA] Error SW:', err));
 
-        let refreshing;
+        let refreshing = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             if (refreshing) return;
             refreshing = true;
+            try {
+                sessionStorage.setItem('firegen_just_updated', '1');
+            } catch (e) { /* ignore */ }
             window.location.reload();
         });
     }
 
-    // 3. Monitor de estado Online / Offline
+    // 3. Online / Offline
     const banner = document.getElementById('connectionBanner');
     function updateOnlineStatus() {
         if (!navigator.onLine) {

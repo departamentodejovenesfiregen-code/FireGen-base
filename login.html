@@ -172,7 +172,7 @@
             });
         });
     </script>
-    <!-- ════ PWA: Registro + auto-update desde login ════ -->
+    <!-- ════ PWA: Registro + auto-update seguro desde login ════ -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -181,10 +181,12 @@
                         console.log('[PWA] Service Worker registrado desde login:', reg.scope);
                         const activateWaiting = (worker) => {
                             if (!worker) return;
-                            worker.postMessage({ type: 'CLEAR_CACHES' });
+                            worker.postMessage({ type: 'CLEAR_OLD_CACHES' });
                             worker.postMessage({ type: 'SKIP_WAITING' });
                         };
-                        if (reg.waiting) activateWaiting(reg.waiting);
+                        if (reg.waiting && navigator.serviceWorker.controller) {
+                            activateWaiting(reg.waiting);
+                        }
                         reg.addEventListener('updatefound', () => {
                             const installing = reg.installing;
                             if (!installing) return;
@@ -198,7 +200,7 @@
                     })
                     .catch(err => console.error('[PWA] Error al registrar SW:', err));
 
-                let refreshing;
+                let refreshing = false;
                 navigator.serviceWorker.addEventListener('controllerchange', () => {
                     if (refreshing) return;
                     refreshing = true;
