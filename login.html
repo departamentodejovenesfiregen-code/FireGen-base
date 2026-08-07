@@ -114,10 +114,16 @@
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-auth-compat.js"></script>
 
-    <!-- App Scripts -->
-    <script src="js/firebase-config.js?v=4"></script>
-    <script src="js/config.js?v=4"></script>
+    <!-- App Scripts (build 3.7.0 — misma versión que index.html / SW) -->
+    <script src="js/version.js?v=3.7.0"></script>
+    <script src="js/pwa.js?v=3.7.0"></script>
+    <script src="js/firebase-config.js?v=3.7.0"></script>
+    <script src="js/config.js?v=3.7.0"></script>
     <script>
+        if (typeof FiregenPWA !== 'undefined') {
+            FiregenPWA.init({ splash: false, connectionBanner: false });
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('loginForm');
             const errorMsg = document.getElementById('errorMsg');
@@ -171,43 +177,6 @@
                     });
             });
         });
-    </script>
-    <!-- ════ PWA: Registro + auto-update seguro desde login ════ -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./service-worker.js')
-                    .then(reg => {
-                        console.log('[PWA] Service Worker registrado desde login:', reg.scope);
-                        const activateWaiting = (worker) => {
-                            if (!worker) return;
-                            worker.postMessage({ type: 'CLEAR_OLD_CACHES' });
-                            worker.postMessage({ type: 'SKIP_WAITING' });
-                        };
-                        if (reg.waiting && navigator.serviceWorker.controller) {
-                            activateWaiting(reg.waiting);
-                        }
-                        reg.addEventListener('updatefound', () => {
-                            const installing = reg.installing;
-                            if (!installing) return;
-                            installing.addEventListener('statechange', () => {
-                                if (installing.state === 'installed' && navigator.serviceWorker.controller) {
-                                    activateWaiting(installing);
-                                }
-                            });
-                        });
-                        reg.update().catch(() => {});
-                    })
-                    .catch(err => console.error('[PWA] Error al registrar SW:', err));
-
-                let refreshing = false;
-                navigator.serviceWorker.addEventListener('controllerchange', () => {
-                    if (refreshing) return;
-                    refreshing = true;
-                    window.location.reload();
-                });
-            });
-        }
     </script>
 </body>
 
