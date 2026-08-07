@@ -10,4 +10,4 @@
  * 3. Reemplaza TODOS los ?v=... en index.html y login.html
  * 4. Despliega
  */
-var APP_VERSION = '3.7.3';
+var APP_VERSION = '3.7.4';

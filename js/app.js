@@ -81,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 5. Vincular listeners principales y lógica de formularios
         if (typeof initMasterEventDelegation === 'function') initMasterEventDelegation();
+        if (typeof initAttendanceEventDelegation === 'function') initAttendanceEventDelegation();
         if (typeof initMemberForm === 'function') initMemberForm();
         if (typeof bindReportInputs === 'function') bindReportInputs();
         if (typeof bindStrategyInputs === 'function') bindStrategyInputs();
