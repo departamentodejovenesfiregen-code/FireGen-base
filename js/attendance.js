@@ -275,6 +275,9 @@ function updateEngagementStatus(memberId) {
 
             const mo = members.find(x => x.firebaseId === memberId);
             if (mo && mo.estadoAsistencia !== nuevoEstado) {
+                if (typeof logHistoryEvent === 'function') {
+                    logHistoryEvent(memberId, 'Cambio de Asistencia Automático', mo.estadoAsistencia || 'Activo', nuevoEstado, 'Motor de Engagement');
+                }
                 db.ref('miembros/' + memberId).update({ estadoAsistencia: nuevoEstado })
                     .catch(err => console.error('[FireGen] Error al actualizar estado:', err));
                 if (nuevoEstado === 'Alejado') triggerRetentionAlert(mo);

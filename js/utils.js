@@ -158,4 +158,96 @@ function hideConnectionError() {
     if (banner) banner.classList.remove('show');
 }
 
+/* ── LÓGICA DE NEGOCIO: SISTEMA DE DISCIPULADO Y ACOMPAÑAMIENTO ── */
 
+/**
+ * getFormationPath — Determina la ruta de formación según el estado espiritual.
+ * @param {string} spiritualStatus
+ * @returns {string}
+ */
+function getFormationPath(spiritualStatus) {
+    const status = (spiritualStatus || '').toLowerCase();
+    if (status === 'nuevo') return 'Discipulado inicial / integración';
+    if (status === 'creyente') return 'Discipulado de crecimiento';
+    if (status === 'convertido') return 'Consolidación y crecimiento';
+    if (status === 'reconciliado') return 'Restauración y consolidación';
+    if (status === 'bautizado') return 'Formación y preparación para servir';
+    if (status === 'líder' || status === 'lider') return 'Formación de liderazgo y multiplicación';
+    return 'Sin ruta asignada';
+}
+
+/**
+ * getAttentionLevel — Determina el nivel de atención basado en la asistencia.
+ * @param {string} attendanceStatus
+ * @returns {string}
+ */
+function getAttentionLevel(attendanceStatus) {
+    const status = (attendanceStatus || '').toLowerCase();
+    if (status === 'activo') return 'Atención normal';
+    if (status === 'inconstante') return 'Atención preventiva';
+    if (status === 'enfriándose' || status === 'enfriandose') return 'Atención prioritaria';
+    if (status === 'alejándose' || status === 'alejando' || status === 'alejado') return 'Rescate';
+    return 'Atención normal'; // Default seguro
+}
+
+/**
+ * getSupportPlan — Determina el plan de acompañamiento basado en la asistencia.
+ * @param {string} attendanceStatus
+ * @returns {string}
+ */
+function getSupportPlan(attendanceStatus) {
+    const status = (attendanceStatus || '').toLowerCase();
+    if (status === 'activo') return 'Acompañamiento normal';
+    if (status === 'inconstante') return 'Acompañamiento preventivo';
+    if (status === 'enfriándose' || status === 'enfriandose') return 'Seguimiento prioritario';
+    if (status === 'alejándose' || status === 'alejando' || status === 'alejado') return 'Plan al Rescate';
+    return 'Acompañamiento normal'; // Default seguro
+}
+
+/**
+ * getRecommendedActions — Evalúa el miembro y devuelve recomendaciones sugeridas.
+ * @param {Object} member - Objeto del miembro
+ * @returns {string[]} Array de recomendaciones
+ */
+function getRecommendedActions(member) {
+    const recommendations = [];
+    const spiritual = (member.estadoEspiritual || '').toLowerCase();
+    const attendance = (member.estadoAsistencia || '').toLowerCase();
+
+    if (spiritual === 'nuevo' && attendance === 'activo') {
+        recommendations.push('Revisión espiritual recomendada: Nuevo activo.');
+    }
+    if (spiritual === 'reconciliado' && attendance === 'activo') {
+        recommendations.push('Revisión espiritual recomendada: Reconciliado activo.');
+    }
+    
+    // Si estaba en riesgo o alejamiento pero ahora está activo (esto se puede deducir de su estado actual)
+    // El histórico nos diría si estaba alejado, pero de momento evaluamos el estado actual
+    
+    return recommendations;
+}
+
+/**
+ * logHistoryEvent — Registra un evento en el historial de un miembro.
+ * @param {string} memberId - ID de Firebase del miembro
+ * @param {string} action - Acción realizada (ej. 'Cambio de Estado Espiritual')
+ * @param {string} oldValue - Valor anterior
+ * @param {string} newValue - Valor nuevo
+ * @param {string} note - Nota u observación opcional
+ */
+function logHistoryEvent(memberId, action, oldValue, newValue, note = '') {
+    if (!memberId || typeof db === 'undefined') return;
+    
+    const user = auth.currentUser;
+    const responsable = user ? (user.displayName || user.email || 'Sistema') : 'Sistema';
+    
+    const historyRef = db.ref('historial_cambios/' + memberId).push();
+    historyRef.set({
+        fecha: Date.now(),
+        accion: action,
+        valorAnterior: oldValue,
+        valorNuevo: newValue,
+        responsable: responsable,
+        nota: note
+    }).catch(err => console.error('[FireGen] Error al guardar historial:', err));
+}

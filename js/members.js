@@ -268,10 +268,29 @@ function initMemberForm() {
         };
 
         if (editId) {
+            // Verificar si el estado espiritual o asistencia cambió manualmente para registrar en el historial
+            const existingMember = members.find(m => m.firebaseId === editId);
+            if (existingMember && existingMember.estadoEspiritual !== payload.estadoEspiritual) {
+                if (typeof logHistoryEvent === 'function') {
+                    logHistoryEvent(editId, 'Cambio de Estado Espiritual', existingMember.estadoEspiritual || 'Nuevo', payload.estadoEspiritual);
+                }
+            }
+            if (existingMember && existingMember.estadoAsistencia !== payload.estadoAsistencia) {
+                if (typeof logHistoryEvent === 'function') {
+                    logHistoryEvent(editId, 'Cambio de Asistencia Manual', existingMember.estadoAsistencia || 'Activo', payload.estadoAsistencia);
+                }
+            }
+
             db.ref('miembros/' + editId).set(payload)
                 .catch(err => console.error('[FireGen] Error al actualizar:', err));
         } else {
-            db.ref('miembros').push(payload)
+            const newRef = db.ref('miembros').push();
+            newRef.set(payload)
+                .then(() => {
+                    if (typeof logHistoryEvent === 'function') {
+                        logHistoryEvent(newRef.key, 'Creación de Miembro', '', payload.estadoEspiritual, 'Estado inicial');
+                    }
+                })
                 .catch(err => console.error('[FireGen] Error al crear miembro:', err));
         }
         this.reset();

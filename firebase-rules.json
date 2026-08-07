@@ -2,6 +2,10 @@
   "rules": {
     ".read": false,
     ".write": false,
+    "historial_cambios": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
     "miembros": {
       ".read": "auth != null",
       ".write": "auth != null"

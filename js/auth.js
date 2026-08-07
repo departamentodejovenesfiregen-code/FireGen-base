@@ -42,6 +42,9 @@ function initAuth(onAuthenticated) {
         // Ocultar tab Config para no-admins (única restricción de UI)
         const tabConfig = document.getElementById('tab-config');
         if (tabConfig) tabConfig.style.display = isAdmin ? '' : 'none';
+        
+        const bnConfig = document.getElementById('bn-config');
+        if (bnConfig) bnConfig.style.display = isAdmin ? '' : 'none';
 
         // Cargar nombre del usuario desde Firebase (usuarios/{uid}/nombre)
         db.ref('usuarios/' + user.uid).once('value')
