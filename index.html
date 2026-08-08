@@ -33,7 +33,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"
         integrity="sha384-e6cc9LaIG7xZ3XD5B+jtr1NhTWPQGQdRCh6xiZ+ZFUtWCpg4ycv3Sh+SkZoopvUY"
         crossorigin="anonymous"></script>
-    <link href="css/styles.css?v=3.7.4" rel="stylesheet">
+    <link href="css/styles.css?v=3.7.5" rel="stylesheet">
 </head>
 
 <body class="p-2 md:p-8" style="display:none;" id="appBody">
@@ -222,15 +222,10 @@
                     <div class="table-container overflow-x-auto">
                         <table class="w-full text-left text-sm border-collapse">
                             <thead>
-                                <tr class="bg-slate-50">
+                                <tr id="attTableHeaders" class="bg-slate-50">
                                     <th class="p-4 border-b font-bold w-64">Nombre del Joven</th>
-                                    <th class="p-4 border-b text-center">Sem 1</th>
-                                    <th class="p-4 border-b text-center">Sem 2</th>
-                                    <th class="p-4 border-b text-center">Sem 3</th>
-                                    <th class="p-4 border-b text-center">Sem 4</th>
-                                    <th class="p-4 border-b text-center">Sem 5</th>
-                                    <th class="p-4 border-b text-center bg-orange-50 text-orange-700 font-black">TOTAL
-                                    </th>
+                                    <th class="p-4 border-b text-center">Sáb …</th>
+                                    <th class="p-4 border-b text-center bg-orange-50 text-orange-700 font-black">TOTAL</th>
                                     <th class="p-4 border-b">Observación</th>
                                 </tr>
                             </thead>
@@ -341,7 +336,7 @@
                                 </thead>
                                 <tbody>
                                     <tr class="border-b row-report-data">
-                                        <td class="p-4 border-r font-bold text-slate-500">Semana 1</td>
+                                        <td class="p-4 border-r font-bold text-slate-500"><span class="rep-sem-label">Semana 1</span></td>
                                         <td class="p-4 border-r"><input type="text"
                                                 class="w-full outline-none bg-transparent rep-tema" placeholder="Tema…">
                                         </td>
@@ -355,7 +350,7 @@
                                                 class="w-full text-center outline-none bg-transparent rep-decis"></td>
                                     </tr>
                                     <tr class="border-b row-report-data">
-                                        <td class="p-4 border-r font-bold text-slate-500">Semana 2</td>
+                                        <td class="p-4 border-r font-bold text-slate-500"><span class="rep-sem-label">Semana 2</span></td>
                                         <td class="p-4 border-r"><input type="text"
                                                 class="w-full outline-none bg-transparent rep-tema" placeholder="Tema…">
                                         </td>
@@ -369,7 +364,7 @@
                                                 class="w-full text-center outline-none bg-transparent rep-decis"></td>
                                     </tr>
                                     <tr class="border-b row-report-data">
-                                        <td class="p-4 border-r font-bold text-slate-500">Semana 3</td>
+                                        <td class="p-4 border-r font-bold text-slate-500"><span class="rep-sem-label">Semana 3</span></td>
                                         <td class="p-4 border-r"><input type="text"
                                                 class="w-full outline-none bg-transparent rep-tema" placeholder="Tema…">
                                         </td>
@@ -383,7 +378,7 @@
                                                 class="w-full text-center outline-none bg-transparent rep-decis"></td>
                                     </tr>
                                     <tr class="border-b row-report-data">
-                                        <td class="p-4 border-r font-bold text-slate-500">Semana 4</td>
+                                        <td class="p-4 border-r font-bold text-slate-500"><span class="rep-sem-label">Semana 4</span></td>
                                         <td class="p-4 border-r"><input type="text"
                                                 class="w-full outline-none bg-transparent rep-tema" placeholder="Tema…">
                                         </td>
@@ -642,6 +637,8 @@
             <form id="memberForm"
                 class="p-4 md:p-8 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 overflow-y-auto flex-1">
                 <input type="hidden" id="editMemberId">
+                <!-- FASE3-S1: Fecha de incorporación individual para motor de engagement -->
+                <input type="hidden" id="fechaIncorporacionHidden" name="fechaIncorporacion">
 
                 <div class="md:col-span-2">
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Nombre Completo *</label>
@@ -668,8 +665,8 @@
                     <select name="estadoEspiritual"
                         class="w-full p-3.5 border border-slate-200 rounded-xl outline-none bg-white focus:ring-4 focus:ring-orange-100 focus:border-orange-500">
                         <option>Nuevo</option>
-                        <option>Nuevo convertido</option>
-                        <option>En discipulado</option>
+                        <option>Creyente</option>
+                        <option>Convertido</option>
                         <option>Bautizado</option>
                         <option>Líder</option>
                     </select>
@@ -696,7 +693,7 @@
                         <option>Activo</option>
                         <option>Inconstante</option>
                         <option>Enfriándose</option>
-                        <option>Alejado</option>
+                        <option>Alejándose</option>
                     </select>
                 </div>
                 <div>
@@ -1012,21 +1009,21 @@
         </div>
     </div>
 
-    <!-- ════════════════════════ JAVASCRIPT MODULAR (build 3.7.4) ════════════════════════ -->
-    <script src="js/version.js?v=3.7.4"></script>
-    <script src="js/pwa.js?v=3.7.4"></script>
-    <script src="js/firebase-config.js?v=3.7.4"></script>
-    <script src="js/config.js?v=3.7.4"></script>
-    <script src="js/utils.js?v=3.7.4"></script>
-    <script src="js/charts.js?v=3.7.4"></script>
-    <script src="js/members.js?v=3.7.4"></script>
-    <script src="js/attendance.js?v=3.7.4"></script>
-    <script src="js/reports.js?v=3.7.4"></script>
-    <script src="js/strategy.js?v=3.7.4"></script>
-    <script src="js/auth.js?v=3.7.4"></script>
-    <script src="js/admin-config.js?v=3.7.4"></script>
-    <script src="js/user-management.js?v=3.7.4"></script>
-    <script src="js/app.js?v=3.7.4"></script>
+    <!-- ════════════════════════ JAVASCRIPT MODULAR (build 3.7.5) ════════════════════════ -->
+    <script src="js/version.js?v=3.7.5"></script>
+    <script src="js/pwa.js?v=3.7.5"></script>
+    <script src="js/firebase-config.js?v=3.7.5"></script>
+    <script src="js/config.js?v=3.7.5"></script>
+    <script src="js/utils.js?v=3.7.5"></script>
+    <script src="js/charts.js?v=3.7.5"></script>
+    <script src="js/members.js?v=3.7.5"></script>
+    <script src="js/attendance.js?v=3.7.5"></script>
+    <script src="js/reports.js?v=3.7.5"></script>
+    <script src="js/strategy.js?v=3.7.5"></script>
+    <script src="js/auth.js?v=3.7.5"></script>
+    <script src="js/admin-config.js?v=3.7.5"></script>
+    <script src="js/user-management.js?v=3.7.5"></script>
+    <script src="js/app.js?v=3.7.5"></script>
 </body>
 
 </html>

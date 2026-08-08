@@ -215,6 +215,9 @@ function editMember(fid) {
         preview.classList.add('hidden');
         placeholder.classList.remove('hidden');
     }
+    // Rellenar campo oculto fechaIncorporacion (FASE3-S1)
+    const fechaIncHidden = document.getElementById('fechaIncorporacionHidden');
+    if (fechaIncHidden) fechaIncHidden.value = m.fechaIncorporacion || '';
     openModal('userModal');
 }
 
@@ -266,6 +269,22 @@ function initMemberForm() {
             fotoURL:             isSafeUrl(fotoURL) ? fotoURL : '',
             descripcionPersonal: fd.get('descripcionPersonal')
         };
+
+        // FASE3-S1: Gestionar fechaIncorporacion
+        const fechaIncRaw = fd.get('fechaIncorporacion') || '';
+        if (editId) {
+            // En edición: preservar la fecha existente si el campo está vacío
+            const existingMember2 = members.find(m => m.firebaseId === editId);
+            payload.fechaIncorporacion = fechaIncRaw ||
+                (existingMember2 && existingMember2.fechaIncorporacion) || '';
+        } else {
+            // En creación: usar la fecha de hoy si no se preinformó
+            const today = new Date();
+            const yy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            payload.fechaIncorporacion = fechaIncRaw || `${yy}-${mm}-${dd}`;
+        }
 
         if (editId) {
             // Verificar si el estado espiritual o asistencia cambió manualmente para registrar en el historial
@@ -480,7 +499,13 @@ function syncServiceCounter() {
 }
 
 function syncAlejadosCounter() {
-    const alejados = members.filter(m => m.estadoAsistencia === 'Alejado').length;
+    // FASE3-S1: Usar normalizeAttendanceStatus para compatibilidad con datos históricos
+    const alejados = members.filter(m => {
+        const estado = (typeof normalizeAttendanceStatus === 'function')
+            ? normalizeAttendanceStatus(m.estadoAsistencia)
+            : m.estadoAsistencia;
+        return estado === 'Alejándose';
+    }).length;
     document.getElementById('inp-alejados').value = alejados;
     const p = document.getElementById('repPeriodo').value;
     if (p) db.ref('informes/' + p).update({ alejados }).catch(() => {});

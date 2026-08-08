@@ -124,6 +124,7 @@ function getStatusClass(s) {
 
 /**
  * getEngagementClass — Clase CSS para el estado de asistencia.
+ * FASE3-S1: Reconoce 'Alejándose' y 'Alejado' (compatibilidad con datos históricos).
  * @param {string} s
  * @returns {string}
  */
@@ -131,7 +132,7 @@ function getEngagementClass(s) {
     if (s === 'Activo')       return 'eng-activo';
     if (s === 'Inconstante')  return 'eng-inconstante';
     if (s === 'Enfriandose' || s === 'Enfriándose') return 'eng-enfriando';
-    if (s === 'Alejado')      return 'eng-alejado';
+    if (s === 'Alejándose' || s === 'Alejando' || s === 'Alejado') return 'eng-alejado';
     return 'bg-slate-100 text-slate-600';
 }
 
@@ -186,7 +187,7 @@ function getAttentionLevel(attendanceStatus) {
     if (status === 'activo') return 'Atención normal';
     if (status === 'inconstante') return 'Atención preventiva';
     if (status === 'enfriándose' || status === 'enfriandose') return 'Atención prioritaria';
-    if (status === 'alejándose' || status === 'alejando' || status === 'alejado') return 'Rescate';
+    if (status === 'alejándose' || status === 'alejandose' || status === 'alejando' || status === 'alejado') return 'Rescate';
     return 'Atención normal'; // Default seguro
 }
 
@@ -200,7 +201,7 @@ function getSupportPlan(attendanceStatus) {
     if (status === 'activo') return 'Acompañamiento normal';
     if (status === 'inconstante') return 'Acompañamiento preventivo';
     if (status === 'enfriándose' || status === 'enfriandose') return 'Seguimiento prioritario';
-    if (status === 'alejándose' || status === 'alejando' || status === 'alejado') return 'Plan al Rescate';
+    if (status === 'alejándose' || status === 'alejandose' || status === 'alejando' || status === 'alejado') return 'Plan al Rescate';
     return 'Acompañamiento normal'; // Default seguro
 }
 
@@ -220,10 +221,6 @@ function getRecommendedActions(member) {
     if (spiritual === 'reconciliado' && attendance === 'activo') {
         recommendations.push('Revisión espiritual recomendada: Reconciliado activo.');
     }
-    
-    // Si estaba en riesgo o alejamiento pero ahora está activo (esto se puede deducir de su estado actual)
-    // El histórico nos diría si estaba alejado, pero de momento evaluamos el estado actual
-    
     return recommendations;
 }
 
@@ -237,10 +234,10 @@ function getRecommendedActions(member) {
  */
 function logHistoryEvent(memberId, action, oldValue, newValue, note = '') {
     if (!memberId || typeof db === 'undefined') return;
-    
+
     const user = auth.currentUser;
     const responsable = user ? (user.displayName || user.email || 'Sistema') : 'Sistema';
-    
+
     const historyRef = db.ref('historial_cambios/' + memberId).push();
     historyRef.set({
         fecha: Date.now(),
@@ -251,3 +248,100 @@ function logHistoryEvent(memberId, action, oldValue, newValue, note = '') {
         nota: note
     }).catch(err => console.error('[FireGen] Error al guardar historial:', err));
 }
+
+/* ── FASE 3 · SUBETAPA 1: CALENDARIO DE SÁBADOS Y NORMALIZACIÓN ── */
+
+/**
+ * getOperationalSaturdays — Devuelve los sábados operativos de un mes.
+ * Un sábado es "operativo" si cae dentro del período de gestión configurado.
+ *
+ * FASE3-S1: Fuente de verdad para todas las columnas de la nómina.
+ *
+ * @param {number} year  - Año (ej. 2026)
+ * @param {number} month - Mes 1-indexed (ej. 8 = agosto)
+ * @returns {string[]} Array de fechas "YYYY-MM-DD" correspondientes a los sábados operativos
+ *
+ * Ejemplos:
+ *   getOperationalSaturdays(2026, 7) → ["2026-07-25"]
+ *   getOperationalSaturdays(2026, 8) → ["2026-08-01","2026-08-08","2026-08-15","2026-08-22","2026-08-29"]
+ *   getOperationalSaturdays(2026, 9) → ["2026-09-05","2026-09-12","2026-09-19","2026-09-26"]
+ */
+function getOperationalSaturdays(year, month) {
+    // Obtener fechas de inicio y fin del período desde AppConfig
+    const periodStart = (AppConfig.current && AppConfig.current.period && AppConfig.current.period.start)
+        ? AppConfig.current.period.start
+        : (AppConfig.defaults.period.start);
+    const periodEnd = (AppConfig.current && AppConfig.current.period && AppConfig.current.period.end)
+        ? AppConfig.current.period.end
+        : (AppConfig.defaults.period.end);
+
+    const start = new Date(periodStart + 'T00:00:00');
+    const end   = new Date(periodEnd   + 'T00:00:00');
+
+    // Primer día del mes solicitado
+    const firstDay = new Date(year, month - 1, 1);
+    // Último día del mes solicitado
+    const lastDay  = new Date(year, month, 0);
+
+    const saturdays = [];
+
+    // Encontrar el primer sábado del mes (día de semana 6 = sábado)
+    const d = new Date(firstDay);
+    const dayOfWeek = d.getDay(); // 0=Dom…6=Sáb
+    const daysToSaturday = (6 - dayOfWeek + 7) % 7;
+    d.setDate(d.getDate() + daysToSaturday);
+
+    // Iterar todos los sábados del mes
+    while (d <= lastDay) {
+        // Sólo incluir si está dentro del período de gestión
+        if (d >= start && d <= end) {
+            const yyyy = d.getFullYear();
+            const mm   = String(d.getMonth() + 1).padStart(2, '0');
+            const dd   = String(d.getDate()).padStart(2, '0');
+            saturdays.push(`${yyyy}-${mm}-${dd}`);
+        }
+        d.setDate(d.getDate() + 7);
+    }
+
+    return saturdays;
+}
+
+/**
+ * getOperationalSaturdaysForPeriod — Wrapper que acepta un string "YYYY-MM".
+ * @param {string} periodo - Formato "YYYY-MM"
+ * @returns {string[]} Array de fechas sábado operativas
+ */
+function getOperationalSaturdaysForPeriod(periodo) {
+    if (!periodo) return [];
+    const [y, m] = periodo.split('-').map(Number);
+    return getOperationalSaturdays(y, m);
+}
+
+/**
+ * normalizeAttendanceStatus — Normaliza valores históricos de estadoAsistencia.
+ * Convierte valores legacy ('Alejado') al nuevo estándar ('Alejándose').
+ * No modifica Firebase; solo normaliza en memoria para UI y cálculos.
+ *
+ * FASE3-S1: Compatibilidad con registros existentes.
+ *
+ * @param {string} s - Valor de estadoAsistencia desde Firebase
+ * @returns {string} Valor normalizado
+ */
+function normalizeAttendanceStatus(s) {
+    if (!s) return 'Activo';
+    if (s === 'Alejado' || s === 'Alejando') return 'Alejándose';
+    if (s === 'Enfriandose') return 'Enfriándose';
+    return s;
+}
+
+/**
+ * getSaturdayLabel — Genera la etiqueta "Sáb DD" para una fecha de sábado.
+ * @param {string} dateStr - Fecha en formato "YYYY-MM-DD"
+ * @returns {string} Etiqueta formateada, ej. "Sáb 01"
+ */
+function getSaturdayLabel(dateStr) {
+    if (!dateStr) return 'Sáb ?';
+    const day = dateStr.split('-')[2];
+    return `Sáb ${day}`;
+}
+

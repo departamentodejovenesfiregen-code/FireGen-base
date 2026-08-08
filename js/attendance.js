@@ -1,29 +1,36 @@
-/**
+﻿/**
  * FireGen V3.0 — js/attendance.js
  * ─────────────────────────────────────────────────────────────
  * MÓDULO DE ASISTENCIA
- * Control nominal de asistencia por periodo (semanas 1-5),
- * sincronización automática hacia el Informe Mensual y motor
- * de estado de engagement.
+ * FASE3-S1: Nómina basada en sábados reales del calendario.
+ *
+ * Cambios FASE3-S1:
+ *  - Las columnas representan sábados operativos reales (Sáb DD).
+ *  - El número de columnas varía según el mes (1 a 5 sábados).
+ *  - El motor de engagement usa fechas reales, incorporación individual y
+ *    excluye el estado ? (=3) de todos los cálculos.
+ *  - Recuperación sostenida (≥4 asistencias consecutivas) → Activo.
+ *  - Prioridad: Alejándose > Enfriándose > recuperación > Inconstante > Activo.
  *
  * Dependencias: firebase-config.js, utils.js, members.js
  * ─────────────────────────────────────────────────────────────
  */
 
 /* ── Estado del módulo ── */
-let currentAttData = {};
+let currentAttData  = {};
 let currentAttNotes = {};
 let currentAttPeriod = '';
 
+// Sábados actuales del período renderizado (cache para no recalcular en cada click)
+let currentSaturdays = [];
+
 // Referencia y callback del listener de asistencia (para .off() preciso)
-let attendanceRef = null;
+let attendanceRef      = null;
 let attendanceCallback = null;
 
 /**
  * syncAttendance — Abre el listener reactivo de Firebase para el periodo dado.
- * FIX: JS-02 — Guarda la referencia y el callback exactos para desregistrar
- * únicamente ese listener, evitando fugas al cambiar de mes repetidamente.
- * FIX: JS-07 — Handler de error visible.
+ * FASE3-S1: Usa getOperationalSaturdaysForPeriod() para conocer cuántas semanas hay.
  * @param {string} periodo - Formato YYYY-MM
  */
 function syncAttendance(periodo) {
@@ -36,18 +43,27 @@ function syncAttendance(periodo) {
         attendanceRef.off('value', attendanceCallback);
     }
     currentAttPeriod = periodo;
-    currentAttData = {};
-    currentAttNotes = {};
+    currentAttData   = {};
+    currentAttNotes  = {};
+
+    // FASE3-S1: Calcular sábados operativos de este período
+    currentSaturdays = getOperationalSaturdaysForPeriod(periodo);
 
     attendanceRef = db.ref('asistencias/' + periodo);
     attendanceCallback = attendanceRef.on('value',
         snap => {
             hideConnectionError();
             const d = snap.val() || {};
-            currentAttData = {};
+            currentAttData  = {};
             currentAttNotes = {};
+            const n = currentSaturdays.length;
             Object.keys(d).forEach(fid => {
-                currentAttData[fid] = d[fid].semanas || [3, 3, 3, 3, 3];
+                // Compatibilidad: ajustar array al número real de sábados
+                const raw = d[fid].semanas || [];
+                const sem = Array.from({ length: n }, (_, i) =>
+                    (raw[i] !== undefined) ? raw[i] : 3
+                );
+                currentAttData[fid]  = sem;
                 currentAttNotes[fid] = d[fid].nota || '';
             });
             renderAttendance();
@@ -62,7 +78,6 @@ function syncAttendance(periodo) {
 
 /**
  * destroyAttendanceListener — Desregistra el listener de asistencia.
- * Llamar al hacer logout para liberar recursos.
  */
 function destroyAttendanceListener() {
     if (attendanceRef && attendanceCallback) {
@@ -74,27 +89,41 @@ function destroyAttendanceListener() {
 
 /**
  * renderAttendance — Renderiza la tabla desktop y la lista móvil de asistencia.
- * FIX: SEC-01 — Nombres escapados con escHtml().
- * FIX: SEC-03 — data-fid + data-week + event delegation en lugar de onclick inline.
+ * FASE3-S1: Genera columnas dinámicas con etiquetas "Sáb DD" según sábados reales.
  */
 function renderAttendance() {
-    const periodo = document.getElementById('attMonthSelector').value;
+    const periodo   = document.getElementById('attMonthSelector').value;
+    const saturdays = getOperationalSaturdaysForPeriod(periodo);
+    const n         = saturdays.length;
+
+    // ── Actualizar encabezados de tabla desktop ──────────────
+    const thead = document.getElementById('attTableHeaders');
+    if (thead) {
+        let hHtml = `<th class="p-4 border-b font-bold w-64">Nombre del Joven</th>`;
+        saturdays.forEach(sat => {
+            hHtml += `<th class="p-4 border-b text-center">${getSaturdayLabel(sat)}</th>`;
+        });
+        hHtml += `<th class="p-4 border-b text-center bg-orange-50 text-orange-700 font-black">TOTAL</th>`;
+        hHtml += `<th class="p-4 border-b">Observación</th>`;
+        thead.innerHTML = hHtml;
+    }
 
     // ── Tabla Desktop ────────────────────────────────────────
-    const body = document.getElementById('attendanceBody');
+    const body  = document.getElementById('attendanceBody');
     const empty = document.getElementById('emptyAttendance');
     body.innerHTML = '';
     empty.classList.toggle('hidden', members.length > 0);
 
     members.forEach(m => {
-        const sem = currentAttData[m.firebaseId] || [3, 3, 3, 3, 3];
+        const sem  = currentAttData[m.firebaseId] || Array(n).fill(3);
         const nota = currentAttNotes[m.firebaseId] || '';
         const total = sem.reduce((a, s) => a + (s === 1 || s === 2 ? 1 : 0), 0);
-        const row = document.createElement('tr');
+        const row   = document.createElement('tr');
 
         let c = `<td class="p-4 font-bold text-slate-800">${escHtml(m.nombre)}</td>`;
         sem.forEach((st, i) => {
-            c += `<td class="p-4 text-center"><div data-action="toggle-att" data-fid="${escHtml(m.firebaseId)}" data-week="${i}" data-periodo="${escHtml(periodo)}" class="btn-attendance mx-auto ${getAttClass(st)}">${getAttIcon(st)}</div></td>`;
+            const satDate = saturdays[i] || '';
+            c += `<td class="p-4 text-center"><div data-action="toggle-att" data-fid="${escHtml(m.firebaseId)}" data-week="${i}" data-periodo="${escHtml(periodo)}" data-satdate="${escHtml(satDate)}" class="btn-attendance mx-auto ${getAttClass(st)}">${getAttIcon(st)}</div></td>`;
         });
         c += `<td class="p-4 text-center bg-orange-50 font-black text-orange-700 text-lg">${total}</td>`;
         c += `<td class="p-4"><input type="text" value="${escHtml(nota)}" data-action="att-note" data-fid="${escHtml(m.firebaseId)}" data-periodo="${escHtml(periodo)}" class="w-full bg-transparent outline-none text-xs italic text-slate-400" placeholder="Nota..."></td>`;
@@ -103,7 +132,7 @@ function renderAttendance() {
     });
 
     // ── Lista Móvil ──────────────────────────────────────────
-    const mobileList = document.getElementById('attendanceMobileList');
+    const mobileList  = document.getElementById('attendanceMobileList');
     const mobileEmpty = document.getElementById('emptyAttendanceMobile');
     Array.from(mobileList.children).forEach(c => {
         if (!c.classList.contains('flex') && c.id !== 'emptyAttendanceMobile') c.remove();
@@ -116,23 +145,24 @@ function renderAttendance() {
     mobileEmpty.classList.add('hidden');
 
     members.forEach(m => {
-        const sem = currentAttData[m.firebaseId] || [3, 3, 3, 3, 3];
+        const sem  = currentAttData[m.firebaseId] || Array(n).fill(3);
         const nota = currentAttNotes[m.firebaseId] || '';
         const total = sem.reduce((a, s) => a + (s === 1 || s === 2 ? 1 : 0), 0);
-        const card = document.createElement('div');
+        const card  = document.createElement('div');
         card.className = 'mobile-att-card';
 
         let weeksHtml = '';
         sem.forEach((st, i) => {
-            weeksHtml += `<div data-action="toggle-att" data-fid="${escHtml(m.firebaseId)}" data-week="${i}" data-periodo="${escHtml(periodo)}" class="btn-attendance ${getAttClass(st)}" style="width:30px;height:30px;font-size:12px">${getAttIcon(st)}</div>`;
+            const satDate = saturdays[i] || '';
+            const label   = getSaturdayLabel(satDate);
+            weeksHtml += `<div style="text-align:center;margin:0 2px"><div style="font-size:9px;color:#94a3b8;margin-bottom:2px">${escHtml(label)}</div><div data-action="toggle-att" data-fid="${escHtml(m.firebaseId)}" data-week="${i}" data-periodo="${escHtml(periodo)}" data-satdate="${escHtml(satDate)}" class="btn-attendance ${getAttClass(st)}" style="width:30px;height:30px;font-size:12px">${getAttIcon(st)}</div></div>`;
         });
 
         card.innerHTML = `
             <div class="mobile-att-info">
                 <div class="mobile-att-name">${escHtml(m.nombre)}</div>
-                <div class="mobile-att-label">Semanas →</div>
-                <div class="mobile-att-weeks">${weeksHtml}
-                    <div class="btn-attendance" style="width:30px;height:30px;font-size:11px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;font-weight:900">${total}</div>
+                <div class="mobile-att-weeks" style="display:flex;align-items:flex-end;gap:4px;flex-wrap:wrap;margin:6px 0">${weeksHtml}
+                    <div style="text-align:center;margin:0 2px"><div style="font-size:9px;color:#94a3b8;margin-bottom:2px">Total</div><div class="btn-attendance" style="width:30px;height:30px;font-size:11px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;font-weight:900">${total}</div></div>
                 </div>
                 <input type="text" value="${escHtml(nota)}" data-action="att-note" data-fid="${escHtml(m.firebaseId)}" data-periodo="${escHtml(periodo)}"
                     class="w-full bg-transparent outline-none text-xs italic text-slate-400 mt-2 border-b border-dashed border-slate-200" placeholder="Observación…">
@@ -142,9 +172,7 @@ function renderAttendance() {
 }
 
 /**
- * initAttendanceEventDelegation — Configura event delegation para la tabla
- * y la lista móvil de asistencia.
- * FIX: SEC-03 — Elimina onclick/oninput inline.
+ * initAttendanceEventDelegation — Configura event delegation para la tabla y lista móvil.
  */
 function initAttendanceEventDelegation() {
     function handleClick(e) {
@@ -159,7 +187,7 @@ function initAttendanceEventDelegation() {
         const { fid, periodo } = el.dataset;
         saveAttNote(fid, periodo, el.value);
     }
-    const body = document.getElementById('attendanceBody');
+    const body       = document.getElementById('attendanceBody');
     const mobileList = document.getElementById('attendanceMobileList');
     body.addEventListener('click', handleClick);
     body.addEventListener('input', handleInput);
@@ -167,8 +195,13 @@ function initAttendanceEventDelegation() {
     mobileList.addEventListener('input', handleInput);
 }
 
+/**
+ * toggleAtt — Cicla el estado de un miembro en un sábado.
+ * FASE3-S1: El array sem tiene longitud N (sábados reales), no siempre 5.
+ */
 function toggleAtt(fid, week, periodo) {
-    const sem = (currentAttData[fid] || [3, 3, 3, 3, 3]).slice();
+    const n   = currentSaturdays.length || 5;
+    const sem = (currentAttData[fid] || Array(n).fill(3)).slice();
     sem[week] = (sem[week] + 1) % 4;
     currentAttData[fid] = sem;
     db.ref('asistencias/' + periodo + '/' + fid).update({ semanas: sem })
@@ -178,18 +211,17 @@ function toggleAtt(fid, week, periodo) {
     renderAttendance();
 }
 
-// FIX: OPT-07 — debounce sobre updateEngagementStatus para evitar ráfagas
-// de lecturas Firebase cuando el usuario marca varias semanas seguidas.
+// OPT-07 — debounce sobre updateEngagementStatus
 const updateEngagementStatusDebounced = debounce(updateEngagementStatus, 600);
 
-// FIX: OPT-02 — debounce de 800ms para no escribir en cada tecla.
+// OPT-02 — debounce de 800ms para notas
 const saveAttNote = debounce(function (fid, periodo, val) {
     db.ref('asistencias/' + periodo + '/' + fid).update({ nota: val })
         .catch(err => console.error('[FireGen] Error al guardar nota:', err));
 }, 800);
 
 function getAttClass(s) { return s === 1 ? 'att-present' : s === 0 ? 'att-absent' : s === 2 ? 'att-new' : 'att-empty'; }
-function getAttIcon(s) { return s === 1 ? '✔' : s === 0 ? '✖' : s === 2 ? 'N' : '?'; }
+function getAttIcon(s)  { return s === 1 ? '✔' : s === 0 ? '✖' : s === 2 ? 'N' : '?'; }
 
 function changeAttendanceMonth() {
     updateAttDisplayDate();
@@ -206,17 +238,22 @@ function updateAttDisplayDate() {
 
 /* ── ASISTENCIA → INFORME: sincronización automática ────────── */
 
+/**
+ * pushAttendanceToReport — Sincroniza totales al informe mensual.
+ * FASE3-S1: Itera sobre los sábados reales, oculta filas sin sábado.
+ */
 function pushAttendanceToReport() {
     const repPeriodoEl = document.getElementById('repPeriodo');
     const periodo = repPeriodoEl ? repPeriodoEl.value : currentAttPeriod;
-    // FIX: JS-04 — guard mejorada: solo sincroniza si el periodo del informe
-    // coincide con el periodo de asistencia actualmente cargado.
     if (!periodo || periodo !== currentAttPeriod) return;
 
-    const presentes = [0, 0, 0, 0, 0];
-    const nuevos = [0, 0, 0, 0, 0];
+    const saturdays = getOperationalSaturdaysForPeriod(periodo);
+    const n         = saturdays.length;
+
+    const presentes = Array(n).fill(0);
+    const nuevos    = Array(n).fill(0);
     members.forEach(m => {
-        const sem = currentAttData[m.firebaseId] || [3, 3, 3, 3, 3];
+        const sem = currentAttData[m.firebaseId] || Array(n).fill(3);
         sem.forEach((s, i) => {
             if (s === 1) presentes[i]++;
             if (s === 2) { presentes[i]++; nuevos[i]++; }
@@ -226,11 +263,23 @@ function pushAttendanceToReport() {
     const rows = document.querySelectorAll('.row-report-data');
     const updates = {};
     rows.forEach((row, i) => {
-        row.querySelector('.rep-asist').value = presentes[i] || '';
-        row.querySelector('.rep-nuevos').value = nuevos[i] || '';
-        updates[`sem${i + 1}/asist`] = presentes[i] || 0;
-        updates[`sem${i + 1}/nuevos`] = nuevos[i] || 0;
+        if (i >= n) {
+            row.style.display = 'none';
+            return;
+        }
+        row.style.display = '';
+        const asistEl  = row.querySelector('.rep-asist');
+        const nuevosEl = row.querySelector('.rep-nuevos');
+        if (asistEl)  asistEl.value  = presentes[i] || '';
+        if (nuevosEl) nuevosEl.value = nuevos[i]    || '';
+        updates[`sem${i + 1}/asist`]  = presentes[i] || 0;
+        updates[`sem${i + 1}/nuevos`] = nuevos[i]    || 0;
+
+        // Actualizar etiqueta de semana en el informe si existe el elemento
+        const semLabel = row.querySelector('.rep-sem-label');
+        if (semLabel) semLabel.textContent = getSaturdayLabel(saturdays[i]);
     });
+
     if (periodo) {
         db.ref('informes/' + periodo).update(updates)
             .catch(err => console.error('[FireGen] Error al sincronizar informe:', err));
@@ -239,48 +288,106 @@ function pushAttendanceToReport() {
     flashBadge('attSyncBadge');
 }
 
-/* ── MOTOR DE ENGAGEMENT ──────────────────────────────────────── */
+/* ── MOTOR DE ENGAGEMENT (FASE3-S1) ─────────────────────────── */
 
+/**
+ * updateEngagementStatus — Motor de clasificación de asistencia individual.
+ *
+ * FASE3-S1 — Lógica reescrita:
+ *  1. Obtiene sábados reales de los últimos 2 meses.
+ *  2. Filtra desde la fecha de incorporación del miembro.
+ *  3. Excluye ? (=3) de todos los cálculos.
+ *  4. Calcula: porcentaje, racha de faltas recientes, racha de asistencias recientes.
+ *  5. Prioridad: Alejándose (≥5) > Enfriándose (3-4) > recuperación (≥4) > Inconstante (<50%) > Activo.
+ *  6. No clasifica agresivamente con < 4 sábados evaluables.
+ *
+ * @param {string} memberId
+ */
 function updateEngagementStatus(memberId) {
+    const member = members.find(x => x.firebaseId === memberId);
+    if (!member) return;
+
+    const periodStart = (AppConfig.current && AppConfig.current.period && AppConfig.current.period.start)
+        ? AppConfig.current.period.start
+        : AppConfig.defaults.period.start;
+    const incorporacion = new Date((member.fechaIncorporacion || periodStart) + 'T00:00:00');
+
     const now = new Date();
     const periodos = [];
     for (let i = 0; i < 2; i++) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         periodos.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
     }
+
     Promise.all(periodos.map(p => db.ref('asistencias/' + p + '/' + memberId).once('value')))
         .then(snaps => {
-            let allWeeks = [];
-            snaps.forEach(snap => {
-                const d = snap.val();
-                const sem = (d && d.semanas) ? d.semanas : [3, 3, 3, 3, 3];
-                allWeeks = allWeeks.concat(sem);
+            // Construir mapa fecha → estado
+            const recordMap = {};
+            snaps.forEach((snap, idx) => {
+                const p = periodos[idx];
+                const [y, m] = p.split('-').map(Number);
+                const sats = getOperationalSaturdays(y, m);
+                const d    = snap.val();
+                const sem  = (d && d.semanas) ? d.semanas : [];
+                sats.forEach((satDate, i) => {
+                    recordMap[satDate] = (sem[i] !== undefined) ? sem[i] : 3;
+                });
             });
-            const last8 = allWeeks.slice(0, 8);
-            const total = last8.filter(s => s !== 3).length;
-            const present = last8.filter(s => s === 1 || s === 2).length;
-            const pct = total > 0 ? present / Math.min(total, 8) : 0;
 
-            const recent = snaps[0].val();
-            const prevSnap = snaps[1] && snaps[1].val();
-            const recentWeeks = recent && recent.semanas ? recent.semanas : [3, 3, 3, 3, 3];
-            const prevWeeks = prevSnap && prevSnap.semanas ? prevSnap.semanas : [3, 3, 3, 3, 3];
-            const asistio21 = recentWeeks.filter(s => s !== 3).slice(-3).some(s => s === 1 || s === 2);
-            const asistio60 = [...recentWeeks, ...prevWeeks].filter(s => s !== 3).slice(-8).some(s => s === 1 || s === 2);
+            // Filtrar sólo desde la incorporación del miembro, ordenados cronológicamente
+            const evaluableDates = Object.keys(recordMap)
+                .filter(dateStr => new Date(dateStr + 'T00:00:00') >= incorporacion)
+                .sort();
 
-            let nuevoEstado = 'Activo';
-            if (!asistio60) nuevoEstado = 'Alejado';
-            else if (!asistio21) nuevoEstado = 'Enfriándose';
-            else if (pct < 0.5) nuevoEstado = 'Inconstante';
+            const history = evaluableDates.map(d => recordMap[d]);
 
-            const mo = members.find(x => x.firebaseId === memberId);
-            if (mo && mo.estadoAsistencia !== nuevoEstado) {
+            // Historial insuficiente → no cambiar estado automáticamente
+            const realCount = history.filter(s => s !== 3).length;
+            if (realCount < 4) return;
+
+            // ── Racha RECIENTE de faltas (desde el final, ignorando ?) ──
+            let recentAbsentStreak = 0, recentPresentStreak = 0;
+            let countingAbsent = true, countingPresent = true;
+            for (let i = history.length - 1; i >= 0; i--) {
+                const s = history[i];
+                if (s === 3) continue;
+                if (countingAbsent) {
+                    if (s === 0) recentAbsentStreak++;
+                    else countingAbsent = false;
+                }
+                if (countingPresent) {
+                    if (s === 1 || s === 2) recentPresentStreak++;
+                    else countingPresent = false;
+                }
+                if (!countingAbsent && !countingPresent) break;
+            }
+
+            // ── Porcentaje de asistencia (excluye ?) ──
+            let asistencias = 0, evaluables = 0;
+            history.forEach(s => {
+                if (s === 3) return;
+                evaluables++;
+                if (s === 1 || s === 2) asistencias++;
+            });
+            const porcentaje = evaluables > 0 ? asistencias / evaluables : 1;
+
+            // ── Clasificación por prioridad ──
+            let nuevoEstado;
+            if (recentAbsentStreak >= 5)      nuevoEstado = 'Alejándose';
+            else if (recentAbsentStreak >= 3)  nuevoEstado = 'Enfriándose';
+            else if (recentPresentStreak >= 4) nuevoEstado = 'Activo';
+            else if (porcentaje < 0.5)         nuevoEstado = 'Inconstante';
+            else                               nuevoEstado = 'Activo';
+
+            // ── Aplicar si cambió ──
+            const estadoActual = normalizeAttendanceStatus(member.estadoAsistencia);
+            if (estadoActual !== nuevoEstado) {
                 if (typeof logHistoryEvent === 'function') {
-                    logHistoryEvent(memberId, 'Cambio de Asistencia Automático', mo.estadoAsistencia || 'Activo', nuevoEstado, 'Motor de Engagement');
+                    logHistoryEvent(memberId, 'Cambio de Asistencia Automático', estadoActual, nuevoEstado, 'Motor FASE3-S1');
                 }
                 db.ref('miembros/' + memberId).update({ estadoAsistencia: nuevoEstado })
                     .catch(err => console.error('[FireGen] Error al actualizar estado:', err));
-                if (nuevoEstado === 'Alejado') triggerRetentionAlert(mo);
+                if (nuevoEstado === 'Alejándose') triggerRetentionAlert(member);
             }
         })
         .catch(err => console.error('[FireGen Engagement] Error al leer historial:', err));
@@ -302,12 +409,11 @@ function triggerRetentionAlert(member) {
 
 /**
  * addRescueChip — Agrega un chip visual de alerta de rescate.
- * FIX: SEC-01 — Nombre y teléfono escapados.
  */
 function addRescueChip(fid, nombre, telefono) {
     const container = document.getElementById('rescue-alerts');
-    const badge = document.getElementById('rescue-count-badge');
-    const emptyMsg = container.querySelector('p');
+    const badge     = document.getElementById('rescue-count-badge');
+    const emptyMsg  = container.querySelector('p');
     if (emptyMsg) emptyMsg.remove();
     if (document.getElementById('chip-' + fid)) return;
 
@@ -340,16 +446,22 @@ function loadRescueAlerts(periodo) {
 
 /* ── EXPORTAR CSV ─────────────────────────────────────────────── */
 
+/**
+ * exportAttendance — Exporta la asistencia a CSV con fechas reales.
+ * FASE3-S1: Encabezados "Sáb DD" en lugar de "Semana N".
+ */
 function exportAttendance() {
     if (!members.length) return;
-    const period = document.getElementById('attMonthSelector').value;
-    let csv = `Control Asistencia - Periodo ${period}\nNombre,Semana 1,Semana 2,Semana 3,Semana 4,Semana 5,Total Mes\n`;
+    const period    = document.getElementById('attMonthSelector').value;
+    const saturdays = getOperationalSaturdaysForPeriod(period);
+    const headers   = saturdays.map(getSaturdayLabel).join(',');
+    let csv = `Control Asistencia - Periodo ${period}\nNombre,${headers},Total Mes\n`;
     members.forEach(m => {
-        const sem = currentAttData[m.firebaseId] || [3, 3, 3, 3, 3];
-        const r = [m.nombre, ...sem.map(getAttIcon)];
+        const n   = saturdays.length;
+        const sem = currentAttData[m.firebaseId] || Array(n).fill(3);
+        const r   = [m.nombre, ...sem.map(getAttIcon)];
         r.push(sem.reduce((a, s) => a + (s === 1 || s === 2 ? 1 : 0), 0));
         csv += `"${r.join('","')}"\n`;
     });
     downloadCSV(csv, `FireGen_Asistencia_${period}.csv`);
 }
-
