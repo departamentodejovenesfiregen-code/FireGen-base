@@ -310,13 +310,22 @@
                                 <input type="month" id="repPeriodo"
                                     class="w-full border-b-2 border-slate-100 py-2 font-bold outline-none focus:border-orange-500 transition-all">
                             </div>
+                            <div class="space-y-1 md:col-span-2">
+                                <label
+                                    class="text-[11px] font-black text-orange-500 uppercase tracking-widest flex items-center gap-1">
+                                    <i class="fas fa-bookmark text-[9px]"></i> Serie del Mes
+                                    <span class="text-[9px] font-normal text-slate-400 normal-case">(obligatorio)</span>
+                                </label>
+                                <input type="text" id="repSerie" placeholder="Ej: Fe que mueve montañas..."
+                                    class="w-full border-b-2 border-orange-200 py-2 font-bold outline-none focus:border-orange-500 transition-all placeholder:font-normal placeholder:text-slate-400">
+                            </div>
                         </div>
 
                         <div class="mb-3 p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-start gap-3">
                             <i class="fas fa-info-circle text-blue-500 mt-0.5 flex-shrink-0"></i>
                             <p class="text-xs text-blue-700 font-medium">Los campos <strong>Asist.</strong> y
-                                <strong>Nuevos</strong> se sincronizan automáticamente desde la pestaña Asistencia. El
-                                Tema y las Decisiones se ingresan manualmente.
+                                <strong>Nuevos</strong> se sincronizan automáticamente desde Asistencia. La <strong>Serie del Mes</strong>,
+                                Tema y Decisiones se ingresan manualmente y se guardan en Firebase al escribir.
                             </p>
                         </div>
 
@@ -325,13 +334,13 @@
                                 class="w-full text-sm border border-slate-200 rounded-xl overflow-hidden min-w-[500px]">
                                 <thead>
                                     <tr class="bg-slate-50 text-slate-600 border-b">
-                                        <th class="p-4 border-r">Semana</th>
+                                        <th class="p-4 border-r">Sábado</th>
                                         <th class="p-4 border-r">Tema Predicado</th>
                                         <th class="p-4 border-r text-center">Asist. <span
                                                 class="text-[9px] text-blue-500">AUTO</span></th>
                                         <th class="p-4 border-r text-center">Nuevos <span
                                                 class="text-[9px] text-blue-500">AUTO</span></th>
-                                        <th class="p-4 text-center">Decis.</th>
+                                        <th class="p-4 text-center min-w-[150px]">Decis.</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -346,7 +355,7 @@
                                         <td class="p-4 border-r"><input type="number" readonly
                                                 class="w-full text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-nuevos cursor-default">
                                         </td>
-                                        <td class="p-4"><input type="number"
+                                        <td class="p-4"><input type="text"
                                                 class="w-full text-center outline-none bg-transparent rep-decis"></td>
                                     </tr>
                                     <tr class="border-b row-report-data">
@@ -360,7 +369,7 @@
                                         <td class="p-4 border-r"><input type="number" readonly
                                                 class="w-full text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-nuevos cursor-default">
                                         </td>
-                                        <td class="p-4"><input type="number"
+                                        <td class="p-4"><input type="text"
                                                 class="w-full text-center outline-none bg-transparent rep-decis"></td>
                                     </tr>
                                     <tr class="border-b row-report-data">
@@ -374,7 +383,7 @@
                                         <td class="p-4 border-r"><input type="number" readonly
                                                 class="w-full text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-nuevos cursor-default">
                                         </td>
-                                        <td class="p-4"><input type="number"
+                                        <td class="p-4"><input type="text"
                                                 class="w-full text-center outline-none bg-transparent rep-decis"></td>
                                     </tr>
                                     <tr class="border-b row-report-data">
@@ -388,7 +397,21 @@
                                         <td class="p-4 border-r"><input type="number" readonly
                                                 class="w-full text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-nuevos cursor-default">
                                         </td>
-                                        <td class="p-4"><input type="number"
+                                        <td class="p-4"><input type="text"
+                                                class="w-full text-center outline-none bg-transparent rep-decis"></td>
+                                    </tr>
+                                    <tr class="border-b row-report-data">
+                                        <td class="p-4 border-r font-bold text-slate-500"><span class="rep-sem-label">Semana 5</span></td>
+                                        <td class="p-4 border-r"><input type="text"
+                                                class="w-full outline-none bg-transparent rep-tema" placeholder="Tema…">
+                                        </td>
+                                        <td class="p-4 border-r"><input type="number" readonly
+                                                class="w-full text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-asist cursor-default">
+                                        </td>
+                                        <td class="p-4 border-r"><input type="number" readonly
+                                                class="w-full text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-nuevos cursor-default">
+                                        </td>
+                                        <td class="p-4"><input type="text"
                                                 class="w-full text-center outline-none bg-transparent rep-decis"></td>
                                     </tr>
                                 </tbody>
@@ -638,7 +661,11 @@
                 class="p-4 md:p-8 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 overflow-y-auto flex-1">
                 <input type="hidden" id="editMemberId">
                 <!-- FASE3-S1: Fecha de incorporación individual para motor de engagement -->
-                <input type="hidden" id="fechaIncorporacionHidden" name="fechaIncorporacion">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Fecha de Incorporación</label>
+                    <input type="date" id="fechaIncorporacionInput" name="fechaIncorporacion"
+                        class="w-full p-3.5 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-orange-100 focus:border-orange-500">
+                </div>
 
                 <div class="md:col-span-2">
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Nombre Completo *</label>
@@ -667,6 +694,7 @@
                         <option>Nuevo</option>
                         <option>Creyente</option>
                         <option>Convertido</option>
+                        <option>Reconciliado</option>
                         <option>Bautizado</option>
                         <option>Líder</option>
                     </select>
@@ -690,10 +718,11 @@
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Estado de Asistencia</label>
                     <select name="estadoAsistencia"
                         class="w-full p-3.5 border border-slate-200 rounded-xl outline-none bg-white font-bold text-orange-600 focus:ring-4 focus:ring-orange-100 focus:border-orange-500">
-                        <option>Activo</option>
-                        <option>Inconstante</option>
-                        <option>Enfriándose</option>
-                        <option>Alejándose</option>
+                        <option value="">Sin determinar</option>
+                        <option value="Activo">Activo</option>
+                        <option value="Inconstante">Inconstante</option>
+                        <option value="Enfriándose">Enfriándose</option>
+                        <option value="Alejándose">Alejándose</option>
                     </select>
                 </div>
                 <div>
@@ -841,10 +870,16 @@
                             <i class="fas fa-map-marked-alt"></i> Ver Ubicación
                         </a>
                     </div>
-                    <button onclick="editFromExpediente()"
-                        class="w-full mt-2 flex items-center justify-center gap-2 bg-orange-100 hover:bg-orange-200 text-orange-700 font-bold rounded-xl py-3 text-sm transition-all">
-                        <i class="fas fa-edit"></i> Editar Miembro
-                    </button>
+                    <div class="grid grid-cols-2 gap-2 mt-2">
+                        <button onclick="editFromExpediente()"
+                            class="flex items-center justify-center gap-2 bg-orange-100 hover:bg-orange-200 text-orange-700 font-bold rounded-xl py-3 text-sm transition-all">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                        <button onclick="deleteFromExpediente()"
+                            class="flex items-center justify-center gap-2 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-xl py-3 text-sm transition-all">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

@@ -328,7 +328,7 @@ function getOperationalSaturdaysForPeriod(periodo) {
  * @returns {string} Valor normalizado
  */
 function normalizeAttendanceStatus(s) {
-    if (!s) return 'Activo';
+    if (!s) return '';
     if (s === 'Alejado' || s === 'Alejando') return 'Alejándose';
     if (s === 'Enfriandose') return 'Enfriándose';
     return s;

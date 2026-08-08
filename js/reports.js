@@ -42,14 +42,26 @@ function syncReport(periodo) {
             const d = snap.val();
             if (!d) return;
             if (d.secretario !== undefined) document.getElementById('repSecretario').value = d.secretario;
+            if (d.serie !== undefined) document.getElementById('repSerie').value = d.serie;
 
+            const saturdays = getOperationalSaturdaysForPeriod(periodo);
             document.querySelectorAll('.row-report-data').forEach((row, i) => {
-                const sk = 'sem' + (i + 1);
-                if (!d[sk]) return;
-                row.querySelector('.rep-tema').value = d[sk].tema || '';
-                row.querySelector('.rep-asist').value = d[sk].asist || '';
-                row.querySelector('.rep-nuevos').value = d[sk].nuevos || '';
-                row.querySelector('.rep-decis').value = d[sk].decis || '';
+                const satDate = saturdays[i];
+                if (!satDate) {
+                    row.style.display = 'none';
+                    return;
+                }
+                row.style.display = '';
+                const semLabel = row.querySelector('.rep-sem-label');
+                if (semLabel) semLabel.textContent = getSaturdayLabel(satDate);
+                
+                const fData = (d.fechas && d.fechas[satDate]) ? d.fechas[satDate] : d['sem' + (i + 1)];
+                if (!fData) return;
+                
+                row.querySelector('.rep-tema').value = fData.tema || '';
+                row.querySelector('.rep-asist').value = fData.asist || '';
+                row.querySelector('.rep-nuevos').value = fData.nuevos || '';
+                row.querySelector('.rep-decis').value = fData.decis || '';
             });
             if (d.bautismos !== undefined) document.getElementById('inp-bautismos').value = d.bautismos;
             if (d.servicio !== undefined) {
@@ -82,6 +94,7 @@ function destroyReportListener() {
 
 function clearReportFields() {
     document.getElementById('repSecretario').value = '';
+    document.getElementById('repSerie').value = '';
     document.querySelectorAll('.row-report-data').forEach(r => {
         r.querySelector('.rep-tema').value = '';
         r.querySelector('.rep-asist').value = '';
@@ -105,14 +118,23 @@ function saveReportField(field, val) {
 
 function saveReportRow(idx) {
     const p = document.getElementById('repPeriodo').value;
-    if (!p) return;
+    const saturdays = getOperationalSaturdaysForPeriod(p);
+    const satDate = saturdays[idx];
+    if (!p || !satDate) return;
     const row = document.querySelectorAll('.row-report-data')[idx];
-    db.ref('informes/' + p + '/sem' + (idx + 1)).update({
-        tema: row.querySelector('.rep-tema').value,
-        asist: parseInt(row.querySelector('.rep-asist').value) || 0,
-        nuevos: parseInt(row.querySelector('.rep-nuevos').value) || 0,
-        decis: parseInt(row.querySelector('.rep-decis').value) || 0
-    }).catch(err => console.error('[FireGen] Error al guardar fila de informe:', err));
+    
+    const updates = {};
+    updates[`fechas/${satDate}/tema`] = row.querySelector('.rep-tema').value;
+    updates[`fechas/${satDate}/asist`] = parseInt(row.querySelector('.rep-asist').value) || 0;
+    updates[`fechas/${satDate}/nuevos`] = parseInt(row.querySelector('.rep-nuevos').value) || 0;
+    updates[`fechas/${satDate}/decis`] = row.querySelector('.rep-decis').value;
+    
+    updates[`sem${idx + 1}/tema`] = row.querySelector('.rep-tema').value;
+    updates[`sem${idx + 1}/asist`] = parseInt(row.querySelector('.rep-asist').value) || 0;
+    updates[`sem${idx + 1}/nuevos`] = parseInt(row.querySelector('.rep-nuevos').value) || 0;
+    updates[`sem${idx + 1}/decis`] = row.querySelector('.rep-decis').value;
+    
+    db.ref('informes/' + p).update(updates).catch(err => console.error('[FireGen] Error al guardar fila de informe:', err));
     updateMonthlyStats();
 }
 
@@ -123,6 +145,9 @@ const saveReportRowDebounced = debounce(saveReportRow, 800);
 function bindReportInputs() {
     document.getElementById('repSecretario').addEventListener('input', function () {
         saveReportField('secretario', this.value);
+    });
+    document.getElementById('repSerie').addEventListener('input', function () {
+        saveReportField('serie', this.value);
     });
     document.getElementById('repPeriodo').addEventListener('change', function () {
         syncReport(this.value);
@@ -163,9 +188,14 @@ function updateMonthlyStats() {
 
 function exportMonthlyReport() {
     const per = document.getElementById('repPeriodo').value || 'S_P';
-    let csv = `INFORME MENSUAL FIREGEN - ${per}\nSemana,Tema,Asistencia,Nuevos,Decisiones\n`;
+    const saturdays = getOperationalSaturdaysForPeriod(per);
+    const serie = document.getElementById('repSerie').value || '';
+    let csv = `INFORME MENSUAL FIREGEN - ${per}\nSerie: ${serie.replace(/"/g, '""')}\nSábado,Tema,Asistencia,Nuevos,Decisiones\n`;
     document.querySelectorAll('.row-report-data').forEach((row, i) => {
-        csv += `Semana ${i + 1},"${row.querySelector('.rep-tema').value}",${row.querySelector('.rep-asist').value || 0},${row.querySelector('.rep-nuevos').value || 0},${row.querySelector('.rep-decis').value || 0}\n`;
+        if (!saturdays[i]) return;
+        const tema = (row.querySelector('.rep-tema').value || '').replace(/"/g, '""');
+        const decis = (row.querySelector('.rep-decis').value || '').replace(/"/g, '""');
+        csv += `${getSaturdayLabel(saturdays[i])},"${tema}",${row.querySelector('.rep-asist').value || 0},${row.querySelector('.rep-nuevos').value || 0},"${decis}"\n`;
     });
     csv += `\nMETRICAS CLAVE\nBautismos,${document.getElementById('inp-bautismos').value}\nAl Servicio,${document.getElementById('inp-servicio').value}\nAlejados,${document.getElementById('inp-alejados').value}\nRescatados,${document.getElementById('inp-rescatados').value}\nPromedio,${document.getElementById('rep-avg').innerText}\n`;
     downloadCSV(csv, `FireGen_InformeMensual_${per}.csv`);

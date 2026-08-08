@@ -94,6 +94,14 @@ textarea {
   border: 1px solid #e2e8f0;
 }
 
+.att-not-applicable {
+    background: #f8fafc;
+    color: #cbd5e1;
+    border: 1px dashed #e2e8f0;
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
 /* ── PRINT ── */
 @media print {
   .no-print {
@@ -393,12 +401,14 @@ textarea {
 
 .dir-photo {
   width: 76px;
+  height: 76px;
   border: 3px solid #fed7aa;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .dir-photo-placeholder {
   width: 76px;
+  height: 76px;
   font-size: 1.8rem;
   border: 3px solid #fed7aa;
 }
@@ -515,9 +525,9 @@ textarea {
 .mobile-member-card {
   background: white;
   border-radius: 12px;
-  padding: 12px;
+  padding: 10px;
   display: flex;
-  gap: 12px;
+  gap: 10px;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
   border: 1px solid #f1f5f9;
   margin-bottom: 8px;
@@ -529,12 +539,14 @@ textarea {
 }
 
 .mobile-member-photo {
-  width: 52px;
+  width: 48px;
+  height: 48px;
   border: 2px solid #fed7aa;
 }
 
 .mobile-member-photo-ph {
-  width: 52px;
+  width: 48px;
+  height: 48px;
   font-size: 1.1rem;
   border: 2px solid #fed7aa;
 }

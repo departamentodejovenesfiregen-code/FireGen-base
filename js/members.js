@@ -89,20 +89,12 @@ function renderMaster() {
             <td class="p-4"><span class="status-badge ${getStatusClass(m.estadoEspiritual)}">${escHtml(m.estadoEspiritual)}</span></td>
             <td class="p-4 text-xs text-slate-600">${escHtml(m.areaServicio) || '—'}</td>
             <td class="p-4 font-bold text-slate-500 uppercase text-xs">${escHtml(m.lider) || '—'}</td>
-            <td class="p-4"><span class="status-badge ${getEngagementClass(m.estadoAsistencia)}">${escHtml(m.estadoAsistencia) || 'Activo'}</span></td>
+            <td class="p-4"><span class="status-badge ${getEngagementClass(m.estadoAsistencia)}">${escHtml(m.estadoAsistencia) || 'Sin determinar'}</span></td>
             <td class="p-4 no-print">
                 <div class="flex items-center gap-2">
                     <button data-action="expediente" data-fid="${escHtml(m.firebaseId)}" title="Ver Perfil"
                         class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-orange-100 text-slate-400 hover:text-orange-600 transition-all">
                         <i class="fas fa-eye text-xs"></i>
-                    </button>
-                    <button data-action="edit" data-fid="${escHtml(m.firebaseId)}" title="Editar"
-                        class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-orange-100 text-slate-400 hover:text-orange-600 transition-all">
-                        <i class="fas fa-pencil-alt text-xs"></i>
-                    </button>
-                    <button data-action="delete" data-fid="${escHtml(m.firebaseId)}" title="Eliminar"
-                        class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-red-100 text-slate-400 hover:text-red-600 transition-all">
-                        <i class="fas fa-trash text-xs"></i>
                     </button>
                 </div>
             </td>`;
@@ -134,19 +126,13 @@ function renderMaster() {
                 <div class="mobile-member-sub">${edad} años · ${escHtml(m.areaServicio) || 'Sin área'}</div>
                 <div class="flex flex-wrap gap-1 mt-1">
                     <span class="status-badge ${getStatusClass(m.estadoEspiritual)}" style="font-size:0.6rem;padding:2px 6px">${escHtml(m.estadoEspiritual)}</span>
-                    <span class="status-badge ${getEngagementClass(m.estadoAsistencia)}" style="font-size:0.6rem;padding:2px 6px">${escHtml(m.estadoAsistencia) || 'Activo'}</span>
+                    <span class="status-badge ${getEngagementClass(m.estadoAsistencia)}" style="font-size:0.6rem;padding:2px 6px">${escHtml(m.estadoAsistencia) || 'Sin determinar'}</span>
                 </div>
                 <div class="mobile-member-actions">
                     <button data-action="expediente" data-fid="${escHtml(m.firebaseId)}" class="flex items-center gap-1 text-[11px] font-bold bg-orange-50 text-orange-600 px-2 py-1 rounded-lg border border-orange-100">
                         <i class="fas fa-eye text-[10px]"></i> Ver
                     </button>
-                    <button data-action="edit" data-fid="${escHtml(m.firebaseId)}" class="flex items-center gap-1 text-[11px] font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded-lg">
-                        <i class="fas fa-pencil-alt text-[10px]"></i> Editar
-                    </button>
                     ${phone ? `<a href="https://api.whatsapp.com/send?phone=${encodeURIComponent(phone)}" target="_blank" rel="noopener" class="flex items-center gap-1 text-[11px] font-bold bg-green-50 text-green-700 px-2 py-1 rounded-lg border border-green-100"><i class="fab fa-whatsapp text-[10px]"></i> WA</a>` : ''}
-                    <button data-action="delete" data-fid="${escHtml(m.firebaseId)}" class="flex items-center gap-1 text-[11px] font-bold bg-red-50 text-red-600 px-2 py-1 rounded-lg">
-                        <i class="fas fa-trash text-[10px]"></i>
-                    </button>
                 </div>
             </div>`;
         mobileList.appendChild(card);
@@ -164,12 +150,31 @@ function initMasterEventDelegation() {
         const btn = e.target.closest('[data-action]');
         if (!btn) return;
         const { action, fid } = btn.dataset;
-        if (action === 'expediente') openExpediente(fid);
-        else if (action === 'edit')  editMember(fid);
-        else if (action === 'delete') deleteMember(fid);
+        const fromDir = !!btn.closest('#dirBody');
+
+        if (action === 'expediente') {
+            if (fromDir) {
+                closeDirectorio();
+                setTimeout(() => openExpediente(fid), 350);
+            } else {
+                openExpediente(fid);
+            }
+        } else if (action === 'edit') {
+            if (fromDir) {
+                // cerrar directorio primero, luego abrir modal
+                closeDirectorio();
+                setTimeout(() => editMember(fid), 350);
+            } else {
+                editMember(fid);
+            }
+        } else if (action === 'delete') {
+            deleteMember(fid);
+        }
     }
     document.getElementById('masterBody').addEventListener('click', handleAction);
     document.getElementById('masterMobileList').addEventListener('click', handleAction);
+    const dirBody = document.getElementById('dirBody');
+    if (dirBody) dirBody.addEventListener('click', handleAction);
 }
 
 /* ── CRUD ─────────────────────────────────────────────────── */
@@ -180,6 +185,16 @@ function openNewMemberModal() {
     document.getElementById('modalTitle').textContent = 'NUEVO MIEMBRO FIREGEN';
     document.getElementById('fotoPreview').classList.add('hidden');
     document.getElementById('fotoPreviewPlaceholder').classList.remove('hidden');
+    
+    const fechaInc = document.getElementById('fechaIncorporacionInput');
+    if (fechaInc) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        fechaInc.value = `${yyyy}-${mm}-${dd}`;
+    }
+    
     openModal('userModal');
 }
 
@@ -199,7 +214,7 @@ function editMember(fid) {
     form.querySelector('[name="areaServicio"]').value        = m.areaServicio || '';
     form.querySelector('[name="cargo"]').value               = m.cargo || '';
     form.querySelector('[name="lider"]').value               = m.lider || '';
-    form.querySelector('[name="estadoAsistencia"]').value    = m.estadoAsistencia || 'Activo';
+    form.querySelector('[name="estadoAsistencia"]').value    = m.estadoAsistencia || '';
     form.querySelector('[name="fechaBautismo"]').value       = m.fechaBautismo || '';
     form.querySelector('[name="domicilio"]').value           = m.domicilio || '';
     form.querySelector('[name="fotoURL"]').value             = m.fotoURL || '';
@@ -215,15 +230,26 @@ function editMember(fid) {
         preview.classList.add('hidden');
         placeholder.classList.remove('hidden');
     }
-    // Rellenar campo oculto fechaIncorporacion (FASE3-S1)
-    const fechaIncHidden = document.getElementById('fechaIncorporacionHidden');
-    if (fechaIncHidden) fechaIncHidden.value = m.fechaIncorporacion || '';
+    // Rellenar campo fechaIncorporacion
+    const fechaInc = document.getElementById('fechaIncorporacionInput');
+    if (fechaInc) fechaInc.value = m.fechaIncorporacion || '';
     openModal('userModal');
 }
 
 function editFromExpediente() {
+    const fid = currentExpedienteFid;
+    if (!fid) return;
     closeExpediente();
-    if (currentExpedienteFid) editMember(currentExpedienteFid);
+    // esperar animacion de cierre del overlay antes de abrir el modal
+    setTimeout(() => editMember(fid), 350);
+}
+
+function deleteFromExpediente() {
+    if (currentExpedienteFid) {
+        const fid = currentExpedienteFid;
+        closeExpediente();
+        setTimeout(() => deleteMember(fid), 300);
+    }
 }
 
 function deleteMember(fid) {
@@ -340,8 +366,8 @@ function openExpediente(fid) {
     document.getElementById('expEstadoEspiritual').textContent = m.estadoEspiritual || '—';
 
     const badge = document.getElementById('expEngagementBadge');
-    badge.textContent = m.estadoAsistencia || 'Activo';
-    badge.className   = 'text-xs font-bold px-3 py-1 rounded-full ' + getEngagementClass(m.estadoAsistencia || 'Activo');
+    badge.textContent = m.estadoAsistencia || 'Sin determinar';
+    badge.className   = 'text-xs font-bold px-3 py-1 rounded-full ' + getEngagementClass(m.estadoAsistencia || '');
 
     document.getElementById('expEdad').textContent     = m.fechaNac ? calculateAge(m.fechaNac) + ' años' : '—';
     document.getElementById('expTelefono').textContent = m.telefono || '—';
@@ -461,7 +487,7 @@ function renderDirectorio() {
                 </div>
                 <div class="flex flex-wrap gap-1 mb-1">
                     <span class="dir-badge ${getStatusClass(m.estadoEspiritual)}">${escHtml(m.estadoEspiritual)}</span>
-                    <span class="dir-badge ${getEngagementClass(m.estadoAsistencia)}">${escHtml(m.estadoAsistencia) || 'Activo'}</span>
+                    <span class="dir-badge ${getEngagementClass(m.estadoAsistencia)}">${escHtml(m.estadoAsistencia) || 'Sin determinar'}</span>
                 </div>
                 <div class="dir-spirit">
                     ${m.areaServicio ? `<i class="fas fa-church text-orange-400 text-[10px]"></i> ${escHtml(m.areaServicio)}` : ''}
@@ -472,6 +498,14 @@ function renderDirectorio() {
                     ? `<a href="${waUrl}" target="_blank" rel="noopener" class="dir-wa-btn"><i class="fab fa-whatsapp"></i> ${escHtml(m.telefono)}</a>`
                     : (m.telefono ? `<span class="dir-wa-btn" style="background:#94a3b8;cursor:default">${escHtml(m.telefono)}</span>` : '')
                 }
+                <div class="mt-2 flex gap-2">
+                    <button data-action="expediente" data-fid="${escHtml(m.firebaseId)}" class="flex items-center gap-1 text-[11px] font-bold bg-orange-50 text-orange-600 px-2 py-1 rounded-lg border border-orange-100">
+                        <i class="fas fa-eye text-[10px]"></i> Ver
+                    </button>
+                    <button data-action="edit" data-fid="${escHtml(m.firebaseId)}" class="flex items-center gap-1 text-[11px] font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded-lg">
+                        <i class="fas fa-pencil-alt text-[10px]"></i> Editar
+                    </button>
+                </div>
             </div>`;
         grid.appendChild(card);
     });
@@ -484,7 +518,11 @@ function updateStats() {
     document.getElementById('stat-total').textContent     = members.length;
     document.getElementById('stat-lideres').textContent   = members.filter(m => m.estadoEspiritual === 'Líder' || m.estadoEspiritual === 'Lider').length;
     document.getElementById('stat-bautizados').textContent = members.filter(m => m.estadoEspiritual === 'Bautizado').length;
-    document.getElementById('stat-riesgo').textContent    = members.filter(m => m.estadoAsistencia !== 'Activo').length;
+    const estadosRiesgo = ['Inconstante', 'Enfriándose', 'Alejándose'];
+    document.getElementById('stat-riesgo').textContent    = members.filter(m => {
+        const estado = typeof normalizeAttendanceStatus === 'function' ? normalizeAttendanceStatus(m.estadoAsistencia) : m.estadoAsistencia;
+        return estadosRiesgo.includes(estado);
+    }).length;
 }
 
 function syncServiceCounter() {

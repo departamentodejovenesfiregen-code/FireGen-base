@@ -1,4 +1,4 @@
-﻿/**
+/**
  * FireGen V3.0 — js/attendance.js
  * ─────────────────────────────────────────────────────────────
  * MÓDULO DE ASISTENCIA
@@ -58,11 +58,22 @@ function syncAttendance(periodo) {
             currentAttNotes = {};
             const n = currentSaturdays.length;
             Object.keys(d).forEach(fid => {
-                // Compatibilidad: ajustar array al número real de sábados
-                const raw = d[fid].semanas || [];
-                const sem = Array.from({ length: n }, (_, i) =>
-                    (raw[i] !== undefined) ? raw[i] : 3
-                );
+                const member = members.find(m => m.firebaseId === fid);
+                const rawFechas = d[fid].fechas;
+                const rawSemanas = d[fid].semanas || [];
+                const sem = Array.from({ length: n }, (_, i) => {
+                    const satDate = currentSaturdays[i];
+                    let estado = 3;
+                    if (rawFechas && rawFechas[satDate] !== undefined) {
+                        estado = rawFechas[satDate];
+                    } else if (rawSemanas[i] !== undefined) {
+                        estado = rawSemanas[i];
+                    }
+                    if (member && typeof isSaturdayBeforeIncorporation === 'function' && isSaturdayBeforeIncorporation(member, satDate) && estado === 3) {
+                        return 4;
+                    }
+                    return estado;
+                });
                 currentAttData[fid]  = sem;
                 currentAttNotes[fid] = d[fid].nota || '';
             });
@@ -115,7 +126,13 @@ function renderAttendance() {
     empty.classList.toggle('hidden', members.length > 0);
 
     members.forEach(m => {
-        const sem  = currentAttData[m.firebaseId] || Array(n).fill(3);
+        let sem = currentAttData[m.firebaseId];
+        if (!sem) {
+            sem = Array.from({ length: n }, (_, i) => {
+                const satDate = saturdays[i];
+                return (typeof isSaturdayBeforeIncorporation === 'function' && isSaturdayBeforeIncorporation(m, satDate)) ? 4 : 3;
+            });
+        }
         const nota = currentAttNotes[m.firebaseId] || '';
         const total = sem.reduce((a, s) => a + (s === 1 || s === 2 ? 1 : 0), 0);
         const row   = document.createElement('tr');
@@ -145,7 +162,13 @@ function renderAttendance() {
     mobileEmpty.classList.add('hidden');
 
     members.forEach(m => {
-        const sem  = currentAttData[m.firebaseId] || Array(n).fill(3);
+        let sem = currentAttData[m.firebaseId];
+        if (!sem) {
+            sem = Array.from({ length: n }, (_, i) => {
+                const satDate = saturdays[i];
+                return (typeof isSaturdayBeforeIncorporation === 'function' && isSaturdayBeforeIncorporation(m, satDate)) ? 4 : 3;
+            });
+        }
         const nota = currentAttNotes[m.firebaseId] || '';
         const total = sem.reduce((a, s) => a + (s === 1 || s === 2 ? 1 : 0), 0);
         const card  = document.createElement('div');
@@ -195,16 +218,42 @@ function initAttendanceEventDelegation() {
     mobileList.addEventListener('input', handleInput);
 }
 
+function isSaturdayBeforeIncorporation(member, satDate) {
+    if (!member || !member.fechaIncorporacion) return false;
+    return new Date(satDate + 'T00:00:00') < new Date(member.fechaIncorporacion + 'T00:00:00');
+}
+
 /**
  * toggleAtt — Cicla el estado de un miembro en un sábado.
  * FASE3-S1: El array sem tiene longitud N (sábados reales), no siempre 5.
  */
 function toggleAtt(fid, week, periodo) {
+    const member = members.find(m => m.firebaseId === fid);
+    const satDate = currentSaturdays[week];
+    
+    if (member && isSaturdayBeforeIncorporation(member, satDate)) {
+        return;
+    }
+
     const n   = currentSaturdays.length || 5;
-    const sem = (currentAttData[fid] || Array(n).fill(3)).slice();
-    sem[week] = (sem[week] + 1) % 4;
+    let sem = currentAttData[fid];
+    if (!sem) {
+        sem = Array.from({ length: n }, (_, i) => {
+            const sd = currentSaturdays[i];
+            return isSaturdayBeforeIncorporation(member, sd) ? 4 : 3;
+        });
+    } else {
+        sem = sem.slice();
+    }
+    
+    sem[week] = (sem[week] === 4) ? 4 : (sem[week] + 1) % 4;
     currentAttData[fid] = sem;
-    db.ref('asistencias/' + periodo + '/' + fid).update({ semanas: sem })
+    
+    const updates = {};
+    updates[`fechas/${satDate}`] = sem[week];
+    updates[`semanas`] = sem;
+
+    db.ref('asistencias/' + periodo + '/' + fid).update(updates)
         .catch(err => console.error('[FireGen] Error al guardar asistencia:', err));
     updateEngagementStatusDebounced(fid);
     flashBadge('attSyncBadge');
@@ -220,8 +269,8 @@ const saveAttNote = debounce(function (fid, periodo, val) {
         .catch(err => console.error('[FireGen] Error al guardar nota:', err));
 }, 800);
 
-function getAttClass(s) { return s === 1 ? 'att-present' : s === 0 ? 'att-absent' : s === 2 ? 'att-new' : 'att-empty'; }
-function getAttIcon(s)  { return s === 1 ? '✔' : s === 0 ? '✖' : s === 2 ? 'N' : '?'; }
+function getAttClass(s) { return s === 4 ? 'att-not-applicable' : s === 1 ? 'att-present' : s === 0 ? 'att-absent' : s === 2 ? 'att-new' : 'att-empty'; }
+function getAttIcon(s)  { return s === 4 ? '—' : s === 1 ? '✔' : s === 0 ? '✖' : s === 2 ? 'N' : '?'; }
 
 function changeAttendanceMonth() {
     updateAttDisplayDate();
@@ -272,12 +321,15 @@ function pushAttendanceToReport() {
         const nuevosEl = row.querySelector('.rep-nuevos');
         if (asistEl)  asistEl.value  = presentes[i] || '';
         if (nuevosEl) nuevosEl.value = nuevos[i]    || '';
+        const satDate = saturdays[i];
+        updates[`fechas/${satDate}/asist`]  = presentes[i] || 0;
+        updates[`fechas/${satDate}/nuevos`] = nuevos[i]    || 0;
         updates[`sem${i + 1}/asist`]  = presentes[i] || 0;
         updates[`sem${i + 1}/nuevos`] = nuevos[i]    || 0;
 
         // Actualizar etiqueta de semana en el informe si existe el elemento
         const semLabel = row.querySelector('.rep-sem-label');
-        if (semLabel) semLabel.textContent = getSaturdayLabel(saturdays[i]);
+        if (semLabel) semLabel.textContent = getSaturdayLabel(satDate);
     });
 
     if (periodo) {
@@ -306,51 +358,61 @@ function pushAttendanceToReport() {
 function updateEngagementStatus(memberId) {
     const member = members.find(x => x.firebaseId === memberId);
     if (!member) return;
-
+    // Obtener fecha de incorporación o fallback
     const periodStart = (AppConfig.current && AppConfig.current.period && AppConfig.current.period.start)
-        ? AppConfig.current.period.start
-        : AppConfig.defaults.period.start;
-    const incorporacion = new Date((member.fechaIncorporacion || periodStart) + 'T00:00:00');
+        ? AppConfig.current.period.start : AppConfig.defaults.period.start;
+    const incorporationStr = member.fechaIncorporacion || periodStart;
+    const incorporationDate = new Date(incorporationStr + 'T00:00:00');
+    
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
 
-    const now = new Date();
     const periodos = [];
-    for (let i = 0; i < 2; i++) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        periodos.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    let cursor = new Date(incorporationDate.getFullYear(), incorporationDate.getMonth(), 1);
+    while (cursor <= today) {
+        const periodo = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+        periodos.push(periodo);
+        cursor.setMonth(cursor.getMonth() + 1);
     }
 
-    Promise.all(periodos.map(p => db.ref('asistencias/' + p + '/' + memberId).once('value')))
+    Promise.all(periodos.map(p => db.ref(`asistencias/${p}/${memberId}`).once('value')))
         .then(snaps => {
-            // Construir mapa fecha → estado
             const recordMap = {};
             snaps.forEach((snap, idx) => {
-                const p = periodos[idx];
-                const [y, m] = p.split('-').map(Number);
-                const sats = getOperationalSaturdays(y, m);
-                const d    = snap.val();
-                const sem  = (d && d.semanas) ? d.semanas : [];
-                sats.forEach((satDate, i) => {
-                    recordMap[satDate] = (sem[i] !== undefined) ? sem[i] : 3;
+                const periodo = periodos[idx];
+                const [y, m] = periodo.split('-').map(Number);
+                const saturdays = getOperationalSaturdays(y, m);
+                const data = snap.val() || {};
+                const rawFechas = data.fechas || {};
+                const rawSemanas = Array.isArray(data.semanas) ? data.semanas : [];
+
+                saturdays.forEach((satDate, i) => {
+                    const sat = new Date(satDate + 'T00:00:00');
+                    if (sat < incorporationDate) return;
+                    if (sat > today) return;
+
+                    let estado;
+                    if (Object.prototype.hasOwnProperty.call(rawFechas, satDate)) {
+                        estado = rawFechas[satDate];
+                    } else if (rawSemanas[i] !== undefined) {
+                        estado = rawSemanas[i];
+                    } else {
+                        estado = 3;
+                    }
+                    recordMap[satDate] = Number(estado);
                 });
             });
 
-            // Filtrar sólo desde la incorporación del miembro, ordenados cronológicamente
-            const evaluableDates = Object.keys(recordMap)
-                .filter(dateStr => new Date(dateStr + 'T00:00:00') >= incorporacion)
-                .sort();
-
-            const history = evaluableDates.map(d => recordMap[d]);
-
-            // Historial insuficiente → no cambiar estado automáticamente
-            const realCount = history.filter(s => s !== 3).length;
-            if (realCount < 4) return;
-
-            // ── Racha RECIENTE de faltas (desde el final, ignorando ?) ──
+            // ── Filtrar 0, 1, 2 (evaluables) y calcular rachas ──
+            const evaluables = Object.keys(recordMap)
+                .sort()
+                .map(date => recordMap[date])
+                .filter(s => s === 0 || s === 1 || s === 2);
+            
             let recentAbsentStreak = 0, recentPresentStreak = 0;
             let countingAbsent = true, countingPresent = true;
-            for (let i = history.length - 1; i >= 0; i--) {
-                const s = history[i];
-                if (s === 3) continue;
+            for (let i = evaluables.length - 1; i >= 0; i--) {
+                const s = evaluables[i];
                 if (countingAbsent) {
                     if (s === 0) recentAbsentStreak++;
                     else countingAbsent = false;
@@ -362,25 +424,33 @@ function updateEngagementStatus(memberId) {
                 if (!countingAbsent && !countingPresent) break;
             }
 
-            // ── Porcentaje de asistencia (excluye ?) ──
-            let asistencias = 0, evaluables = 0;
-            history.forEach(s => {
-                if (s === 3) return;
-                evaluables++;
-                if (s === 1 || s === 2) asistencias++;
-            });
-            const porcentaje = evaluables > 0 ? asistencias / evaluables : 1;
+            const estadoActual = normalizeAttendanceStatus(member.estadoAsistencia);
+            let nuevoEstado = estadoActual;
 
-            // ── Clasificación por prioridad ──
-            let nuevoEstado;
-            if (recentAbsentStreak >= 5)      nuevoEstado = 'Alejándose';
-            else if (recentAbsentStreak >= 3)  nuevoEstado = 'Enfriándose';
-            else if (recentPresentStreak >= 4) nuevoEstado = 'Activo';
-            else if (porcentaje < 0.5)         nuevoEstado = 'Inconstante';
-            else                               nuevoEstado = 'Activo';
+            if (evaluables.length < 8) {
+                // Ventana incompleta: aplicar rachas críticas, pero sin clasificar por porcentaje
+                if (recentAbsentStreak >= 5) {
+                    nuevoEstado = 'Alejándose';
+                } else if (recentAbsentStreak >= 3) {
+                    nuevoEstado = 'Enfriándose';
+                } else if (estadoActual !== 'Activo' && recentPresentStreak >= 4) {
+                    nuevoEstado = 'Activo';
+                }
+                // Si no hay racha clara, mantener estado actual (no clasificar por porcentaje con pocos datos)
+            } else {
+                // Ventana completa (últimos 8 evaluables)
+                const window = evaluables.slice(-8);
+                const asistencias = window.filter(s => s === 1 || s === 2).length;
+                const porcentaje = asistencias / 8;
+
+                if (recentAbsentStreak >= 5)       nuevoEstado = 'Alejándose';
+                else if (recentAbsentStreak >= 3)  nuevoEstado = 'Enfriándose';
+                else if (recentPresentStreak >= 4) nuevoEstado = 'Activo';
+                else if (porcentaje < 0.5)         nuevoEstado = 'Inconstante';
+                else                               nuevoEstado = 'Activo';
+            }
 
             // ── Aplicar si cambió ──
-            const estadoActual = normalizeAttendanceStatus(member.estadoAsistencia);
             if (estadoActual !== nuevoEstado) {
                 if (typeof logHistoryEvent === 'function') {
                     logHistoryEvent(memberId, 'Cambio de Asistencia Automático', estadoActual, nuevoEstado, 'Motor FASE3-S1');
@@ -396,7 +466,11 @@ function updateEngagementStatus(memberId) {
 /* ── MÓDULO DE RETENCIÓN ─────────────────────────────────────── */
 
 function triggerRetentionAlert(member) {
-    const periodo = document.getElementById('repPeriodo').value || activeReportPeriod;
+    // PUNTO 1 FIX: usar AppConfig como fuente de verdad del período activo.
+    // No depender del input DOM repPeriodo que puede estar vacío si el usuario
+    // no abrió la pestaña de Informe en esa sesión.
+    const now = new Date();
+    const periodo = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     if (!periodo) return;
     const alertKey = 'alertasRescate/' + periodo + '/' + member.firebaseId;
     db.ref(alertKey).once('value').then(snap => {
