@@ -732,7 +732,7 @@ textarea {
   }
 
   body {
-    padding-bottom: 70px;
+    padding-bottom: calc(85px + env(safe-area-inset-bottom, 10px)) !important;
   }
 
   #updateModal {
