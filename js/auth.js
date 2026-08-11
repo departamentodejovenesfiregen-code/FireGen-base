@@ -46,18 +46,24 @@ function initAuth(onAuthenticated) {
         const bnConfig = document.getElementById('bn-config');
         if (bnConfig) bnConfig.style.display = isAdmin ? '' : 'none';
 
-        // Cargar nombre del usuario desde Firebase (usuarios/{uid}/nombre)
+        // Cargar nombre y rol del usuario desde Firebase (usuarios/{uid})
         db.ref('usuarios/' + user.uid).once('value')
             .then(snap => {
-                const data = snap.val();
-                const nombre = (data && data.nombre) ? data.nombre : user.email;
+                const data = snap.val() || {};
+                const nombre = data.nombre || user.email;
+                window.currentUserRole = isAdmin ? 'administrador' : (data.rol || 'lider');
+                
                 const emailDisplay = document.getElementById('userEmailDisplay');
                 if (emailDisplay) emailDisplay.textContent = nombre;
+
+                applyRolePermissions(window.currentUserRole);
             })
             .catch(() => {
-                // Fallback al email si no hay nombre registrado
+                // Fallback
+                window.currentUserRole = isAdmin ? 'administrador' : 'lider';
                 const emailDisplay = document.getElementById('userEmailDisplay');
                 if (emailDisplay) emailDisplay.textContent = user.email;
+                applyRolePermissions(window.currentUserRole);
             });
 
         // Mostrar el cuerpo de la app
@@ -84,4 +90,45 @@ function logout() {
             console.error('[FireGen Auth] Error al cerrar sesión:', err);
             window.location.replace('login.html');
         });
+}
+/**
+ * applyRolePermissions — Muestra los botones flotantes (FABs) según el rol.
+ * Roles: administrador | coordinador | secretario | lider
+ */
+function applyRolePermissions(rol) {
+    const r = (rol || 'lider').toLowerCase();
+
+    // Solo mostrar los botones flotantes si estamos en la pestaña de Estrategias
+    const viewStrategy = document.getElementById('view-strategy');
+    const isStrategyView = viewStrategy && !viewStrategy.classList.contains('hidden');
+
+    // FAB Rescate: todos los roles con acceso (solo en strategy)
+    const fabRescate = document.getElementById('fab-rescate');
+    if (fabRescate) {
+        const verRescate = ['lider','secretario','coordinador','administrador'].includes(r);
+        fabRescate.style.display = (verRescate && isStrategyView) ? 'flex' : 'none';
+    }
+
+    // FAB Coordinación: solo coordinador y admin (solo en strategy)
+    const fabCoord = document.getElementById('fab-coordinacion');
+    if (fabCoord) {
+        const verCoord = ['coordinador','administrador'].includes(r);
+        fabCoord.style.display = (verCoord && isStrategyView) ? 'flex' : 'none';
+    }
+
+    // Tab Config: solo admin
+    const tabConfig = document.getElementById('tab-config');
+    if (tabConfig) tabConfig.style.display = r === 'administrador' ? '' : 'none';
+    const bnConfig = document.getElementById('bn-config');
+    if (bnConfig) bnConfig.style.display = r === 'administrador' ? '' : 'none';
+    
+    // Auto abrir rescate para líderes
+    if (r === 'lider') {
+        setTimeout(() => {
+            if (!window._rescateRedirected) {
+                window._rescateRedirected = true;
+                if (typeof openRescateOverlay === 'function') openRescateOverlay();
+            }
+        }, 300);
+    }
 }

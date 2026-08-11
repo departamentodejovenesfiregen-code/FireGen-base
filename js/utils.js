@@ -75,7 +75,7 @@ function flashBadge(id) {
     const el = document.getElementById(id);
     if (!el) return;
     el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), 2000);
+    setTimeout(() => el.classList.remove('show'), 1000);
 }
 
 /**
@@ -118,7 +118,7 @@ function downloadCSV(csv, fn) {
 function getStatusClass(s) {
     if (s === 'Lider' || s === 'Líder') return 'bg-purple-100 text-purple-700';
     if (s === 'Bautizado')               return 'bg-blue-100 text-blue-700';
-    if (s === 'Nuevo')                   return 'bg-orange-100 text-orange-700';
+    if (s === 'Nuevo' || s === 'Nuevo creyente') return 'bg-orange-100 text-orange-700';
     return 'bg-slate-100 text-slate-600';
 }
 
@@ -136,9 +136,10 @@ function getEngagementClass(s) {
     return 'bg-slate-100 text-slate-600';
 }
 
+let connectionAlertTimer = null;
+
 /**
  * showConnectionError — Muestra el banner de error de conexión.
- * FIX: JS-07 — Feedback visible al usuario cuando Firebase falla.
  * @param {string} [msg] - Mensaje personalizado
  */
 function showConnectionError(msg) {
@@ -152,6 +153,11 @@ function showConnectionError(msg) {
     banner.textContent = msg || '⚠️ Sin conexión a Firebase. Verifica tu internet o las reglas de seguridad.';
     banner.style.transform = 'translateY(0)';
     banner.classList.add('show');
+    
+    clearTimeout(connectionAlertTimer);
+    connectionAlertTimer = setTimeout(() => {
+        hideConnectionError();
+    }, 1000);
 }
 
 function hideConnectionError() {

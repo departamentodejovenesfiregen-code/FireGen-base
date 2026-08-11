@@ -55,47 +55,8 @@ function setHistoricCell(col, monthIdx, val) {
  * @param {object} data - Datos parciales del informe (bautismos, rescatados, etc.)
  */
 function syncHistoricalFromReport(periodo, data) {
-    if (!periodo) return;
-    const [year, monthStr] = periodo.split('-');
-    const mi = parseInt(monthStr, 10) - 1;
-
-    if (data.bautismos !== undefined) setHistoricCell('bau', mi, data.bautismos);
-    if (data.rescatados !== undefined) setHistoricCell('res', mi, data.rescatados);
-
-    setHistoricCell('tot', mi, members.length);
-
-    const repPeriodoEl = document.getElementById('repPeriodo');
-    if (periodo === (repPeriodoEl ? repPeriodoEl.value : '')) {
-        let sum = 0, cnt = 0;
-        document.querySelectorAll('.rep-asist').forEach(inp => {
-            const v = parseInt(inp.value);
-            if (v > 0) { sum += v; cnt++; }
-        });
-        if (cnt > 0) setHistoricCell('avg', mi, Math.round(sum / cnt));
-
-        let totalNuevos = 0;
-        document.querySelectorAll('.rep-nuevos').forEach(inp => { totalNuevos += parseInt(inp.value) || 0; });
-        setHistoricCell('new', mi, totalNuevos);
-    }
-
-    const mesKey = MESES_KEYS[mi];
-    if (mesKey && year === activeStrategyYear) {
-        const avgEl = document.getElementById(`h-avg-${mi}`);
-        const newEl = document.getElementById(`h-new-${mi}`);
-        const bauEl = document.getElementById(`h-bau-${mi}`);
-        const resEl = document.getElementById(`h-res-${mi}`);
-        const u = {};
-        u[mesKey] = {
-            avg: avgEl ? (avgEl.innerText === '—' ? 0 : parseInt(avgEl.innerText) || 0) : 0,
-            nw: newEl ? (newEl.innerText === '—' ? 0 : parseInt(newEl.innerText) || 0) : 0,
-            bau: bauEl ? (bauEl.innerText === '—' ? 0 : parseInt(bauEl.innerText) || 0) : 0,
-            res: resEl ? (resEl.innerText === '—' ? 0 : parseInt(resEl.innerText) || 0) : 0,
-            tot: members.length
-        };
-        db.ref('estrategias/' + activeStrategyYear).update(u)
-            .catch(err => console.error('[FireGen] Error al sincronizar estrategia:', err));
-    }
-    refreshChart();
+    // FASE3: Las celdas históricas ya no se actualizan en tiempo real desde el informe activo.
+    // Solo se reflejan una vez que el mes se "Cierra" mediante cerrarMesSnapshot.
 }
 
 function bindStrategyInputs() {
@@ -110,33 +71,92 @@ function bindStrategyInputs() {
  * @param {string} periodo - Año (ej. "2026")
  */
 function syncStrategy(periodo) {
-    if (strategyRef && strategyCallback) {
-        strategyRef.off('value', strategyCallback);
-    }
+    destroyStrategyListener(); // Ya no usaremos un listener en vivo, es de solo lectura.
     activeStrategyYear = periodo;
 
-    strategyRef = db.ref('estrategias/' + periodo);
-    strategyCallback = strategyRef.on('value',
-        snap => {
-            hideConnectionError();
-            const d = snap.val();
-            if (!d) return;
-            MESES_KEYS.forEach((mes, i) => {
-                if (!d[mes]) return;
-                setHistoricCell('avg', i, d[mes].avg || '—');
-                setHistoricCell('new', i, d[mes].nw || '—');
-                setHistoricCell('bau', i, d[mes].bau || '—');
-                setHistoricCell('res', i, d[mes].res || '—');
-                setHistoricCell('tot', i, d[mes].tot || '—');
-            });
-            refreshChart();
-        },
-        error => {
-            console.error('[FireGen Strategy] Error Firebase:', error.code, error.message);
-            showConnectionError('⚠️ Error al cargar estrategias. Verifica tu conexión o las reglas de Firebase.');
-        }
-    );
+    const periods = getStrategyOperationalMonths(periodo);
+
+    // Para cada mes operativo: leer historicoMensual y el informe activo en paralelo
+    // Prioridad: si existe snapshot cerrado → mostrar ese; si no → mostrar el informe activo.
+    const snapshotPromises = periods.map(p => db.ref('historicoMensual/' + p).once('value'));
+    const reportPromises   = periods.map(p => db.ref('informes/' + p).once('value'));
+
+    Promise.all([Promise.all(snapshotPromises), Promise.all(reportPromises)]).then(([snapshots, reports]) => {
+        hideConnectionError();
+        // Limpiar todas las filas de la tabla a '—' primero
+        MESES_LABELS.forEach((_, i) => {
+            setHistoricCell('avg', i, '—');
+            setHistoricCell('new', i, '—');
+            setHistoricCell('bau', i, '—');
+            setHistoricCell('res', i, '—');
+            setHistoricCell('tot', i, '—');
+        });
+
+        periods.forEach((p, i) => {
+            const snap = snapshots[i].val();
+            const report = reports[i].val();
+            const monthIdx = Number(p.slice(5, 7)) - 1;
+
+            if (snap && snap.cerrado) {
+                // Mes cerrado: mostrar snapshot inmutable
+                setHistoricCell('avg', monthIdx, snap.asistenciaPromedio !== undefined ? snap.asistenciaPromedio : '—');
+                setHistoricCell('new', monthIdx, snap.nuevos !== undefined ? snap.nuevos : '—');
+                setHistoricCell('bau', monthIdx, snap.bautismos !== undefined ? snap.bautismos : '—');
+                setHistoricCell('res', monthIdx, snap.rescatados !== undefined ? snap.rescatados : '—');
+                setHistoricCell('tot', monthIdx, snap.totalMiembros !== undefined ? snap.totalMiembros : '—');
+            } else if (report) {
+                // Mes activo (no cerrado): mostrar datos del informe mensual disponibles
+                // Calcular promedio desde las fechas del informe
+                let totalAsist = 0, countSem = 0, totalNuevos = 0;
+                if (report.fechas) {
+                    Object.values(report.fechas).forEach(f => {
+                        if (f && !f.sinCulto && f.asist !== undefined) {
+                            totalAsist += Number(f.asist) || 0;
+                            totalNuevos += Number(f.nuevos) || 0;
+                            countSem++;
+                        }
+                    });
+                } else {
+                    // Fallback a sem1…sem5
+                    for (let s = 1; s <= 5; s++) {
+                        const f = report['sem' + s];
+                        if (f && f.asist !== undefined) {
+                            totalAsist += Number(f.asist) || 0;
+                            totalNuevos += Number(f.nuevos) || 0;
+                            countSem++;
+                        }
+                    }
+                }
+                const avgAsist = countSem > 0 ? Math.round(totalAsist / countSem) : '—';
+                const nuevosVal = report.nuevos !== undefined ? report.nuevos : totalNuevos;
+                const bautismosVal = report.bautismos !== undefined ? report.bautismos : '—';
+                const rescatadosVal = report.rescatados !== undefined ? report.rescatados : '—';
+                // Total miembros: contar miembros activos incorporados hasta fin del mes
+                const [yr, mo] = p.split('-').map(Number);
+                const periodEnd = new Date(yr, mo, 0);
+                const totM = (typeof members !== 'undefined')
+                    ? members.filter(m => {
+                        if (!m.fechaIncorporacion) return true;
+                        const f = new Date(m.fechaIncorporacion);
+                        return !isNaN(f) && f <= periodEnd;
+                    }).length
+                    : '—';
+
+                setHistoricCell('avg', monthIdx, avgAsist);
+                setHistoricCell('new', monthIdx, nuevosVal);
+                setHistoricCell('bau', monthIdx, bautismosVal);
+                setHistoricCell('res', monthIdx, rescatadosVal);
+                setHistoricCell('tot', monthIdx, totM);
+            }
+        });
+        syncAnnualStrategy(periodo);
+        refreshChart();
+    }).catch(error => {
+        console.error('[FireGen Strategy] Error Firebase:', error);
+        showConnectionError('⚠️ Error al cargar histórico mensual.');
+    });
 }
+
 
 /**
  * destroyStrategyListener — Desregistra el listener de estrategia.
@@ -150,7 +170,181 @@ function destroyStrategyListener() {
     }
 }
 
+/* ── CIERRE Y RESUMEN ANUAL ─────────────────────────────────── */
+
+function getStrategyOperationalMonths(year) {
+    if (typeof AppConfig !== 'undefined' && typeof AppConfig.getOperationalMonths === 'function') {
+        return AppConfig.getOperationalMonths(year);
+    }
+    return Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
+}
+
+function renderAnnualSummary(dataByPeriod, year) {
+    const set = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    };
+
+    const periods = getStrategyOperationalMonths(year);
+    const closed = periods.filter(p => dataByPeriod[p + '_snap'] && dataByPeriod[p + '_snap'].cerrado);
+
+    // Acumulados: usar snapshot cerrado si existe, si no usar datos del informe activo.
+    // Los acumulados son DINÁMICOS y no requieren cierre anual para visualizarse.
+    let sumNuevos = 0, sumBautismos = 0, sumRescatados = 0, sumAsist = 0, countAsist = 0;
+    let lastTotalMiembros = '—', lastRiesgo = '—';
+
+    periods.forEach(p => {
+        const snap = dataByPeriod[p + '_snap'];
+        const report = dataByPeriod[p + '_report'];
+
+        if (snap && snap.cerrado) {
+            sumNuevos += Number(snap.nuevos) || 0;
+            sumBautismos += Number(snap.bautismos) || 0;
+            sumRescatados += Number(snap.rescatados) || 0;
+            if (snap.asistenciaPromedio !== undefined) {
+                sumAsist += Number(snap.asistenciaPromedio) || 0;
+                countAsist++;
+            }
+            lastTotalMiembros = Number(snap.totalMiembros) || 0;
+            lastRiesgo = Number(snap.enRiesgo) || 0;
+        } else if (report) {
+            // Datos del informe activo (no cerrado)
+            sumNuevos += Number(report.nuevos) || 0;
+            sumBautismos += Number(report.bautismos) || 0;
+            sumRescatados += Number(report.rescatados) || 0;
+            // Asistencia promedio aproximada desde las semanas del informe
+            let totalA = 0, cntA = 0;
+            if (report.fechas) {
+                Object.values(report.fechas).forEach(f => {
+                    if (f && !f.sinCulto && f.asist !== undefined) { totalA += Number(f.asist) || 0; cntA++; }
+                });
+            } else {
+                for (let s = 1; s <= 5; s++) {
+                    const f = report['sem' + s];
+                    if (f && f.asist !== undefined) { totalA += Number(f.asist) || 0; cntA++; }
+                }
+            }
+            if (cntA > 0) { sumAsist += Math.round(totalA / cntA); countAsist++; }
+        }
+    });
+
+    const hasAnyData = closed.length > 0 || periods.some(p => dataByPeriod[p + '_report']);
+    const avgAsist = countAsist > 0 ? Math.round(sumAsist / countAsist) : 0;
+
+    // Total miembros y riesgo: representan el último cierre mensual disponible.
+    set('annual-total-members', hasAnyData ? lastTotalMiembros : '—');
+    set('annual-new-members', hasAnyData ? sumNuevos : '—');
+    set('annual-baptisms', hasAnyData ? sumBautismos : '—');
+    set('annual-rescued', hasAnyData ? sumRescatados : '—');
+    set('annual-risk', hasAnyData ? lastRiesgo : '—');
+    set('annual-attendance', countAsist > 0 ? `${avgAsist}%` : '—');
+
+    const status = document.getElementById('annual-close-status');
+    const btn = document.getElementById('btn-cerrar-anual');
+    const annualClosed = dataByPeriod.__annual && dataByPeriod.__annual.cerrado;
+    if (status) {
+        status.textContent = annualClosed
+            ? `🔒 Cierre anual ${year} realizado.`
+            : `Cierres mensuales: ${closed.length} de ${periods.length}.`;
+    }
+    if (btn) btn.disabled = !!annualClosed;
+}
+
+function syncAnnualStrategy(year) {
+    const periods = getStrategyOperationalMonths(year);
+    // Cargar tanto snapshots mensuales (historicoMensual) como informes activos
+    const snapRefs   = periods.map(p => db.ref('historicoMensual/' + p).once('value'));
+    const reportRefs = periods.map(p => db.ref('informes/' + p).once('value'));
+    const annualRef  = db.ref('historicoAnual/' + year).once('value');
+
+    Promise.all([Promise.all(snapRefs), Promise.all(reportRefs), annualRef]).then(([snapSnaps, reportSnaps, annualSnap]) => {
+        const dataByPeriod = {};
+        periods.forEach((p, i) => {
+            dataByPeriod[p + '_snap']   = snapSnaps[i].val();
+            dataByPeriod[p + '_report'] = reportSnaps[i].val();
+        });
+        dataByPeriod.__annual = annualSnap.val();
+        renderAnnualSummary(dataByPeriod, year);
+    }).catch(err => {
+        console.error('[FireGen Strategy] Error resumen anual:', err);
+        showConnectionError('⚠️ Error al cargar el resumen anual.');
+    });
+
+}
+
+function cerrarAnualSnapshot() {
+    const year = String(document.getElementById('strategyYearSelect')?.value || activeStrategyYear || new Date().getFullYear());
+    const periods = getStrategyOperationalMonths(year);
+
+    Promise.all(periods.map(p => db.ref('historicoMensual/' + p).once('value')))
+        .then(snaps => {
+            const byPeriod = {};
+            periods.forEach((p, i) => { byPeriod[p] = snaps[i].val(); });
+            const closed = periods.filter(p => byPeriod[p] && byPeriod[p].cerrado);
+
+            if (closed.length !== periods.length) {
+                alert(`No se puede cerrar ${year}: primero deben cerrarse todos los meses operativos (${closed.length}/${periods.length}).`);
+                return;
+            }
+
+            const last = byPeriod[closed[closed.length - 1]];
+            const sum = key => closed.reduce((total, p) => total + (Number(byPeriod[p]?.[key]) || 0), 0);
+            const avg = Math.round(closed.reduce((total, p) => total + (Number(byPeriod[p]?.asistenciaPromedio) || 0), 0) / closed.length);
+
+            const annual = {
+                anio: Number(year),
+                totalMiembros: Number(last.totalMiembros) || 0,
+                nuevos: sum('nuevos'),
+                bautismos: sum('bautismos'),
+                rescatados: sum('rescatados'),
+                enRiesgo: Number(last.enRiesgo) || 0,
+                asistenciaPromedio: avg,
+                mesesCerrados: closed.length,
+                cerrado: true,
+                fechaCierre: Date.now()
+            };
+
+            if (!confirm(`¿Cerrar definitivamente el año ${year}? Este cierre no sobrescribirá los cierres mensuales.`)) return;
+
+            db.ref('historicoAnual/' + year).transaction(current => {
+                if (current && current.cerrado) return;
+                return annual;
+            }).then(result => {
+                if (!result.committed) {
+                    alert('El cierre anual ya existía y no fue modificado.');
+                } else {
+                    alert(`Cierre anual ${year} realizado correctamente.`);
+                }
+                syncAnnualStrategy(year);
+            });
+        })
+        .catch(err => {
+            console.error('[FireGen Strategy] Error al cerrar año:', err);
+            alert('Error al cerrar el año: ' + err.message);
+        });
+}
+
 /* ── ANÁLISIS MINISTERIAL ─────────────────────────────────────── */
+
+function initStrategyYearSelect() {
+    const sel = document.getElementById('strategyYearSelect');
+    if (!sel) return;
+    const startYear = Number(AppConfig.current.period.start.slice(0, 4));
+    const endYear = Number(AppConfig.current.period.end.slice(0, 4));
+    const currentYear = new Date().getFullYear();
+
+    sel.innerHTML = '';
+    for (let year = startYear; year <= endYear; year++) {
+        const opt = document.createElement('option');
+        opt.value = String(year);
+        opt.textContent = year;
+        if (year === currentYear) opt.selected = true;
+        sel.appendChild(opt);
+    }
+    sel.addEventListener('change', () => {
+        syncStrategy(sel.value);
+    });
+}
 
 function initAnalysisMonthSelect() {
     const sel = document.getElementById('analysisMonthSelect');
@@ -199,4 +393,4 @@ function exportStrategy() {
     });
     downloadCSV(csv, "FireGen_CrecimientoHistorico.csv");
 }
-
+

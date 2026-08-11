@@ -37,6 +37,34 @@
     "usuarios": {
       ".read": "auth != null",
       ".write": "auth != null && auth.token.email === root.child('configuracion/adminEmail').val()"
+    },
+    "historicoMensual": {
+      ".read": "auth != null",
+      "$periodo": {
+        ".write": "auth != null && !data.exists() && newData.exists() && newData.child('cerrado').val() === true"
+      }
+    },
+    "historicoAnual": {
+      ".read": "auth != null",
+      "$anio": {
+        ".write": "auth != null && !data.exists() && newData.exists() && newData.child('cerrado').val() === true"
+      }
+    },
+    "seguimientos": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "rendicionCuentas": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "notificaciones": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "mensajes": {
+      ".read": "auth != null",
+      ".write": "auth != null"
     }
   }
 }

@@ -79,6 +79,32 @@ const AppConfig = {
         });
     },
 
+    // Determinar si un mes contiene al menos una fecha operativa dentro del periodo.
+    // Importante para julio de 2026: el periodo comienza el día 25, no el día 1.
+    isMonthInPeriod(periodo) {
+        if (!periodo || !/^\d{4}-\d{2}$/.test(periodo) || !this.current.period) return false;
+
+        const [year, month] = periodo.split('-').map(Number);
+        const firstDay = new Date(year, month - 1, 1);
+        const lastDay = new Date(year, month, 0);
+        const startDate = new Date(this.current.period.start);
+        const endDate = new Date(this.current.period.end);
+
+        return firstDay <= endDate && lastDay >= startDate;
+    },
+
+    // Obtener los meses que realmente participan del periodo oficial.
+    getOperationalMonths(year) {
+        const y = Number(year);
+        if (!Number.isInteger(y)) return [];
+        const result = [];
+        for (let month = 1; month <= 12; month++) {
+            const periodo = `${y}-${String(month).padStart(2, '0')}`;
+            if (this.isMonthInPeriod(periodo)) result.push(periodo);
+        }
+        return result;
+    },
+
     // Validar si una fecha está dentro del periodo oficial
     isDateInPeriod(dateString) {
         const checkDate = new Date(dateString);

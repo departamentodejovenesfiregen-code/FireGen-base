@@ -12,23 +12,23 @@
  * @param {string} tab - ID de la pestaña a mostrar ('master', 'attendance', 'report', 'strategy')
  */
 function switchTab(tab) {
-    ['master', 'attendance', 'report', 'strategy', 'config'].forEach(s => {
+    ['master', 'attendance', 'report', 'strategy', 'config', 'rescate', 'coordinacion'].forEach(s => {
         const view = document.getElementById('view-' + s);
         if (view) view.classList.add('hidden');
-        
+
         const topBtn = document.getElementById('tab-' + s);
         if (topBtn) topBtn.classList.remove('tab-active');
-        
+
         const bnBtn = document.getElementById('bn-' + s);
         if (bnBtn) bnBtn.classList.remove('bn-active');
     });
 
     const targetView = document.getElementById('view-' + tab);
     if (targetView) targetView.classList.remove('hidden');
-    
+
     const topActive = document.getElementById('tab-' + tab);
     if (topActive) topActive.classList.add('tab-active');
-    
+
     const bnActive = document.getElementById('bn-' + tab);
     if (bnActive) bnActive.classList.add('bn-active');
 
@@ -36,20 +36,61 @@ function switchTab(tab) {
     if (tab === 'attendance' && typeof renderAttendance === 'function') renderAttendance();
     if (tab === 'report' && typeof updateMonthlyStats === 'function') updateMonthlyStats();
     if (tab === 'strategy' && typeof refreshChart === 'function') refreshChart();
+    if (tab === 'rescate' && typeof renderRescateDashboard === 'function') renderRescateDashboard();
+    if (tab === 'coordinacion' && typeof renderCoordinacionDashboard === 'function') renderCoordinacionDashboard();
     if (tab === 'config') window.dispatchEvent(new Event('configTabOpened'));
+
+    // Actualizar visibilidad de botones flotantes (FABs) según la pestaña actual
+    if (typeof applyRolePermissions === 'function' && window.currentUserRole) {
+        applyRolePermissions(window.currentUserRole);
+    }
 }
 
 /**
  * openModal / closeModal — Manejo genérico de modales.
  */
-function openModal(id) { 
+function openModal(id) {
     const el = document.getElementById(id);
-    if (el) el.classList.remove('hidden'); 
+    if (el) el.classList.remove('hidden');
 }
-function closeModal(id) { 
+function closeModal(id) {
     const el = document.getElementById(id);
-    if (el) el.classList.add('hidden'); 
+    if (el) el.classList.add('hidden');
 }
+
+/**
+ * Overlays de pantalla completa — Plan al Rescate y Centro del Coordinador
+ */
+function openRescateOverlay() {
+    const ov = document.getElementById('rescateOverlay');
+    if (ov) {
+        ov.classList.add('active');
+        if (typeof renderRescateDashboard === 'function') renderRescateDashboard();
+    }
+}
+function closeRescateOverlay() {
+    const ov = document.getElementById('rescateOverlay');
+    if (ov) ov.classList.remove('active');
+}
+
+function openCoordinacionOverlay() {
+    const ov = document.getElementById('coordinacionOverlay');
+    if (ov) {
+        ov.classList.add('active');
+        if (typeof renderCoordinacionDashboard === 'function') renderCoordinacionDashboard();
+    }
+}
+function closeCoordinacionOverlay() {
+    const ov = document.getElementById('coordinacionOverlay');
+    if (ov) ov.classList.remove('active');
+}
+
+// Cerrar overlays con el botón Atrás del navegador
+window.addEventListener('popstate', () => {
+    closeRescateOverlay();
+    closeCoordinacionOverlay();
+});
+
 
 /**
  * Inicialización principal
@@ -60,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Solo cuando estemos autenticados inicializamos la app.
     initAuth((user) => {
         console.log(`[FireGen] Usuario autenticado: ${user.email}. Inicializando módulos...`);
-        
+
         // 2. Variables iniciales (periodo actual = YYYY-MM)
         const now = new Date();
         const cp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -68,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 3. Establecer valores por defecto en selects e inputs
         const attMonthSelector = document.getElementById('attMonthSelector');
         if (attMonthSelector) attMonthSelector.value = cp;
-        
+
         const repPeriodo = document.getElementById('repPeriodo');
         if (repPeriodo) repPeriodo.value = cp;
 
@@ -76,6 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof updateAttDisplayDate === 'function') updateAttDisplayDate();
         if (typeof buildHistoricTable === 'function') buildHistoricTable();
         if (typeof initChartYearSelect === 'function') initChartYearSelect();
+        if (typeof initStrategyYearSelect === 'function') initStrategyYearSelect();
         if (typeof initAnalysisMonthSelect === 'function') initAnalysisMonthSelect();
         if (typeof initChart === 'function') initChart();
 
@@ -102,12 +144,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // Sincronizar sub-módulos para el período actual
         if (typeof syncAttendance === 'function') syncAttendance(cp);
         if (typeof syncReport === 'function') syncReport(cp);
-        
+
         // Sincronización diferida de estrategia para evitar bloqueos
         if (typeof syncStrategy === 'function') {
-            setTimeout(() => syncStrategy(cp), 300);
+            setTimeout(() => syncStrategy(String(now.getFullYear())), 300);
         }
-        
+
         // Inicializar PWA (splash, conexión, auto-update centralizado en pwa.js)
         if (typeof FiregenPWA !== 'undefined') {
             FiregenPWA.init({ splash: true, connectionBanner: true });
@@ -117,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const appBody = document.getElementById('appBody');
             if (appBody) appBody.style.display = 'block';
         }
-        
+
         console.log("[FireGen] Aplicación inicializada correctamente.");
     });
 });

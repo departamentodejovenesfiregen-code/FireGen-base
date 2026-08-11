@@ -288,7 +288,7 @@ function initMemberForm() {
             estadoEspiritual:    fd.get('estadoEspiritual'),
             areaServicio:        fd.get('areaServicio'),
             cargo:               fd.get('cargo'),
-            lider:               fd.get('lider'),
+            lider:               fd.get('estadoEspiritual') === 'Líder' ? 'No aplica' : fd.get('lider'),
             estadoAsistencia:    fd.get('estadoAsistencia'),
             fechaBautismo:       fd.get('fechaBautismo'),
             domicilio:           fd.get('domicilio'),

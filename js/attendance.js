@@ -17,7 +17,7 @@
  */
 
 /* ── Estado del módulo ── */
-let currentAttData  = {};
+let currentAttData = {};
 let currentAttNotes = {};
 let currentAttPeriod = '';
 
@@ -25,7 +25,7 @@ let currentAttPeriod = '';
 let currentSaturdays = [];
 
 // Referencia y callback del listener de asistencia (para .off() preciso)
-let attendanceRef      = null;
+let attendanceRef = null;
 let attendanceCallback = null;
 
 /**
@@ -34,7 +34,7 @@ let attendanceCallback = null;
  * @param {string} periodo - Formato YYYY-MM
  */
 function syncAttendance(periodo) {
-    if (!AppConfig.isDateInPeriod(periodo + '-01')) {
+    if (!AppConfig.isMonthInPeriod(periodo)) {
         showConnectionError('⚠️ El mes seleccionado está fuera del periodo oficial de gestión.');
         return;
     }
@@ -43,8 +43,9 @@ function syncAttendance(periodo) {
         attendanceRef.off('value', attendanceCallback);
     }
     currentAttPeriod = periodo;
-    currentAttData   = {};
-    currentAttNotes  = {};
+    currentAttData = {};
+    currentAttNotes = {};
+    currentFechasSinCulto = {};
 
     // FASE3-S1: Calcular sábados operativos de este período
     currentSaturdays = getOperationalSaturdaysForPeriod(periodo);
@@ -54,10 +55,12 @@ function syncAttendance(periodo) {
         snap => {
             hideConnectionError();
             const d = snap.val() || {};
-            currentAttData  = {};
+            currentAttData = {};
             currentAttNotes = {};
+            currentFechasSinCulto = (d.config && d.config.fechasSinCulto) ? d.config.fechasSinCulto : {};
             const n = currentSaturdays.length;
             Object.keys(d).forEach(fid => {
+                if (fid === 'config') return;
                 const member = members.find(m => m.firebaseId === fid);
                 const rawFechas = d[fid].fechas;
                 const rawSemanas = d[fid].semanas || [];
@@ -72,9 +75,12 @@ function syncAttendance(periodo) {
                     if (member && typeof isSaturdayBeforeIncorporation === 'function' && isSaturdayBeforeIncorporation(member, satDate) && estado === 3) {
                         return 4;
                     }
+                    if (currentFechasSinCulto[satDate]) {
+                        return 5; // Estado 5 = Sin Culto
+                    }
                     return estado;
                 });
-                currentAttData[fid]  = sem;
+                currentAttData[fid] = sem;
                 currentAttNotes[fid] = d[fid].nota || '';
             });
             renderAttendance();
@@ -103,16 +109,25 @@ function destroyAttendanceListener() {
  * FASE3-S1: Genera columnas dinámicas con etiquetas "Sáb DD" según sábados reales.
  */
 function renderAttendance() {
-    const periodo   = document.getElementById('attMonthSelector').value;
+    const periodo = document.getElementById('attMonthSelector').value;
     const saturdays = getOperationalSaturdaysForPeriod(periodo);
-    const n         = saturdays.length;
+    const n = saturdays.length;
 
     // ── Actualizar encabezados de tabla desktop ──────────────
     const thead = document.getElementById('attTableHeaders');
     if (thead) {
         let hHtml = `<th class="p-4 border-b font-bold w-64">Nombre del Joven</th>`;
         saturdays.forEach(sat => {
-            hHtml += `<th class="p-4 border-b text-center">${getSaturdayLabel(sat)}</th>`;
+            const isNoCulto = currentFechasSinCulto[sat];
+            const textClass = isNoCulto ? 'text-red-500 line-through' : 'text-slate-600';
+            const btnClass = isNoCulto ? 'text-red-500' : 'text-slate-400';
+            const icon = isNoCulto ? 'fa-ban' : 'fa-power-off';
+            hHtml += `<th class="p-2 border-b text-center">
+                <div class="flex flex-col items-center gap-1">
+                    <span class="${textClass}">${getSaturdayLabel(sat)}</span>
+                    <button onclick="toggleSinCulto('${sat}')" title="Marcar/Desmarcar Sin Culto" class="text-[10px] hover:text-red-600 transition-colors ${btnClass}"><i class="fas ${icon}"></i></button>
+                </div>
+            </th>`;
         });
         hHtml += `<th class="p-4 border-b text-center bg-orange-50 text-orange-700 font-black">TOTAL</th>`;
         hHtml += `<th class="p-4 border-b">Observación</th>`;
@@ -120,7 +135,7 @@ function renderAttendance() {
     }
 
     // ── Tabla Desktop ────────────────────────────────────────
-    const body  = document.getElementById('attendanceBody');
+    const body = document.getElementById('attendanceBody');
     const empty = document.getElementById('emptyAttendance');
     body.innerHTML = '';
     empty.classList.toggle('hidden', members.length > 0);
@@ -135,7 +150,7 @@ function renderAttendance() {
         }
         const nota = currentAttNotes[m.firebaseId] || '';
         const total = sem.reduce((a, s) => a + (s === 1 || s === 2 ? 1 : 0), 0);
-        const row   = document.createElement('tr');
+        const row = document.createElement('tr');
 
         let c = `<td class="p-4 font-bold text-slate-800">${escHtml(m.nombre)}</td>`;
         sem.forEach((st, i) => {
@@ -149,10 +164,10 @@ function renderAttendance() {
     });
 
     // ── Lista Móvil ──────────────────────────────────────────
-    const mobileList  = document.getElementById('attendanceMobileList');
+    const mobileList = document.getElementById('attendanceMobileList');
     const mobileEmpty = document.getElementById('emptyAttendanceMobile');
     Array.from(mobileList.children).forEach(c => {
-        if (!c.classList.contains('flex') && c.id !== 'emptyAttendanceMobile') c.remove();
+        if (!c.classList.contains('flex') && c.id !== 'emptyAttendanceMobile' && c.id !== 'sin-culto-mobile-wrapper') c.remove();
     });
 
     if (!members.length) {
@@ -171,14 +186,16 @@ function renderAttendance() {
         }
         const nota = currentAttNotes[m.firebaseId] || '';
         const total = sem.reduce((a, s) => a + (s === 1 || s === 2 ? 1 : 0), 0);
-        const card  = document.createElement('div');
+        const card = document.createElement('div');
         card.className = 'mobile-att-card';
 
         let weeksHtml = '';
         sem.forEach((st, i) => {
             const satDate = saturdays[i] || '';
-            const label   = getSaturdayLabel(satDate);
-            weeksHtml += `<div style="text-align:center;margin:0 2px"><div style="font-size:9px;color:#94a3b8;margin-bottom:2px">${escHtml(label)}</div><div data-action="toggle-att" data-fid="${escHtml(m.firebaseId)}" data-week="${i}" data-periodo="${escHtml(periodo)}" data-satdate="${escHtml(satDate)}" class="btn-attendance ${getAttClass(st)}" style="width:30px;height:30px;font-size:12px">${getAttIcon(st)}</div></div>`;
+            const isNoCulto = currentFechasSinCulto[satDate];
+            const label = getSaturdayLabel(satDate);
+            const lblStyle = isNoCulto ? 'text-decoration:line-through;color:#ef4444' : 'color:#94a3b8';
+            weeksHtml += `<div style="text-align:center;margin:0 2px"><div style="font-size:9px;margin-bottom:2px;${lblStyle}">${escHtml(label)}</div><div data-action="toggle-att" data-fid="${escHtml(m.firebaseId)}" data-week="${i}" data-periodo="${escHtml(periodo)}" data-satdate="${escHtml(satDate)}" class="btn-attendance ${getAttClass(st)}" style="width:30px;height:30px;font-size:12px">${getAttIcon(st)}</div></div>`;
         });
 
         card.innerHTML = `
@@ -210,7 +227,7 @@ function initAttendanceEventDelegation() {
         const { fid, periodo } = el.dataset;
         saveAttNote(fid, periodo, el.value);
     }
-    const body       = document.getElementById('attendanceBody');
+    const body = document.getElementById('attendanceBody');
     const mobileList = document.getElementById('attendanceMobileList');
     body.addEventListener('click', handleClick);
     body.addEventListener('input', handleInput);
@@ -230,12 +247,17 @@ function isSaturdayBeforeIncorporation(member, satDate) {
 function toggleAtt(fid, week, periodo) {
     const member = members.find(m => m.firebaseId === fid);
     const satDate = currentSaturdays[week];
-    
+
     if (member && isSaturdayBeforeIncorporation(member, satDate)) {
         return;
     }
 
-    const n   = currentSaturdays.length || 5;
+    if (currentFechasSinCulto[satDate]) {
+        // Día cerrado por "Sin Culto", no se puede alternar.
+        return;
+    }
+
+    const n = currentSaturdays.length || 5;
     let sem = currentAttData[fid];
     if (!sem) {
         sem = Array.from({ length: n }, (_, i) => {
@@ -245,10 +267,10 @@ function toggleAtt(fid, week, periodo) {
     } else {
         sem = sem.slice();
     }
-    
+
     sem[week] = (sem[week] === 4) ? 4 : (sem[week] + 1) % 4;
     currentAttData[fid] = sem;
-    
+
     const updates = {};
     updates[`fechas/${satDate}`] = sem[week];
     updates[`semanas`] = sem;
@@ -269,8 +291,63 @@ const saveAttNote = debounce(function (fid, periodo, val) {
         .catch(err => console.error('[FireGen] Error al guardar nota:', err));
 }, 800);
 
-function getAttClass(s) { return s === 4 ? 'att-not-applicable' : s === 1 ? 'att-present' : s === 0 ? 'att-absent' : s === 2 ? 'att-new' : 'att-empty'; }
-function getAttIcon(s)  { return s === 4 ? '—' : s === 1 ? '✔' : s === 0 ? '✖' : s === 2 ? 'N' : '?'; }
+function getAttClass(s) { return s === 5 ? 'att-not-applicable bg-slate-200' : s === 4 ? 'att-not-applicable' : s === 1 ? 'att-present' : s === 0 ? 'att-absent' : s === 2 ? 'att-new' : 'att-empty'; }
+function getAttIcon(s) { return s === 5 ? '<i class="fas fa-ban"></i>' : s === 4 ? '-' : s === 1 ? '✓' : s === 0 ? '✗' : s === 2 ? 'N' : '?'; }
+
+window.toggleSinCulto = function (satDate) {
+    const periodo = document.getElementById('attMonthSelector').value;
+    const isNowSinCulto = !currentFechasSinCulto[satDate];
+    db.ref(`asistencias/${periodo}/config/fechasSinCulto/${satDate}`).set(isNowSinCulto)
+        .catch(err => console.error('[FireGen] Error toggleSinCulto:', err));
+};
+
+/**
+ * toggleSinCultoPanel — Muestra/oculta el panel de selección de "Sin Culto" en móvil.
+ * Construye dinámicamente los chips de cada sábado del mes actual.
+ */
+window.toggleSinCultoPanel = function () {
+    const panel = document.getElementById('sin-culto-panel');
+    const chevron = document.getElementById('sin-culto-chevron');
+    if (!panel) return;
+    const isOpen = !panel.classList.contains('hidden');
+    if (isOpen) {
+        panel.classList.add('hidden');
+        if (chevron) chevron.style.transform = '';
+    } else {
+        refreshSinCultoPanel();
+        panel.classList.remove('hidden');
+        if (chevron) chevron.style.transform = 'rotate(180deg)';
+    }
+};
+
+function refreshSinCultoPanel() {
+    const container = document.getElementById('sin-culto-sat-list');
+    if (!container) return;
+    const periodo = document.getElementById('attMonthSelector').value;
+    const saturdays = getOperationalSaturdaysForPeriod(periodo);
+    container.innerHTML = '';
+    if (!saturdays.length) {
+        container.innerHTML = '<span class="text-xs text-slate-400">No hay sábados en este mes.</span>';
+        return;
+    }
+    saturdays.forEach(satDate => {
+        const isNoCulto = !!currentFechasSinCulto[satDate];
+        const label = getSaturdayLabel(satDate);
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = isNoCulto
+            ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-red-500 text-white border border-red-600'
+            : 'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-300';
+        chip.innerHTML = `<i class="fas ${isNoCulto ? 'fa-ban' : 'fa-calendar-check'}"></i> ${escHtml(label)}`;
+        chip.onclick = () => {
+            toggleSinCulto(satDate);
+            // Actualizar el chip localmente de inmediato (el listener de FB actualizará todo)
+            setTimeout(refreshSinCultoPanel, 300);
+        };
+        container.appendChild(chip);
+    });
+}
+
 
 function changeAttendanceMonth() {
     updateAttDisplayDate();
@@ -297,10 +374,10 @@ function pushAttendanceToReport() {
     if (!periodo || periodo !== currentAttPeriod) return;
 
     const saturdays = getOperationalSaturdaysForPeriod(periodo);
-    const n         = saturdays.length;
+    const n = saturdays.length;
 
     const presentes = Array(n).fill(0);
-    const nuevos    = Array(n).fill(0);
+    const nuevos = Array(n).fill(0);
     members.forEach(m => {
         const sem = currentAttData[m.firebaseId] || Array(n).fill(3);
         sem.forEach((s, i) => {
@@ -317,19 +394,37 @@ function pushAttendanceToReport() {
             return;
         }
         row.style.display = '';
-        const asistEl  = row.querySelector('.rep-asist');
+        const asistEl = row.querySelector('.rep-asist');
         const nuevosEl = row.querySelector('.rep-nuevos');
-        if (asistEl)  asistEl.value  = presentes[i] || '';
-        if (nuevosEl) nuevosEl.value = nuevos[i]    || '';
         const satDate = saturdays[i];
-        updates[`fechas/${satDate}/asist`]  = presentes[i] || 0;
-        updates[`fechas/${satDate}/nuevos`] = nuevos[i]    || 0;
-        updates[`sem${i + 1}/asist`]  = presentes[i] || 0;
-        updates[`sem${i + 1}/nuevos`] = nuevos[i]    || 0;
+        const isNoCulto = currentFechasSinCulto[satDate] || false;
+
+        if (isNoCulto) {
+            if (asistEl) { asistEl.value = ''; asistEl.dataset.sinculto = "true"; }
+            if (nuevosEl) nuevosEl.value = '';
+        } else {
+            if (asistEl) { asistEl.value = presentes[i] || ''; asistEl.dataset.sinculto = "false"; }
+            if (nuevosEl) nuevosEl.value = nuevos[i] || '';
+        }
+
+        updates[`fechas/${satDate}/asist`] = presentes[i] || 0;
+        updates[`fechas/${satDate}/nuevos`] = nuevos[i] || 0;
+        updates[`fechas/${satDate}/sinCulto`] = isNoCulto;
+        updates[`sem${i + 1}/asist`] = presentes[i] || 0;
+        updates[`sem${i + 1}/nuevos`] = nuevos[i] || 0;
 
         // Actualizar etiqueta de semana en el informe si existe el elemento
         const semLabel = row.querySelector('.rep-sem-label');
-        if (semLabel) semLabel.textContent = getSaturdayLabel(satDate);
+        if (semLabel) {
+            semLabel.textContent = getSaturdayLabel(satDate);
+            if (isNoCulto) {
+                semLabel.style.textDecoration = 'line-through';
+                semLabel.style.color = '#ef4444';
+            } else {
+                semLabel.style.textDecoration = 'none';
+                semLabel.style.color = '';
+            }
+        }
     });
 
     if (periodo) {
@@ -363,7 +458,7 @@ function updateEngagementStatus(memberId) {
         ? AppConfig.current.period.start : AppConfig.defaults.period.start;
     const incorporationStr = member.fechaIncorporacion || periodStart;
     const incorporationDate = new Date(incorporationStr + 'T00:00:00');
-    
+
     const today = new Date();
     today.setHours(23, 59, 59, 999);
 
@@ -375,40 +470,53 @@ function updateEngagementStatus(memberId) {
         cursor.setMonth(cursor.getMonth() + 1);
     }
 
-    Promise.all(periodos.map(p => db.ref(`asistencias/${p}/${memberId}`).once('value')))
+    const promises = [];
+    periodos.forEach(p => {
+        promises.push(db.ref(`asistencias/${p}/config/fechasSinCulto`).once('value'));
+        promises.push(db.ref(`asistencias/${p}/${memberId}`).once('value'));
+    });
+
+    Promise.all(promises)
         .then(snaps => {
             const recordMap = {};
-            snaps.forEach((snap, idx) => {
-                const periodo = periodos[idx];
+            for (let i = 0; i < periodos.length; i++) {
+                const periodo = periodos[i];
                 const [y, m] = periodo.split('-').map(Number);
                 const saturdays = getOperationalSaturdays(y, m);
-                const data = snap.val() || {};
+
+                const configSnap = snaps[i * 2];
+                const memberSnap = snaps[i * 2 + 1];
+
+                const fechasSinCulto = configSnap.val() || {};
+                const data = memberSnap.val() || {};
                 const rawFechas = data.fechas || {};
                 const rawSemanas = Array.isArray(data.semanas) ? data.semanas : [];
 
-                saturdays.forEach((satDate, i) => {
+                saturdays.forEach((satDate, j) => {
                     const sat = new Date(satDate + 'T00:00:00');
                     if (sat < incorporationDate) return;
                     if (sat > today) return;
 
+                    if (fechasSinCulto[satDate]) return; // Omitir completamente días "Sin Culto"
+
                     let estado;
                     if (Object.prototype.hasOwnProperty.call(rawFechas, satDate)) {
                         estado = rawFechas[satDate];
-                    } else if (rawSemanas[i] !== undefined) {
-                        estado = rawSemanas[i];
+                    } else if (rawSemanas[j] !== undefined) {
+                        estado = rawSemanas[j];
                     } else {
                         estado = 3;
                     }
                     recordMap[satDate] = Number(estado);
                 });
-            });
+            }
 
             // ── Filtrar 0, 1, 2 (evaluables) y calcular rachas ──
             const evaluables = Object.keys(recordMap)
                 .sort()
                 .map(date => recordMap[date])
                 .filter(s => s === 0 || s === 1 || s === 2);
-            
+
             let recentAbsentStreak = 0, recentPresentStreak = 0;
             let countingAbsent = true, countingPresent = true;
             for (let i = evaluables.length - 1; i >= 0; i--) {
@@ -443,11 +551,11 @@ function updateEngagementStatus(memberId) {
                 const asistencias = window.filter(s => s === 1 || s === 2).length;
                 const porcentaje = asistencias / 8;
 
-                if (recentAbsentStreak >= 5)       nuevoEstado = 'Alejándose';
-                else if (recentAbsentStreak >= 3)  nuevoEstado = 'Enfriándose';
+                if (recentAbsentStreak >= 5) nuevoEstado = 'Alejándose';
+                else if (recentAbsentStreak >= 3) nuevoEstado = 'Enfriándose';
                 else if (recentPresentStreak >= 4) nuevoEstado = 'Activo';
-                else if (porcentaje < 0.5)         nuevoEstado = 'Inconstante';
-                else                               nuevoEstado = 'Activo';
+                else if (porcentaje < 0.5) nuevoEstado = 'Inconstante';
+                else nuevoEstado = 'Activo';
             }
 
             // ── Aplicar si cambió ──
@@ -486,8 +594,8 @@ function triggerRetentionAlert(member) {
  */
 function addRescueChip(fid, nombre, telefono) {
     const container = document.getElementById('rescue-alerts');
-    const badge     = document.getElementById('rescue-count-badge');
-    const emptyMsg  = container.querySelector('p');
+    const badge = document.getElementById('rescue-count-badge');
+    const emptyMsg = container.querySelector('p');
     if (emptyMsg) emptyMsg.remove();
     if (document.getElementById('chip-' + fid)) return;
 
@@ -526,14 +634,14 @@ function loadRescueAlerts(periodo) {
  */
 function exportAttendance() {
     if (!members.length) return;
-    const period    = document.getElementById('attMonthSelector').value;
+    const period = document.getElementById('attMonthSelector').value;
     const saturdays = getOperationalSaturdaysForPeriod(period);
-    const headers   = saturdays.map(getSaturdayLabel).join(',');
+    const headers = saturdays.map(getSaturdayLabel).join(',');
     let csv = `Control Asistencia - Periodo ${period}\nNombre,${headers},Total Mes\n`;
     members.forEach(m => {
-        const n   = saturdays.length;
+        const n = saturdays.length;
         const sem = currentAttData[m.firebaseId] || Array(n).fill(3);
-        const r   = [m.nombre, ...sem.map(getAttIcon)];
+        const r = [m.nombre, ...sem.map(getAttIcon)];
         r.push(sem.reduce((a, s) => a + (s === 1 || s === 2 ? 1 : 0), 0));
         csv += `"${r.join('","')}"\n`;
     });

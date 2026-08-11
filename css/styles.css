@@ -383,6 +383,107 @@ textarea {
   background: #f8fafc;
 }
 
+/* ═══════════════════════════════════════
+   OVERLAYS GENÉRICOS (Rescate / Coordinación)
+   Mismo patrón que #directorioOverlay
+════════════════════════════════════════ */
+#rescateOverlay,
+#coordinacionOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.38s cubic-bezier(.4, 0, .2, 1);
+  overflow: hidden;
+}
+
+#rescateOverlay.active,
+#coordinacionOverlay.active {
+  transform: translateY(0);
+}
+
+.overlay-header {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0c1a2e 100%);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.overlay-body {
+  flex: 1;
+  overflow-y: auto;
+  background: #f8fafc;
+}
+
+/* ═══════════════════════════════════════
+   BOTONES FLOTANTES (FAB) — Plan al Rescate / Coordinación
+════════════════════════════════════════ */
+.fab-btn {
+  position: fixed;
+  bottom: 80px;
+  right: 16px;
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(239,68,68,0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: none;
+  user-select: none;
+}
+
+.fab-btn:hover,
+.fab-btn:active {
+  transform: scale(1.08);
+  box-shadow: 0 6px 28px rgba(239,68,68,0.5);
+}
+
+.fab-btn-coord {
+  bottom: 148px; /* apilado sobre el de rescate */
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  box-shadow: 0 4px 20px rgba(79,70,229,0.4);
+}
+
+.fab-btn-coord:hover,
+.fab-btn-coord:active {
+  box-shadow: 0 6px 28px rgba(79,70,229,0.5);
+}
+
+.fab-label {
+  font-size: 8px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+/* En desktop, mover FABs a posición más cómoda */
+@media (min-width: 1024px) {
+  .fab-btn {
+    bottom: 24px;
+    right: 24px;
+  }
+  .fab-btn-coord {
+    bottom: 96px;
+    right: 24px;
+  }
+}
+
 .dir-card {
   background: white;
   border-radius: 16px;
@@ -577,7 +678,17 @@ textarea {
   margin-top: 6px;
 }
 
-/* ── MOBILE CARDS Asistencia ── */
+/* ── SIN CULTO PANEL (solo móvil) ── */
+#sin-culto-mobile-wrapper {
+  display: block;
+}
+@media (min-width: 768px) {
+  #sin-culto-mobile-wrapper {
+    display: none;
+  }
+}
+
+
 .mobile-att-card {
   background: white;
   border-radius: 12px;
@@ -732,7 +843,7 @@ textarea {
   }
 
   body {
-    padding-bottom: calc(85px + env(safe-area-inset-bottom, 10px)) !important;
+    padding-bottom: calc(115px + env(safe-area-inset-bottom, 15px)) !important;
   }
 
   #updateModal {

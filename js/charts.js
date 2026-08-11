@@ -124,23 +124,30 @@ function refreshChart() {
         const yearSel = document.getElementById('chartYearSelect');
         const year = parseInt(yearSel ? yearSel.value : new Date().getFullYear());
         
-        db.ref('estrategias/' + year).once('value').then(snap => {
-            const data = snap.val() || {};
+        const promises = [];
+        for(let m = 1; m <= 12; m++) {
+            const p = `${year}-${String(m).padStart(2, '0')}`;
+            promises.push(db.ref(`historicoMensual/${p}`).once('value'));
+        }
+
+        Promise.all(promises).then(snaps => {
             const avgData = [];
             const newResData = [];
             
-            MESES_KEYS.forEach(mKey => {
-                const monthData = data[mKey] || {};
-                avgData.push(monthData.avg || 0);
-                // "nuevos" en historic table puede llamarse "nuevos"
-                newResData.push(monthData.nuevos || 0); 
+            snaps.forEach(snap => {
+                const monthData = snap.val();
+                if (monthData && monthData.cerrado) {
+                    avgData.push(monthData.asistenciaPromedio || 0);
+                    newResData.push(monthData.nuevos || 0);
+                } else {
+                    avgData.push(0);
+                    newResData.push(0);
+                }
             });
             
             growthChart.data.datasets[0].data = avgData;
             growthChart.data.datasets[1].data = newResData;
             growthChart.update();
-        }).catch(err => console.error('[FireGen Charts] Error al actualizar gráfica:', err));
-    }, 300);
+        }).catch(err => console.error('[FireGen Charts] Error cargando datos de gráfica:', err));
+    }, 600);
 }
-
-

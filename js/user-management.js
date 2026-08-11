@@ -28,6 +28,7 @@ function initUsersListener() {
         const data = snap.val() || {};
         usuariosData = Object.entries(data).map(([uid, v]) => ({ uid, ...v }));
         renderUsersList();
+        if (typeof populateAssignmentSelects === 'function') populateAssignmentSelects();
     }, error => {
         const container = document.getElementById('usersList');
         if (container) {
@@ -53,20 +54,29 @@ function renderUsersList() {
         container.innerHTML = `
             <div class="text-center py-8 text-slate-400 italic text-sm">
                 <i class="fas fa-users text-2xl mb-2 block"></i>
-                Ningún líder registrado aún
+                Ningún usuario registrado aún
             </div>`;
         return;
     }
 
-    container.innerHTML = usuariosData.map(u => `
-        <div class="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3 border border-slate-100">
+    container.innerHTML = usuariosData.map(u => {
+        const rolLabel = u.rol ? u.rol.charAt(0).toUpperCase() + u.rol.slice(1) : 'Líder';
+        const activeClass = u.activo === false ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600';
+        const activeLabel = u.activo === false ? 'Inactivo' : 'Activo';
+        
+        return `
+        <div class="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3 border border-slate-100 mb-2">
             <div class="flex items-center gap-3 min-w-0">
                 <div class="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-black text-sm flex-shrink-0">
                     ${escHtml((u.nombre || u.email || '?').charAt(0).toUpperCase())}
                 </div>
                 <div class="min-w-0">
                     <div class="font-bold text-slate-800 text-sm truncate">${escHtml(u.nombre || '—')}</div>
-                    <div class="text-xs text-slate-400 truncate">${escHtml(u.email || '—')}</div>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="text-[10px] text-slate-500 font-medium uppercase bg-slate-200 px-1.5 py-0.5 rounded">${escHtml(rolLabel)}</span>
+                        <span class="text-[10px] font-medium uppercase px-1.5 py-0.5 rounded ${activeClass}">${activeLabel}</span>
+                        <span class="text-xs text-slate-400 truncate">${escHtml(u.email || '—')}</span>
+                    </div>
                 </div>
             </div>
             <div class="flex items-center gap-2 ml-3 flex-shrink-0">
@@ -74,13 +84,27 @@ function renderUsersList() {
                     class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-orange-100 hover:text-orange-600 transition-all" title="Editar nombre">
                     <i class="fas fa-pencil-alt text-xs"></i>
                 </button>
+                <button onclick="toggleUserStatus('${escHtml(u.uid)}', ${u.activo !== false})"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg ${u.activo !== false ? 'bg-red-50 text-red-500 hover:bg-red-100' : 'bg-green-50 text-green-500 hover:bg-green-100'} transition-all" title="${u.activo !== false ? 'Desactivar usuario' : 'Activar usuario'}">
+                    <i class="fas ${u.activo !== false ? 'fa-ban' : 'fa-check'} text-xs"></i>
+                </button>
                 <button onclick="deleteLeaderAccount('${escHtml(u.uid)}', '${escHtml(u.email)}')"
-                    class="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-all" title="Eliminar acceso">
+                    class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-200 text-slate-600 hover:bg-red-500 hover:text-white transition-all" title="Eliminar registro">
                     <i class="fas fa-trash text-xs"></i>
                 </button>
             </div>
-        </div>`).join('');
+        </div>`;
+    }).join('');
 }
+
+window.toggleUserStatus = async function(uid, currentStatus) {
+    if (!confirm(`¿Estás seguro de que deseas ${currentStatus ? 'desactivar' : 'activar'} este usuario?`)) return;
+    try {
+        await db.ref('usuarios/' + uid + '/activo').set(!currentStatus);
+    } catch(e) {
+        alert('Error: ' + e.message);
+    }
+};
 
 /**
  * editLeaderName — Permite editar el nombre de un líder en la base de datos.
@@ -111,6 +135,7 @@ async function createLeaderAccount(e) {
     const nombre = document.getElementById('newUserNombre').value.trim();
     const email  = document.getElementById('newUserEmail').value.trim();
     const clave  = document.getElementById('newUserClave').value;
+    const rol    = document.getElementById('newUserRol') ? document.getElementById('newUserRol').value : 'lider';
 
     if (!nombre || !email || !clave) return;
 
@@ -138,8 +163,14 @@ async function createLeaderAccount(e) {
 
         const uid = data.localId;
 
-        // 2. Guardar nombre en Firebase Database
-        await db.ref('usuarios/' + uid).set({ nombre, email });
+        // 2. Guardar nombre y rol en Firebase Database
+        await db.ref('usuarios/' + uid).set({ 
+            nombre, 
+            email,
+            rol: rol,
+            activo: true,
+            createdAt: new Date().toISOString()
+        });
 
         // 3. Limpiar formulario
         document.getElementById('newUserForm').reset();
@@ -185,8 +216,61 @@ function translateAuthError(code) {
     for (const key of Object.keys(map)) {
         if (code && code.includes(key)) return map[key];
     }
-    return 'Error: ' + code;
+    return map[code] || code;
 }
+
+/**
+ * populateAssignmentSelects — Llena los selectores de líderes y miembros para las Asignaciones Rápidas.
+ */
+window.populateAssignmentSelects = function() {
+    const leaderSelect = document.getElementById('assignLeaderSelect');
+    const memberSelect = document.getElementById('assignMemberSelect');
+    if (!leaderSelect || !memberSelect) return;
+
+    // Solo líderes activos o con rol de líder/coordinador
+    const lideres = usuariosData.filter(u => u.activo !== false);
+
+    leaderSelect.innerHTML = '<option value="">-- Seleccionar Líder --</option>' + 
+        lideres.map(l => `<option value="${escHtml(l.nombre)}">${escHtml(l.nombre)}</option>`).join('');
+
+    // Miembros que no son líderes
+    const miembrosElegibles = (typeof members !== 'undefined' ? members : []).filter(m => m.estadoEspiritual !== 'Líder' && m.estadoEspiritual !== 'Lider');
+    
+    // Sort alphabetically
+    miembrosElegibles.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+
+    memberSelect.innerHTML = '<option value="">-- Seleccionar Miembro --</option>' + 
+        miembrosElegibles.map(m => {
+            const hasLeader = m.lider && m.lider !== 'No aplica' && m.lider.trim() !== '';
+            const leaderText = hasLeader ? ` (Actual: ${m.lider})` : ' (Sin líder)';
+            return `<option value="${escHtml(m.firebaseId)}">${escHtml(m.nombre)}${leaderText}</option>`;
+        }).join('');
+};
+
+/**
+ * assignLeaderToMember — Guarda la asignación en la base de datos
+ */
+window.assignLeaderToMember = async function() {
+    const leaderSelect = document.getElementById('assignLeaderSelect');
+    const memberSelect = document.getElementById('assignMemberSelect');
+    
+    const leaderName = leaderSelect.value;
+    const memberId = memberSelect.value;
+    
+    if (!leaderName || !memberId) {
+        alert('Por favor, selecciona un Líder y un Miembro.');
+        return;
+    }
+
+    try {
+        await db.ref(`miembros/${memberId}/lider`).set(leaderName);
+        alert('Asignación guardada correctamente.');
+        populateAssignmentSelects(); // Refrescar la lista
+        if (typeof renderMaster === 'function') renderMaster(); // Refrescar la tabla si es necesario
+    } catch (e) {
+        alert('Error al asignar: ' + e.message);
+    }
+};
 
 // Inicializar cuando el admin abre la sección Config
 document.addEventListener('DOMContentLoaded', () => {
