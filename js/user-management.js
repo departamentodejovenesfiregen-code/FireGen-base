@@ -60,9 +60,9 @@ function renderUsersList() {
     }
 
     container.innerHTML = usuariosData.map(u => {
-        const rolLabel = u.rol ? u.rol.charAt(0).toUpperCase() + u.rol.slice(1) : 'Líder';
         const activeClass = u.activo === false ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600';
         const activeLabel = u.activo === false ? 'Inactivo' : 'Activo';
+        const currentRol = u.rol || 'pendiente';
         
         return `
         <div class="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3 border border-slate-100 mb-2">
@@ -73,7 +73,12 @@ function renderUsersList() {
                 <div class="min-w-0">
                     <div class="font-bold text-slate-800 text-sm truncate">${escHtml(u.nombre || '—')}</div>
                     <div class="flex items-center gap-2 mt-1">
-                        <span class="text-[10px] text-slate-500 font-medium uppercase bg-slate-200 px-1.5 py-0.5 rounded">${escHtml(rolLabel)}</span>
+                        <select onchange="updateUserRole('${escHtml(u.uid)}', this.value)" class="text-[10px] text-slate-600 font-bold uppercase bg-slate-200 border-none outline-none rounded cursor-pointer">
+                            <option value="pendiente" ${currentRol === 'pendiente' ? 'selected' : ''}>Pendiente</option>
+                            <option value="lider" ${currentRol === 'lider' ? 'selected' : ''}>Líder</option>
+                            <option value="secretario" ${currentRol === 'secretario' ? 'selected' : ''}>Secretario</option>
+                            <option value="coordinador" ${currentRol === 'coordinador' ? 'selected' : ''}>Coordinador</option>
+                        </select>
                         <span class="text-[10px] font-medium uppercase px-1.5 py-0.5 rounded ${activeClass}">${activeLabel}</span>
                         <span class="text-xs text-slate-400 truncate">${escHtml(u.email || '—')}</span>
                     </div>
@@ -96,6 +101,19 @@ function renderUsersList() {
         </div>`;
     }).join('');
 }
+
+window.updateUserRole = async function(uid, newRole) {
+    if (!confirm(`¿Cambiar el rol a ${newRole}?`)) {
+        renderUsersList();
+        return;
+    }
+    try {
+        await db.ref('usuarios/' + uid + '/rol').set(newRole);
+    } catch(e) {
+        alert('Error: ' + e.message);
+        renderUsersList();
+    }
+};
 
 window.toggleUserStatus = async function(uid, currentStatus) {
     if (!confirm(`¿Estás seguro de que deseas ${currentStatus ? 'desactivar' : 'activar'} este usuario?`)) return;
@@ -227,8 +245,8 @@ window.populateAssignmentSelects = function() {
     const memberSelect = document.getElementById('assignMemberSelect');
     if (!leaderSelect || !memberSelect) return;
 
-    // Solo líderes activos o con rol de líder/coordinador
-    const lideres = usuariosData.filter(u => u.activo !== false);
+    // Solo líderes activos con rol lider o coordinador
+    const lideres = usuariosData.filter(u => u.activo !== false && (!u.rol || u.rol === 'lider' || u.rol === 'coordinador'));
 
     leaderSelect.innerHTML = '<option value="">-- Seleccionar Líder --</option>' + 
         lideres.map(l => `<option value="${escHtml(l.nombre)}">${escHtml(l.nombre)}</option>`).join('');

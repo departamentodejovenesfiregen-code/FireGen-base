@@ -4,31 +4,31 @@
     ".write": false,
     "historial_cambios": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'lider' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')"
     },
     "miembros": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      ".read": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'lider' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')",
+      ".write": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'lider' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')"
     },
     "asistencias": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      ".read": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'lider' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')",
+      ".write": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'lider' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')"
     },
     "informes": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      ".read": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')",
+      ".write": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')"
     },
     "estrategias": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      ".read": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'lider' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')",
+      ".write": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'lider' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')"
     },
     "analisis": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      ".read": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'lider' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')",
+      ".write": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'lider' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')"
     },
     "alertasRescate": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      ".read": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'lider' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')",
+      ".write": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'lider' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')"
     },
     "configuracion": {
       ".read": "auth != null",
@@ -41,30 +41,30 @@
     "historicoMensual": {
       ".read": "auth != null",
       "$periodo": {
-        ".write": "auth != null && !data.exists() && newData.exists() && newData.child('cerrado').val() === true"
+        ".write": "auth != null && !data.exists() && newData.exists() && newData.child('cerrado').val() === true && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')"
       }
     },
     "historicoAnual": {
       ".read": "auth != null",
       "$anio": {
-        ".write": "auth != null && !data.exists() && newData.exists() && newData.child('cerrado').val() === true"
+        ".write": "auth != null && !data.exists() && newData.exists() && newData.child('cerrado').val() === true && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')"
       }
     },
     "seguimientos": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      ".read": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'lider' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')",
+      ".write": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'lider' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')"
     },
     "rendicionCuentas": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      ".read": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'lider' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')",
+      ".write": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'lider' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')"
     },
     "notificaciones": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      ".read": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')",
+      ".write": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')"
     },
     "mensajes": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      ".read": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')",
+      ".write": "auth != null && (auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')"
     }
   }
 }

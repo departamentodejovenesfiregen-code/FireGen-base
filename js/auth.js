@@ -49,9 +49,28 @@ function initAuth(onAuthenticated) {
         // Cargar nombre y rol del usuario desde Firebase (usuarios/{uid})
         db.ref('usuarios/' + user.uid).once('value')
             .then(snap => {
-                const data = snap.val() || {};
+                let data = snap.val();
+                
+                // Si el usuario existe en Auth pero no en la BD, crear su perfil
+                if (!data) {
+                    data = {
+                        nombre: user.displayName || user.email,
+                        email: user.email,
+                        rol: 'pendiente',
+                        activo: true,
+                        createdAt: new Date().toISOString()
+                    };
+                    db.ref('usuarios/' + user.uid).set(data).catch(console.error);
+                }
+
+                if (data.activo === false && !isAdmin) {
+                    alert('Tu cuenta ha sido desactivada. Contacta al administrador.');
+                    auth.signOut().then(() => window.location.replace('login.html'));
+                    return;
+                }
+
                 const nombre = data.nombre || user.email;
-                window.currentUserRole = isAdmin ? 'administrador' : (data.rol || 'lider');
+                window.currentUserRole = isAdmin ? 'administrador' : (data.rol || 'pendiente');
                 
                 const emailDisplay = document.getElementById('userEmailDisplay');
                 if (emailDisplay) emailDisplay.textContent = nombre;
@@ -60,7 +79,7 @@ function initAuth(onAuthenticated) {
             })
             .catch(() => {
                 // Fallback
-                window.currentUserRole = isAdmin ? 'administrador' : 'lider';
+                window.currentUserRole = isAdmin ? 'administrador' : 'pendiente';
                 const emailDisplay = document.getElementById('userEmailDisplay');
                 if (emailDisplay) emailDisplay.textContent = user.email;
                 applyRolePermissions(window.currentUserRole);
@@ -96,7 +115,7 @@ function logout() {
  * Roles: administrador | coordinador | secretario | lider
  */
 function applyRolePermissions(rol) {
-    const r = (rol || 'lider').toLowerCase();
+    const r = (rol || 'pendiente').toLowerCase();
 
     // Solo mostrar los botones flotantes si estamos en la pestaña de Estrategias
     const viewStrategy = document.getElementById('view-strategy');
