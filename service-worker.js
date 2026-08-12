@@ -17,7 +17,7 @@
  */
 
 /** Cambiar en CADA publicación junto con ?v= en HTML y js/version.js */
-var BUILD_VERSION = '3.7.5';
+var BUILD_VERSION = '3.7.6';
 var CACHE_NAME = 'firegen-' + BUILD_VERSION;
 var OFFLINE_URL = 'offline.html';
 var V = BUILD_VERSION;

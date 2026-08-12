@@ -253,9 +253,9 @@ function renderAnnualSummary(dataByPeriod, year) {
 function syncAnnualStrategy(year) {
     const periods = getStrategyOperationalMonths(year);
     // Cargar tanto snapshots mensuales (historicoMensual) como informes activos
-    const snapRefs   = periods.map(p => db.ref('historicoMensual/' + p).once('value'));
-    const reportRefs = periods.map(p => db.ref('informes/' + p).once('value'));
-    const annualRef  = db.ref('historicoAnual/' + year).once('value');
+    const snapRefs   = periods.map(p => db.ref('historicoMensual/' + p).once('value').catch(() => ({ val: () => null })));
+    const reportRefs = periods.map(p => db.ref('informes/' + p).once('value').catch(() => ({ val: () => null })));
+    const annualRef  = db.ref('historicoAnual/' + year).once('value').catch(() => ({ val: () => null }));
 
     Promise.all([Promise.all(snapRefs), Promise.all(reportRefs), annualRef]).then(([snapSnaps, reportSnaps, annualSnap]) => {
         const dataByPeriod = {};
