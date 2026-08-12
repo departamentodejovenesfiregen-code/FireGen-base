@@ -78,8 +78,8 @@ function syncStrategy(periodo) {
 
     // Para cada mes operativo: leer historicoMensual y el informe activo en paralelo
     // Prioridad: si existe snapshot cerrado → mostrar ese; si no → mostrar el informe activo.
-    const snapshotPromises = periods.map(p => db.ref('historicoMensual/' + p).once('value'));
-    const reportPromises   = periods.map(p => db.ref('informes/' + p).once('value'));
+    const snapshotPromises = periods.map(p => db.ref('historicoMensual/' + p).once('value').catch(() => ({ val: () => null })));
+    const reportPromises   = periods.map(p => db.ref('informes/' + p).once('value').catch(() => ({ val: () => null })));
 
     Promise.all([Promise.all(snapshotPromises), Promise.all(reportPromises)]).then(([snapshots, reports]) => {
         hideConnectionError();
