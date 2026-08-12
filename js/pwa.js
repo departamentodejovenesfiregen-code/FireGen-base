@@ -154,10 +154,13 @@ var FiregenPWA = (function () {
                     });
                 });
 
-                if (navigator.onLine) {
-                    reg.update().catch(function (err) {
-                        console.warn('[PWA] reg.update():', err && err.message);
-                    });
+                if (navigator.onLine && reg.active) {
+                    // Evitar llamar a update() inmediatamente durante la primera instalación
+                    setTimeout(() => {
+                        reg.update().catch(function (err) {
+                            console.warn('[PWA] reg.update():', err && err.message);
+                        });
+                    }, 1000);
                 }
 
                 setInterval(function () {

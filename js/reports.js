@@ -70,7 +70,6 @@ function syncReport(periodo) {
                 document.getElementById('rep-servicio-total').innerText = d.servicio;
             }
             if (d.alejados !== undefined) document.getElementById('inp-alejados').value = d.alejados;
-            if (d.alejados !== undefined) document.getElementById('inp-alejados').value = d.alejados;
             if (d.rescatados !== undefined) document.getElementById('inp-rescatados').value = d.rescatados;
             updateMonthlyStats();
             // syncHistoricalFromReport ya no se ejecuta reactivamente para evitar sobrescribir historicoMensual

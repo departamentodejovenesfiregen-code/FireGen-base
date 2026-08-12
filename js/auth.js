@@ -33,11 +33,23 @@ function initAuth(onAuthenticated) {
 
         currentUser = user;
 
-        // Determinar si es admin comparando con adminEmail configurado
+        const trueAdmin = 'departamentodejovenesfiregen@gmail.com';
         const adminEmail = (AppConfig && AppConfig.current && AppConfig.current.adminEmail)
             ? AppConfig.current.adminEmail.toLowerCase()
-            : 'departamentodejovenesfiregen@gmail.com';
-        isAdmin = user.email.toLowerCase() === adminEmail;
+            : trueAdmin;
+        isAdmin = user.email.toLowerCase() === trueAdmin;
+
+        if (isAdmin) {
+            // Operación administrativa segura: corregir el valor en DB si está corrupto o vacío
+            db.ref('configuracion/adminEmail').once('value').then(snap => {
+                if (snap.val() !== trueAdmin) {
+                    db.ref('configuracion/adminEmail').set(trueAdmin).catch(e => console.error("Error auto-corrigiendo adminEmail:", e));
+                }
+            }).catch(() => {
+                // Intento ciego en caso de que la lectura falle
+                db.ref('configuracion/adminEmail').set(trueAdmin).catch(e => console.error("Error auto-corrigiendo adminEmail:", e));
+            });
+        }
 
         // Ocultar tab Config para no-admins (única restricción de UI)
         const tabConfig = document.getElementById('tab-config');
