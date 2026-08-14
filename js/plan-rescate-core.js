@@ -105,5 +105,100 @@ const RescueCore = {
     getNextTaskLabel(estadoEspiritual, estadoAsistencia) {
         const actions = this.getRecommendedActions(estadoEspiritual, estadoAsistencia);
         return actions[0] || 'Revisar';
+    },
+
+    /**
+     * Genera el plan semanal de discipulado combinando asistencia y estado espiritual
+     */
+    getWeeklyDiscipleshipPlan(estadoAsistencia, estadoEspiritual) {
+        const asis = (estadoAsistencia || '').toLowerCase();
+        const esp = (estadoEspiritual || '').toLowerCase();
+        
+        let nivel = 'Normal';
+        let objetivo = 'Acompañamiento normal';
+        let tareas = [];
+
+        // Identificar el nivel base por asistencia
+        if (asis.includes('alejándos') || asis.includes('alejado')) {
+            nivel = 'Crítico';
+            objetivo = 'Restauración y recuperación';
+            tareas = [
+                { id: 'orar', label: 'Orar', required: true },
+                { id: 'contactar', label: 'Contactar', required: true },
+                { id: 'conversar', label: 'Escuchar / conversar', required: true },
+                { id: 'detectar_causa', label: 'Detectar causa del alejamiento', required: true },
+                { id: 'invitar_regresar', label: 'Invitar a regresar', required: true },
+                { id: 'planificar_siguiente', label: 'Planificar siguiente acompañamiento', required: true }
+            ];
+            
+            if (esp.includes('nuevo')) {
+                objetivo += ' (Fundamentos e integración)';
+            } else if (esp.includes('líder') || esp.includes('lider')) {
+                objetivo += ' (Liderazgo y responsabilidad)';
+            }
+
+        } else if (asis.includes('enfriándos') || asis.includes('enfriado')) {
+            nivel = 'Prioridad alta';
+            objetivo = 'Detectar el problema antes de un alejamiento mayor';
+            tareas = [
+                { id: 'orar', label: 'Orar', required: true },
+                { id: 'contactar', label: 'Contactar', required: true },
+                { id: 'conversar', label: 'Conversar', required: true },
+                { id: 'detectar_necesidad', label: 'Detectar necesidad', required: true },
+                { id: 'ofrecer_apoyo', label: 'Ofrecer apoyo', required: true }
+            ];
+
+        } else if (asis.includes('inconstante')) {
+            nivel = 'Seguimiento preventivo';
+            objetivo = 'Recuperar constancia';
+            tareas = [
+                { id: 'orar', label: 'Orar', required: true },
+                { id: 'saludar_acompanar', label: 'Saludar / acompañar', required: true },
+                { id: 'contactar_opcional', label: 'Contactar cuando corresponda', required: false },
+                { id: 'revisar_proxima', label: 'Revisar próxima asistencia', required: true },
+                { id: 'identificar_dificultad', label: 'Identificar dificultad', required: true }
+            ];
+
+        } else {
+            // ACTIVO (default)
+            nivel = 'Normal';
+            objetivo = 'Acompañamiento y formación';
+            
+            tareas = [
+                { id: 'saludar', label: 'Saludar / recibir bien', required: true },
+                { id: 'acompanar', label: 'Acompañar', required: true },
+                { id: 'orar', label: 'Orar', required: true }
+            ];
+
+            // Ajustar según estado espiritual
+            if (esp.includes('nuevo')) {
+                objetivo = 'Integración y fundamentos';
+                tareas.push({ id: 'revisar_integracion', label: 'Revisar integración', required: true });
+                tareas.push({ id: 'discipulado_inicial', label: 'Discipulado inicial', required: true });
+            } else if (esp.includes('reconciliado')) {
+                objetivo = 'Restauración y consolidación';
+                tareas.push({ id: 'revisar_restauracion', label: 'Revisar restauración', required: true });
+                tareas.push({ id: 'fortalecer_continuidad', label: 'Fortalecer continuidad', required: true });
+            } else if (esp.includes('bautizado')) {
+                objetivo = 'Crecimiento, formación y servicio';
+                tareas.push({ id: 'fortalecer_formacion', label: 'Fortalecer formación', required: true });
+                tareas.push({ id: 'estimular_servicio', label: 'Estimular servicio', required: true });
+            } else if (esp.includes('líder') || esp.includes('lider')) {
+                objetivo = 'Acompañamiento de liderazgo y multiplicación';
+                tareas.push({ id: 'revisar_liderazgo', label: 'Revisar liderazgo', required: true });
+                tareas.push({ id: 'estimular_multiplicacion', label: 'Estimular multiplicación', required: true });
+            } else {
+                // Creyente / Convertido
+                objetivo = 'Formación, consolidación y crecimiento';
+                tareas.push({ id: 'revisar_crecimiento', label: 'Revisar crecimiento', required: true });
+                tareas.push({ id: 'continuar_formacion', label: 'Continuar formación', required: true });
+            }
+        }
+
+        return {
+            nivel,
+            objetivo,
+            tareas
+        };
     }
 };

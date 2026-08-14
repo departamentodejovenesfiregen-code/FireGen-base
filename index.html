@@ -1262,32 +1262,29 @@
         </div>
     </div>
     
-    <!-- ════════ MODAL: PLAN SEMANAL (PROSPECTOS) ════════ -->
+    <!-- 🎯 MODAL: PLAN SEMANAL -->
     <div id="planSemanalModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-[250]">
         <div class="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
             <h3 class="text-xl font-black text-slate-800 mb-2"><i class="fas fa-calendar-check text-indigo-500 mr-2"></i> Plan Semanal</h3>
-            <p class="text-sm text-slate-500 mb-5">Selecciona las acciones que planeas realizar esta semana.</p>
+            <p id="planSemanalSubtitle" class="text-sm text-slate-500 mb-5">Selecciona las acciones que planeas realizar esta semana.</p>
             <input type="hidden" id="planSemanalProspectoId">
+            <input type="hidden" id="planSemanalIsMember" value="false">
             <form id="planSemanalForm" class="space-y-4">
-                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <label class="flex items-start gap-3 cursor-pointer">
-                        <input type="checkbox" id="planOrar" class="w-5 h-5 mt-0.5 rounded text-indigo-500 focus:ring-indigo-500">
-                        <span class="text-sm font-semibold text-slate-700">Orar por esta persona</span>
-                    </label>
-                </div>
-                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <label class="flex items-start gap-3 cursor-pointer">
-                        <input type="checkbox" id="planContactar" class="w-5 h-5 mt-0.5 rounded text-indigo-500 focus:ring-indigo-500">
-                        <span class="text-sm font-semibold text-slate-700">Contactar (opcional)</span>
-                    </label>
-                </div>
-                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <label class="flex items-start gap-3 cursor-pointer">
-                        <input type="checkbox" id="planInvitar" class="w-5 h-5 mt-0.5 rounded text-indigo-500 focus:ring-indigo-500">
-                        <span class="text-sm font-semibold text-slate-700">Invitar a la iglesia</span>
-                    </label>
+                <div id="planSemanalTareasContainer" class="space-y-3">
+                    <!-- Checkboxes injected dynamically -->
                 </div>
                 
+                <div id="planSemanalResultadosContainer" class="hidden space-y-3 mt-4">
+                    <div class="border-t border-slate-200 pt-4">
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Resultado Breve</label>
+                        <input type="text" id="planResultado" placeholder="Ej: Se conversó sobre discipulado" class="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Observaciones</label>
+                        <textarea id="planObs" rows="2" placeholder="Detalles de la interacción..." class="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                    </div>
+                </div>
+
                 <div class="flex gap-3 mt-6">
                     <button type="button" onclick="closePlanSemanalModal()" class="flex-1 bg-slate-100 text-slate-600 font-bold py-3 rounded-xl hover:bg-slate-200 transition-colors">Cancelar</button>
                     <button type="submit" class="flex-1 bg-indigo-500 text-white font-bold py-3 rounded-xl hover:bg-indigo-600 transition-colors shadow-md shadow-indigo-500/20">Guardar Plan</button>
@@ -1335,7 +1332,8 @@
                 </div>
                 <div class="flex gap-3 mt-6">
                     <button type="button" onclick="closeEncuestaProspectoModal()" class="flex-1 bg-slate-100 text-slate-600 font-bold py-3 rounded-xl hover:bg-slate-200 transition-colors">Cancelar</button>
-                    <button type="submit" class="flex-1 bg-green-500 text-white font-bold py-3 rounded-xl hover:bg-green-600 transition-colors shadow-md shadow-green-500/20">Registrar encuesta</button>
+                    <button type="button" id="btnGuardarParcialEncuesta" class="flex-1 bg-blue-500 text-white font-bold py-3 rounded-xl hover:bg-blue-600 transition-colors shadow-md shadow-blue-500/20 text-sm">Guardar Parcial</button>
+                    <button type="submit" id="btnCompletarEncuesta" class="flex-1 bg-green-500 text-white font-bold py-3 rounded-xl hover:bg-green-600 transition-colors shadow-md shadow-green-500/20 text-sm">Completar Encuesta</button>
                 </div>
             </form>
         </div>

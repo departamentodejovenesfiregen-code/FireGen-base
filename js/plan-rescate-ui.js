@@ -392,26 +392,85 @@ function renderTareasTab() {
 }
 
 /**
- * openPlanSemanalModal — Abre el modal para prospectos
+ * openPlanSemanalModal — Abre el modal para registrar el plan semanal
  */
-window.openPlanSemanalModal = function(prospectoId) {
+window.openPlanSemanalModal = function(personaId) {
     const modal = document.getElementById('planSemanalModal');
     if (!modal) return;
     
-    document.getElementById('planSemanalProspectoId').value = prospectoId;
+    document.getElementById('planSemanalProspectoId').value = personaId;
     
-    // Buscar los datos actuales de esta semana
-    const p = misPersonas.find(x => x.firebaseId === prospectoId);
+    // Buscar los datos actuales de esta persona
+    const p = misPersonas.find(x => x.firebaseId === personaId);
+    if (!p) return;
+
+    const isMember = !p.isProspecto;
+    document.getElementById('planSemanalIsMember').value = isMember ? 'true' : 'false';
+
     const semanaKey = getCurrentSemanaKey();
     let plan = {};
-    if (p && p.planSemanal && p.planSemanal[semanaKey]) {
+    if (p.planSemanal && p.planSemanal[semanaKey]) {
         plan = p.planSemanal[semanaKey];
     }
     
-    // Poblar el formulario
-    document.getElementById('planOrar').checked = !!plan.orar;
-    document.getElementById('planContactar').checked = !!plan.contactar;
-    document.getElementById('planInvitar').checked = !!plan.invitar;
+    const subtitle = document.getElementById('planSemanalSubtitle');
+    const container = document.getElementById('planSemanalTareasContainer');
+    const resContainer = document.getElementById('planSemanalResultadosContainer');
+    const planRes = document.getElementById('planResultado');
+    const planObs = document.getElementById('planObs');
+
+    container.innerHTML = '';
+
+    if (isMember) {
+        subtitle.textContent = `Plan de discipulado para ${p.nombre}`;
+        resContainer.classList.remove('hidden');
+        if (planRes) planRes.value = plan.resultado || '';
+        if (planObs) planObs.value = plan.observaciones || '';
+
+        const weekPlan = RescueCore.getWeeklyDiscipleshipPlan(p.estadoAsistencia, p.estadoEspiritual);
+        
+        weekPlan.tareas.forEach(tarea => {
+            const checked = plan.tareas && plan.tareas[tarea.id] && plan.tareas[tarea.id].completada ? 'checked' : '';
+            const isReq = tarea.required ? '<span class="text-xs text-red-500 ml-1">*</span>' : '<span class="text-xs text-slate-400 ml-1">(opcional)</span>';
+            container.innerHTML += `
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" name="planTareaCb" value="${tarea.id}" data-req="${tarea.required}" ${checked} class="w-5 h-5 mt-0.5 rounded text-indigo-500 focus:ring-indigo-500">
+                        <span class="text-sm font-semibold text-slate-700">${tarea.label}${isReq}</span>
+                    </label>
+                </div>
+            `;
+        });
+    } else {
+        subtitle.textContent = 'Selecciona las acciones que planeas realizar esta semana.';
+        resContainer.classList.add('hidden');
+
+        // Prospectos tienen tareas fijas
+        const orarChecked = !!plan.orar ? 'checked' : '';
+        const contactarChecked = !!plan.contactar ? 'checked' : '';
+        const invitarChecked = !!plan.invitar ? 'checked' : '';
+        
+        container.innerHTML = `
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <label class="flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" id="planOrar" ${orarChecked} class="w-5 h-5 mt-0.5 rounded text-indigo-500 focus:ring-indigo-500">
+                    <span class="text-sm font-semibold text-slate-700">Orar por esta persona</span>
+                </label>
+            </div>
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <label class="flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" id="planContactar" ${contactarChecked} class="w-5 h-5 mt-0.5 rounded text-indigo-500 focus:ring-indigo-500">
+                    <span class="text-sm font-semibold text-slate-700">Contactar (opcional)</span>
+                </label>
+            </div>
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <label class="flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" id="planInvitar" ${invitarChecked} class="w-5 h-5 mt-0.5 rounded text-indigo-500 focus:ring-indigo-500">
+                    <span class="text-sm font-semibold text-slate-700">Invitar a la iglesia</span>
+                </label>
+            </div>
+        `;
+    }
     
     modal.classList.remove('hidden');
 };
@@ -523,28 +582,51 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btn) btn.disabled = true;
 
             const prospectoId = document.getElementById('planSemanalProspectoId').value;
+            const isMember = document.getElementById('planSemanalIsMember').value === 'true';
             const semanaKey = getCurrentSemanaKey();
-            
-            const orar = document.getElementById('planOrar').checked;
-            const contactar = document.getElementById('planContactar').checked;
-            const invitar = document.getElementById('planInvitar').checked;
             
             const uid = window.currentUserUid || (typeof currentUser !== 'undefined' && currentUser ? currentUser.uid : 'anonimo');
             const displayEl = document.getElementById('userEmailDisplay');
             const nombre = displayEl?.textContent?.trim() || '';
 
-            // Solo guardamos el plan, NO marcamos la encuesta como completada
-            const data = {
-                orar,
-                contactar,
-                invitar,
-                fechaActualizacion: new Date().toISOString(),
-                actualizadoPorUid: uid,
-                actualizadoPorNombre: nombre
-            };
+            let data = {};
+            let refPath = '';
+
+            if (isMember) {
+                refPath = `miembros/${prospectoId}/planSemanal/${semanaKey}`;
+                
+                // Recopilar tareas generadas dinámicamente
+                const tareas = {};
+                const checkboxes = planForm.querySelectorAll('input[name="planTareaCb"]');
+                checkboxes.forEach(cb => {
+                    tareas[cb.value] = {
+                        completada: cb.checked,
+                        obligatoria: cb.getAttribute('data-req') === 'true'
+                    };
+                });
+
+                data = {
+                    tareas,
+                    resultado: document.getElementById('planResultado').value.trim(),
+                    observaciones: document.getElementById('planObs').value.trim(),
+                    fechaActualizacion: new Date().toISOString(),
+                    actualizadoPorUid: uid,
+                    actualizadoPorNombre: nombre
+                };
+            } else {
+                refPath = `rescateProspectos/${prospectoId}/planSemanal/${semanaKey}`;
+                data = {
+                    orar: document.getElementById('planOrar') ? document.getElementById('planOrar').checked : false,
+                    contactar: document.getElementById('planContactar') ? document.getElementById('planContactar').checked : false,
+                    invitar: document.getElementById('planInvitar') ? document.getElementById('planInvitar').checked : false,
+                    fechaActualizacion: new Date().toISOString(),
+                    actualizadoPorUid: uid,
+                    actualizadoPorNombre: nombre
+                };
+            }
 
             try {
-                await db.ref(`rescateProspectos/${prospectoId}/planSemanal/${semanaKey}`).update(data);
+                await db.ref(refPath).update(data);
                 window.closePlanSemanalModal();
                 if (typeof showToast === 'function') showToast('Plan semanal guardado', 'success');
                 if (typeof renderRescateDashboard === 'function') {
@@ -561,32 +643,52 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const encuestaForm = document.getElementById('encuestaProspectoForm');
     if (encuestaForm) {
-        encuestaForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = encuestaForm.querySelector('button[type="submit"]');
-            if (btn) btn.disabled = true;
-
-            const prospectoId = document.getElementById('encuestaProspectoId').value;
-            const semanaKey = getCurrentSemanaKey();
+        // Handler comun para guardar
+        const guardarEncuesta = async (isCompletada) => {
+            const btnSubmit = encuestaForm.querySelector('button[type="submit"]');
+            const btnParcial = document.getElementById('btnGuardarParcialEncuesta');
             
             const seContacto = document.getElementById('encuestaSeContacto').checked;
             const seInvito = document.getElementById('encuestaSeInvito').checked;
             const tipoContacto = document.getElementById('encuestaMedio').value;
             const resultado = document.getElementById('encuestaResultado').value.trim();
             const observaciones = document.getElementById('encuestaObs').value.trim();
+
+            if (isCompletada) {
+                // Validación estricta para COMPLETADA
+                if (seContacto && !tipoContacto) {
+                    if (typeof showToast === 'function') showToast('Seleccione el tipo de contacto', 'error');
+                    else alert('Seleccione el tipo de contacto');
+                    return;
+                }
+                if (!resultado) {
+                    if (typeof showToast === 'function') showToast('El resultado breve es obligatorio para completar', 'error');
+                    else alert('El resultado breve es obligatorio para completar');
+                    return;
+                }
+            }
+
+            if (btnSubmit) btnSubmit.disabled = true;
+            if (btnParcial) btnParcial.disabled = true;
+
+            const prospectoId = document.getElementById('encuestaProspectoId').value;
+            const semanaKey = getCurrentSemanaKey();
             
             const uid = window.currentUserUid || (typeof currentUser !== 'undefined' && currentUser ? currentUser.uid : 'anonimo');
             const displayEl = document.getElementById('userEmailDisplay');
             const nombre = displayEl?.textContent?.trim() || '';
 
-            // Guardamos la encuesta y AHORA SÍ marcamos como completada
+            // Estado de la encuesta: 'PENDIENTE', 'EN PROGRESO', 'COMPLETADA'
+            const estadoEncuesta = isCompletada ? 'COMPLETADA' : 'EN PROGRESO';
+
             const data = {
                 seContacto,
                 seInvito,
                 tipoContacto,
                 resultado,
                 observaciones,
-                encuestaCompletada: true,
+                encuestaCompletada: isCompletada,
+                estadoEncuesta,
                 fechaActualizacion: new Date().toISOString(),
                 actualizadoPorUid: uid,
                 actualizadoPorNombre: nombre
@@ -595,7 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 await db.ref(`rescateProspectos/${prospectoId}/planSemanal/${semanaKey}`).update(data);
                 window.closeEncuestaProspectoModal();
-                if (typeof showToast === 'function') showToast('Encuesta guardada', 'success');
+                if (typeof showToast === 'function') showToast(isCompletada ? 'Encuesta completada' : 'Progreso guardado', 'success');
                 if (typeof renderRescateDashboard === 'function') {
                     renderRescateDashboard(document.getElementById('rescate-container'));
                 }
@@ -603,9 +705,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (typeof showToast === 'function') showToast('Error al guardar: ' + err.message, 'error');
                 else alert('Error al guardar: ' + err.message);
             } finally {
-                if (btn) btn.disabled = false;
+                if (btnSubmit) btnSubmit.disabled = false;
+                if (btnParcial) btnParcial.disabled = false;
             }
+        };
+
+        encuestaForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            guardarEncuesta(true); // submit = Completar
         });
+
+        const btnParcial = document.getElementById('btnGuardarParcialEncuesta');
+        if (btnParcial) {
+            btnParcial.addEventListener('click', (e) => {
+                e.preventDefault();
+                guardarEncuesta(false); // click = Guardar parcial
+            });
+        }
     }
 
     const segForm = document.getElementById('seguimientoForm');
