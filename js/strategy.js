@@ -79,7 +79,7 @@ function syncStrategy(periodo) {
     // Para cada mes operativo: leer historicoMensual y el informe activo en paralelo
     // Prioridad: si existe snapshot cerrado → mostrar ese; si no → mostrar el informe activo.
     const snapshotPromises = periods.map(p => db.ref('historicoMensual/' + p).once('value').catch(() => ({ val: () => null })));
-    const reportPromises   = hasPermission('informeMensual')
+    const reportPromises   = hasPermission('verInformeMensual')
         ? periods.map(p => db.ref('informes/' + p).once('value').catch(() => ({ val: () => null })))
         : periods.map(() => Promise.resolve({ val: () => null }));
 
@@ -256,7 +256,7 @@ function syncAnnualStrategy(year) {
     const periods = getStrategyOperationalMonths(year);
     // Cargar tanto snapshots mensuales (historicoMensual) como informes activos
     const snapRefs   = periods.map(p => db.ref('historicoMensual/' + p).once('value').catch(() => ({ val: () => null })));
-    const reportRefs = hasPermission('informeMensual')
+    const reportRefs = hasPermission('verInformeMensual')
         ? periods.map(p => db.ref('informes/' + p).once('value').catch(() => ({ val: () => null })))
         : periods.map(() => Promise.resolve({ val: () => null }));
     const annualRef  = db.ref('historicoAnual/' + year).once('value').catch(() => ({ val: () => null }));

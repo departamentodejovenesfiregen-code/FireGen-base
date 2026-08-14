@@ -388,7 +388,8 @@ textarea {
    Mismo patrón que #directorioOverlay
 ════════════════════════════════════════ */
 #rescateOverlay,
-#coordinacionOverlay {
+#coordinacionOverlay,
+#notificacionesOverlay {
   position: fixed;
   inset: 0;
   z-index: 200;
@@ -401,7 +402,8 @@ textarea {
 }
 
 #rescateOverlay.active,
-#coordinacionOverlay.active {
+#coordinacionOverlay.active,
+#notificacionesOverlay.active {
   transform: translateY(0);
 }
 

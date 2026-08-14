@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Sincronizar sub-módulos para el período actual
         if (typeof syncAttendance === 'function') syncAttendance(cp);
-        if (typeof syncReport === 'function' && typeof hasPermission === 'function' && hasPermission('informeMensual')) {
+        if (typeof syncReport === 'function' && typeof hasPermission === 'function' && hasPermission('verInformeMensual')) {
             syncReport(cp);
         }
 

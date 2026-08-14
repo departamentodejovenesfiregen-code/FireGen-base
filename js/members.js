@@ -533,7 +533,7 @@ function syncServiceCounter() {
     document.getElementById('inp-servicio').value = count;
     document.getElementById('rep-servicio-total').textContent = count;
     const p = document.getElementById('repPeriodo').value;
-    if (p && hasPermission('informeMensual')) {
+    if (p && hasPermission('editarInformeMensual')) {
         db.ref('informes/' + p).update({ servicio: count }).catch(() => {});
     }
 }
@@ -548,7 +548,7 @@ function syncAlejadosCounter() {
     }).length;
     document.getElementById('inp-alejados').value = alejados;
     const p = document.getElementById('repPeriodo').value;
-    if (p && hasPermission('informeMensual')) {
+    if (p && hasPermission('editarInformeMensual')) {
         db.ref('informes/' + p).update({ alejados }).catch(() => {});
     }
 }

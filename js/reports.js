@@ -74,6 +74,11 @@ function syncReport(periodo) {
             updateMonthlyStats();
             // syncHistoricalFromReport ya no se ejecuta reactivamente para evitar sobrescribir historicoMensual
             checkIfMonthClosed(periodo);
+
+            if (!hasPermission('editarInformeMensual')) {
+                const inputs = document.querySelectorAll('#view-report input, #view-report textarea, #view-report select');
+                inputs.forEach(el => el.disabled = true);
+            }
         },
         error => {
             console.error('[FireGen Reports] Error Firebase:', error.code, error.message);
@@ -110,6 +115,7 @@ function clearReportFields() {
 }
 
 function saveReportField(field, val) {
+    if (!hasPermission('editarInformeMensual')) return;
     const p = document.getElementById('repPeriodo').value;
     if (!p || activeReportClosed) return;
     const u = {};
@@ -119,6 +125,7 @@ function saveReportField(field, val) {
 }
 
 function saveReportRow(idx) {
+    if (!hasPermission('editarInformeMensual')) return;
     if (activeReportClosed) return;
     const p = document.getElementById('repPeriodo').value;
     const saturdays = getOperationalSaturdaysForPeriod(p);
@@ -151,22 +158,30 @@ function checkIfMonthClosed(periodo) {
         const btn = document.getElementById('btn-cerrar-mes');
         const statusEl = document.getElementById('cierre-status');
         activeReportClosed = !!(d && d.cerrado);
+        const canEdit = hasPermission('editarInformeMensual');
         const inputs = document.querySelectorAll('#view-report input, #view-report textarea, #view-report select');
+        const shouldDisable = activeReportClosed || !canEdit;
         inputs.forEach(el => {
             if (el.id === 'repPeriodo') return;
-            el.disabled = activeReportClosed;
-            el.classList.toggle('opacity-60', activeReportClosed);
-            el.classList.toggle('cursor-not-allowed', activeReportClosed);
+            el.disabled = shouldDisable;
+            el.classList.toggle('opacity-60', shouldDisable);
+            el.classList.toggle('cursor-not-allowed', shouldDisable);
         });
 
+        // Ocultar botón de cierre si mes ya está cerrado o si el usuario no puede editar
+        if (btn) btn.style.display = (d && d.cerrado) || !canEdit ? 'none' : 'flex';
+
         if (d && d.cerrado) {
-            if (btn) btn.style.display = 'none';
             if (statusEl) {
                 statusEl.classList.remove('hidden');
                 statusEl.textContent = '🔒 Mes cerrado: informe histórico en solo lectura.';
             }
+        } else if (!canEdit) {
+            if (statusEl) {
+                statusEl.classList.remove('hidden');
+                statusEl.textContent = '👁️ Solo lectura: tu rol no permite editar el Informe Mensual.';
+            }
         } else {
-            if (btn) btn.style.display = 'flex';
             if (statusEl) {
                 statusEl.classList.add('hidden');
                 statusEl.textContent = '';

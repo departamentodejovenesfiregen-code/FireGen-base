@@ -75,7 +75,9 @@ const PERMISSIONS = {
     admin: {
         baseMaestro: true,
         asistencia: true,
-        informeMensual: true,
+        verInformeMensual: true,
+        editarInformeMensual: true,
+        informeMensual: true,   // alias legacy
         estrategias: true,
         planRescate: true,
         coordinacion: true,
@@ -87,6 +89,8 @@ const PERMISSIONS = {
     coordinador: {
         baseMaestro: true,
         asistencia: true,
+        verInformeMensual: true,
+        editarInformeMensual: true,
         informeMensual: true,
         estrategias: true,
         planRescate: true,
@@ -99,6 +103,8 @@ const PERMISSIONS = {
     vicecoordinador: {
         baseMaestro: true,
         asistencia: true,
+        verInformeMensual: true,
+        editarInformeMensual: true,
         informeMensual: true,
         estrategias: true,
         planRescate: true,
@@ -111,6 +117,8 @@ const PERMISSIONS = {
     secretario: {
         baseMaestro: true,
         asistencia: true,
+        verInformeMensual: true,
+        editarInformeMensual: true,
         informeMensual: true,
         estrategias: true,
         planRescate: true,
@@ -123,7 +131,9 @@ const PERMISSIONS = {
     tesorero: {
         baseMaestro: true,
         asistencia: true,
-        informeMensual: false,
+        verInformeMensual: true,
+        editarInformeMensual: false,
+        informeMensual: false,  // legacy: no puede editar
         estrategias: true,
         planRescate: true,
         coordinacion: false,
@@ -135,7 +145,9 @@ const PERMISSIONS = {
     vocal: {
         baseMaestro: true,
         asistencia: true,
-        informeMensual: false,
+        verInformeMensual: true,
+        editarInformeMensual: false,
+        informeMensual: false,  // legacy: no puede editar
         estrategias: true,
         planRescate: true,
         coordinacion: false,
@@ -147,6 +159,8 @@ const PERMISSIONS = {
     pendiente: {
         baseMaestro: false,
         asistencia: false,
+        verInformeMensual: false,
+        editarInformeMensual: false,
         informeMensual: false,
         estrategias: false,
         planRescate: false,
