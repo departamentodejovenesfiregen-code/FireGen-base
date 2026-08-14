@@ -138,10 +138,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (typeof loadRescueAlerts === 'function') loadRescueAlerts(cp);
             });
         }
+        
+        if (typeof listenNotificacionesCount === 'function' && user.uid) {
+            listenNotificacionesCount(user.uid);
+        }
 
         // Sincronizar sub-módulos para el período actual
         if (typeof syncAttendance === 'function') syncAttendance(cp);
-        if (typeof syncReport === 'function') syncReport(cp);
+        if (typeof syncReport === 'function' && typeof hasPermission === 'function' && hasPermission('informeMensual')) {
+            syncReport(cp);
+        }
 
         // Sincronización diferida de estrategia para evitar bloqueos
         if (typeof syncStrategy === 'function') {

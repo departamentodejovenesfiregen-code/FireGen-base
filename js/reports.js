@@ -244,7 +244,9 @@ function bindReportInputs() {
         saveReportField('serie', this.value);
     });
     document.getElementById('repPeriodo').addEventListener('change', function () {
-        syncReport(this.value);
+        if (typeof hasPermission === 'function' && hasPermission('informeMensual')) {
+            syncReport(this.value);
+        }
     });
     document.querySelectorAll('.row-report-data').forEach((row, i) => {
         row.querySelector('.rep-tema').addEventListener('input', () => saveReportRowDebounced(i));

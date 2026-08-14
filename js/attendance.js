@@ -427,7 +427,7 @@ function pushAttendanceToReport() {
         }
     });
 
-    if (periodo) {
+    if (periodo && hasPermission('informeMensual')) {
         db.ref('informes/' + periodo).update(updates)
             .catch(err => console.error('[FireGen] Error al sincronizar informe:', err));
     }

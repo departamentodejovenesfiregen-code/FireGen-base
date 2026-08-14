@@ -41,6 +41,9 @@ const RescueCore = {
         if (state.includes('inconstante')) {
             return { level: 2, label: 'Seguimiento', color: 'yellow', icon: '🟡', bg: 'bg-yellow-50 text-yellow-700', border: 'border-yellow-200' };
         }
+        if (state === 'prospecto') {
+            return { level: 2, label: 'Prospecto', color: 'indigo', icon: '👤', bg: 'bg-indigo-50 text-indigo-700', border: 'border-indigo-200' };
+        }
         return { level: 1, label: 'Normal', color: 'green', icon: '🟢', bg: 'bg-green-50 text-green-700', border: 'border-green-200' };
     },
 
@@ -76,6 +79,14 @@ const RescueCore = {
                 'Revisar si necesita apoyo'
             ];
         } else if (prio === 2) {
+            if (estadoAsistencia === 'Prospecto') {
+                return [
+                    'Orar',
+                    'Contactar (opcional)',
+                    'Invitar',
+                    'Encuesta (opcional)'
+                ];
+            }
             return [
                 'Saludar en la reunión',
                 'Estar pendiente de su próxima asistencia'

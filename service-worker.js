@@ -1,5 +1,5 @@
 /**
- * FireGen V3 — service-worker.js
+ * FireGen — service-worker.js
  * ─────────────────────────────────────────────────────────────
  * IMPORTANTE: BUILD_VERSION vive AQUÍ.
  * Cada release DEBE cambiar este valor para que el navegador
@@ -13,11 +13,13 @@
  * JS/CSS: Network-First + fallback EXACTO (nunca quitar ?v=).
  * HTML: Network-First → cache exacta → offline.html
  * Firebase/CDN: no se interceptan.
+ *
+ * Etapa 4 — Build B3.275
  * ─────────────────────────────────────────────────────────────
  */
 
 /** Cambiar en CADA publicación junto con ?v= en HTML y js/version.js */
-var BUILD_VERSION = '3.7.6';
+var BUILD_VERSION = 'B3.275';
 var CACHE_NAME = 'firegen-' + BUILD_VERSION;
 var OFFLINE_URL = 'offline.html';
 var V = BUILD_VERSION;
@@ -141,8 +143,6 @@ self.addEventListener('fetch', function (event) {
       fetch(request)
         .then(function (networkResponse) {
           if (networkResponse && networkResponse.ok) {
-            // Solo la URL real de la navegación (index/login/etc).
-            // Nunca reescribir bajo la clave fija 'index.html'.
             putExact(request, networkResponse);
           }
           return networkResponse;
