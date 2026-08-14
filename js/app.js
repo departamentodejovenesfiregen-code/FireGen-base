@@ -63,30 +63,40 @@ function openRescateOverlay() {
     const ov = document.getElementById('rescateOverlay');
     if (ov) {
         ov.classList.add('active');
+        document.body.style.overflow = 'hidden';
         if (typeof renderRescateDashboard === 'function') renderRescateDashboard();
     }
 }
 function closeRescateOverlay() {
     const ov = document.getElementById('rescateOverlay');
-    if (ov) ov.classList.remove('active');
+    if (ov) {
+        ov.classList.remove('active');
+        document.body.style.overflow = '';
+    }
 }
 
 function openCoordinacionOverlay() {
     const ov = document.getElementById('coordinacionOverlay');
     if (ov) {
         ov.classList.add('active');
+        document.body.style.overflow = 'hidden';
         if (typeof renderCoordinacionDashboard === 'function') renderCoordinacionDashboard();
     }
 }
 function closeCoordinacionOverlay() {
     const ov = document.getElementById('coordinacionOverlay');
-    if (ov) ov.classList.remove('active');
+    if (ov) {
+        ov.classList.remove('active');
+        document.body.style.overflow = '';
+    }
 }
 
 // Cerrar overlays con el botón Atrás del navegador
 window.addEventListener('popstate', () => {
     closeRescateOverlay();
     closeCoordinacionOverlay();
+    if (typeof closeDirectorioOverlay === 'function') closeDirectorioOverlay();
+    if (typeof closeNotificacionesOverlay === 'function') closeNotificacionesOverlay();
 });
 
 

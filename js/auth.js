@@ -77,98 +77,105 @@ const PERMISSIONS = {
         asistencia: true,
         verInformeMensual: true,
         editarInformeMensual: true,
-        informeMensual: true,   // alias legacy
+
         estrategias: true,
         planRescate: true,
         coordinacion: true,
         asignarMiembros: true,
         eliminarMiembros: true,
         configuracion: true,
-        administracion: true
+        administracion: true,
+        cerrarAnio: true
     },
     coordinador: {
         baseMaestro: true,
         asistencia: true,
         verInformeMensual: true,
         editarInformeMensual: true,
-        informeMensual: true,
+
         estrategias: true,
         planRescate: true,
         coordinacion: true,
         asignarMiembros: true,
         eliminarMiembros: true,
         configuracion: false,
-        administracion: false
+        administracion: false,
+        cerrarAnio: true
     },
     vicecoordinador: {
         baseMaestro: true,
         asistencia: true,
         verInformeMensual: true,
         editarInformeMensual: true,
-        informeMensual: true,
+
         estrategias: true,
         planRescate: true,
         coordinacion: false,
         asignarMiembros: true,
         eliminarMiembros: true,
         configuracion: false,
-        administracion: false
+        administracion: false,
+        cerrarAnio: false
     },
     secretario: {
         baseMaestro: true,
         asistencia: true,
         verInformeMensual: true,
         editarInformeMensual: true,
-        informeMensual: true,
+
         estrategias: true,
         planRescate: true,
         coordinacion: false,
         asignarMiembros: false,
         eliminarMiembros: false,
         configuracion: false,
-        administracion: false
+        administracion: false,
+        cerrarAnio: true
     },
     tesorero: {
         baseMaestro: true,
         asistencia: true,
         verInformeMensual: true,
         editarInformeMensual: false,
-        informeMensual: false,  // legacy: no puede editar
+
         estrategias: true,
         planRescate: true,
         coordinacion: false,
         asignarMiembros: false,
         eliminarMiembros: false,
         configuracion: false,
-        administracion: false
+        administracion: false,
+        cerrarAnio: false
     },
     vocal: {
         baseMaestro: true,
         asistencia: true,
         verInformeMensual: true,
         editarInformeMensual: false,
-        informeMensual: false,  // legacy: no puede editar
+
         estrategias: true,
         planRescate: true,
         coordinacion: false,
         asignarMiembros: false,
         eliminarMiembros: false,
         configuracion: false,
-        administracion: false
+        administracion: false,
+        cerrarAnio: false
     },
     pendiente: {
         baseMaestro: false,
         asistencia: false,
         verInformeMensual: false,
         editarInformeMensual: false,
-        informeMensual: false,
+
         estrategias: false,
         planRescate: false,
         coordinacion: false,
         asignarMiembros: false,
         eliminarMiembros: false,
         configuracion: false,
-        administracion: false
+        administracion: false,
+        cerrarAnio: false
     }
 };
 

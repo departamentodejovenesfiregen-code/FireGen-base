@@ -330,8 +330,8 @@ function renderPersonaCard(p) {
                     <i class="fas fa-clipboard-list"></i> Encuesta
                 </button>
                 ` : `
-                <button onclick="openSeguimientoModal('${p.firebaseId}')" class="flex-1 bg-slate-100 hover:bg-orange-50 text-slate-600 hover:text-orange-600 font-bold py-2 rounded-xl text-xs transition-all flex items-center justify-center gap-1">
-                    <i class="fas fa-edit"></i> Registrar
+                <button onclick="openPlanSemanalModal('${p.firebaseId}')" class="flex-1 bg-slate-100 hover:bg-orange-50 text-slate-600 hover:text-orange-600 font-bold py-2 rounded-xl text-xs transition-all flex items-center justify-center gap-1">
+                    <i class="fas fa-edit"></i> Plan Semanal
                 </button>
                 `}
                 <a ${p.telefono ? `href="https://wa.me/${p.telefono.replace(/\D/g, '')}" target="_blank"` : 'onclick="alert(\'No hay teléfono registrado\')"' } class="w-10 flex-shrink-0 bg-green-50 hover:bg-green-100 text-green-600 font-bold py-2 rounded-xl text-sm transition-all flex items-center justify-center">
@@ -381,8 +381,8 @@ function renderTareasTab() {
                             </div>
                         </div>
                     </div>
-                    <button onclick="openSeguimientoModal('${p.firebaseId}', ${p.isProspecto === true})" class="bg-orange-50 hover:bg-orange-100 text-orange-600 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors flex-shrink-0">
-                        <i class="fas fa-check"></i> Listo
+                    <button onclick="openPlanSemanalModal('${p.firebaseId}')" class="bg-orange-50 hover:bg-orange-100 text-orange-600 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors flex-shrink-0">
+                        <i class="fas fa-calendar-check"></i> Plan
                     </button>
                 </div>
                 `;
@@ -453,10 +453,7 @@ window.closeEncuestaProspectoModal = function() {
     if (modal) modal.classList.add('hidden');
 };
 
-window.closePlanSemanalModal = function() {
-    const modal = document.getElementById('planSemanalModal');
-    if (modal) modal.classList.add('hidden');
-};
+
 
 /**
  * openSeguimientoModal — Abre el modal para registrar un seguimiento

@@ -249,7 +249,14 @@ function renderAnnualSummary(dataByPeriod, year) {
             ? `🔒 Cierre anual ${year} realizado.`
             : `Cierres mensuales: ${closed.length} de ${periods.length}.`;
     }
-    if (btn) btn.disabled = !!annualClosed;
+    if (btn) {
+        if (hasPermission('cerrarAnio')) {
+            btn.style.display = 'inline-flex'; // or whatever its original display is (probably inline-flex/flex)
+            btn.disabled = !!annualClosed;
+        } else {
+            btn.style.display = 'none';
+        }
+    }
 }
 
 function syncAnnualStrategy(year) {
@@ -277,6 +284,10 @@ function syncAnnualStrategy(year) {
 }
 
 function cerrarAnualSnapshot() {
+    if (!hasPermission('cerrarAnio')) {
+        alert('No tienes permiso para cerrar el año.');
+        return;
+    }
     const year = String(document.getElementById('strategyYearSelect')?.value || activeStrategyYear || new Date().getFullYear());
     const periods = getStrategyOperationalMonths(year);
 

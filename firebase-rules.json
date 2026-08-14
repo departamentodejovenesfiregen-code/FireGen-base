@@ -33,7 +33,8 @@
         ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')",
         "planSemanal": {
           "$semanaKey": {
-            ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('rescateProspectos/' + $prospectoId + '/responsableMiembroId').val() === root.child('usuarios/' + auth.uid + '/miembroId').val())"
+            ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('rescateProspectos/' + $prospectoId + '/responsableMiembroId').val() === root.child('usuarios/' + auth.uid + '/miembroId').val())",
+            ".validate": "!newData.hasChild('responsableMiembroId') && !newData.hasChild('creadoPorUid')"
           }
         }
       }
@@ -104,7 +105,9 @@
     "notificaciones": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')"
+        "$notifId": {
+          ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || (auth.uid === $uid && (!newData.exists() || (data.exists() && newData.exists() && newData.child('leida').val() === true && newData.child('titulo').val() === data.child('titulo').val() && newData.child('mensaje').val() === data.child('mensaje').val() && newData.child('fecha').val() === data.child('fecha').val() && newData.child('creadoPorUid').val() === data.child('creadoPorUid').val() && newData.child('tipo').val() === data.child('tipo').val()))))"
+        }
       }
     },
 

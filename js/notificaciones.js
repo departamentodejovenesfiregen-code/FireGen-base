@@ -91,13 +91,19 @@ function _resetNotifBtn(btn) {
  * ========================================================================= */
 window.openNotificacionesOverlay = function() {
     const overlay = document.getElementById('notificacionesOverlay');
-    if (overlay) overlay.classList.add('active');
+    if (overlay) {
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
     loadNotificacionesPropias();
 };
 
 window.closeNotificacionesOverlay = function() {
     const overlay = document.getElementById('notificacionesOverlay');
-    if (overlay) overlay.classList.remove('active');
+    if (overlay) {
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
 };
 
 window.loadNotificacionesPropias = function() {

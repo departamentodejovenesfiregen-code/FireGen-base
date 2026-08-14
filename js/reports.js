@@ -179,7 +179,7 @@ function checkIfMonthClosed(periodo) {
         } else if (!canEdit) {
             if (statusEl) {
                 statusEl.classList.remove('hidden');
-                statusEl.textContent = '👁️ Solo lectura: tu rol no permite editar el Informe Mensual.';
+                statusEl.textContent = 'Solo lectura';
             }
         } else {
             if (statusEl) {
