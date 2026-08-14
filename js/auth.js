@@ -309,15 +309,15 @@ function applyRolePermissions(rol) {
     const bnConfig = document.getElementById('bn-config');
     if (bnConfig) bnConfig.style.display = (r === 'admin') ? '' : 'none';
 
-    // ── Tab Informe mensual: admin, coordinador, vicecoordinador, secretario ──
+    // ── Tab Informe mensual: visible para todos los roles operativos ──
     const tabReport = document.getElementById('tab-report');
     if (tabReport) {
-        const verReport = hasPermission('informeMensual', r);
+        const verReport = hasPermission('verInformeMensual', r);
         tabReport.style.display = verReport ? '' : 'none';
     }
     const bnReport = document.getElementById('bn-report');
     if (bnReport) {
-        const verReport = hasPermission('informeMensual', r);
+        const verReport = hasPermission('verInformeMensual', r);
         bnReport.style.display = verReport ? '' : 'none';
     }
 

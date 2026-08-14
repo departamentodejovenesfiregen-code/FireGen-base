@@ -259,7 +259,7 @@ function bindReportInputs() {
         saveReportField('serie', this.value);
     });
     document.getElementById('repPeriodo').addEventListener('change', function () {
-        if (typeof hasPermission === 'function' && hasPermission('informeMensual')) {
+        if (typeof hasPermission === 'function' && hasPermission('verInformeMensual')) {
             syncReport(this.value);
         }
     });

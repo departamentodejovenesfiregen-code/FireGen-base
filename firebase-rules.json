@@ -29,10 +29,12 @@
     "rescateProspectos": {
       ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || (query.orderByChild === 'responsableMiembroId' && query.equalTo === root.child('usuarios/' + auth.uid + '/miembroId').val()))",
       "$prospectoId": {
-        ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || data.child('responsableMiembroId').val() === root.child('usuarios/' + auth.uid + '/miembroId').val())",
+        ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('rescateProspectos/' + $prospectoId + '/responsableMiembroId').val() === root.child('usuarios/' + auth.uid + '/miembroId').val())",
         ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')",
         "planSemanal": {
-          ".write": "auth != null && data.parent().child('responsableMiembroId').val() === root.child('usuarios/' + auth.uid + '/miembroId').val()"
+          "$semanaKey": {
+            ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('rescateProspectos/' + $prospectoId + '/responsableMiembroId').val() === root.child('usuarios/' + auth.uid + '/miembroId').val())"
+          }
         }
       }
     },
