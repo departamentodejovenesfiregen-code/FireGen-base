@@ -790,9 +790,8 @@
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Estado Espiritual</label>
                     <select name="estadoEspiritual"
                         class="w-full p-3.5 border border-slate-200 rounded-xl outline-none bg-white focus:ring-4 focus:ring-orange-100 focus:border-orange-500">
-                        <option>Nuevo creyente</option>
-                        <option>Creyente</option>
-                        <option>Convertido</option>
+                        <option>Nuevo</option>
+                        <option>Oidor</option>
                         <option>Reconciliado</option>
                         <option>Bautizado</option>
                         <option>Líder</option>
@@ -808,10 +807,10 @@
                     <input type="text" name="cargo" placeholder="Ej: Líder de Alabanza"
                         class="w-full p-3.5 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-orange-100 focus:border-orange-500">
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Líder Asignado</label>
-                    <input type="text" name="lider"
-                        class="w-full p-3.5 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-orange-100 focus:border-orange-500">
+                <div id="liderFieldContainer">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Responsable</label>
+                    <input type="text" name="lider" id="liderInputForm"
+                        class="w-full p-3.5 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-orange-100 focus:border-orange-500 disabled:bg-slate-100 disabled:text-slate-500">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Estado de Asistencia</label>
@@ -974,7 +973,7 @@
                             class="flex items-center justify-center gap-2 bg-orange-100 hover:bg-orange-200 text-orange-700 font-bold rounded-xl py-3 text-sm transition-all">
                             <i class="fas fa-edit"></i> Editar
                         </button>
-                        <button onclick="deleteFromExpediente()"
+                        <button id="expDeleteBtn" onclick="deleteFromExpediente()"
                             class="flex items-center justify-center gap-2 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-xl py-3 text-sm transition-all">
                             <i class="fas fa-trash"></i> Eliminar
                         </button>
@@ -1301,14 +1300,22 @@
             <input type="hidden" id="encuestaProspectoId">
             <form id="encuestaProspectoForm" class="space-y-4">
                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                    <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="checkbox" id="encuestaSeContacto" class="w-5 h-5 rounded text-green-500 focus:ring-green-500">
-                        <span class="text-sm font-semibold text-slate-700">¿Se logró contactar?</span>
-                    </label>
-                    <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="checkbox" id="encuestaSeInvito" class="w-5 h-5 rounded text-green-500 focus:ring-green-500">
-                        <span class="text-sm font-semibold text-slate-700">¿Se invitó a la iglesia?</span>
-                    </label>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">¿Se logró contactar?</label>
+                        <select id="encuestaSeContacto" class="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-green-500 font-bold">
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">¿Se invitó a la iglesia?</label>
+                        <select id="encuestaSeInvito" class="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-green-500 font-bold">
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3 mt-2">
                     <div>

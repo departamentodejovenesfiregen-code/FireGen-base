@@ -460,6 +460,11 @@ window.assignLeaderToMember = async function() {
  * executeMemberAssignment — Función común para asignar miembro a responsable en Firebase.
  */
 window.executeMemberAssignment = async function(liderMiembroId, memberId) {
+    // FASE3-S5.2: Verificar permiso antes de asignar
+    if (typeof hasPermission === 'function' && !hasPermission('asignarMiembros', window.currentUserRole)) {
+        throw new Error('No tienes permiso para asignar responsables.');
+    }
+
     const mArr = (typeof members !== 'undefined') ? members : [];
     const liderMember = mArr.find(x => x.firebaseId === liderMiembroId);
     let liderName = '';

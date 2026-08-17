@@ -57,6 +57,20 @@ window.renderCoordinacionDashboard = function() {
                     <button type="submit" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition-colors">Guardar</button>
                 </div>
             </form>
+    </div>
+    
+    <!-- Modal Progreso Responsable -->
+    <div id="coordProgresoModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[120]">
+        <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-black text-slate-800" id="coordProgresoModalTitle">Progreso del Responsable</h3>
+                <button onclick="closeCoordProgresoModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="coordProgresoContent" class="space-y-4 flex-1">
+                <div class="text-center py-10"><i class="fas fa-circle-notch fa-spin text-orange-500 text-2xl"></i></div>
+            </div>
         </div>
     </div>
     `;
@@ -188,7 +202,7 @@ function renderCoordResumen(container) {
             <div class="divide-y divide-slate-100">
                 ${filas.length === 0 ? '<div class="p-6 text-center text-slate-500">No hay responsables.</div>' : ''}
                 ${filas.map(f => `
-                <div class="flex items-center justify-between px-4 py-3 hover:bg-slate-50 gap-4">
+                <div class="flex items-center justify-between px-4 py-3 hover:bg-slate-50 gap-4 cursor-pointer" onclick="openCoordProgresoModal('${f.uid}')">
                     <div class="flex items-center gap-3">
                         <div class="w-9 h-9 rounded-full bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center text-orange-700 font-black text-base">
                             ${(f.nombre || '?').charAt(0).toUpperCase()}
@@ -231,7 +245,7 @@ function renderCoordProspectos(container) {
                         const s = p.planSemanal[semanaKey];
                         currentPlan = `
                             Orar: ${s.orar ? '✓' : '☐'} | 
-                            Contactar: ${s.contactar ? (s.seContacto ? '✓' : '—') : '☐'} | 
+                            Contactar: ${s.contactar ? (s.seContacto === 'Sí' ? '✓' : (s.seContacto === 'No' ? '❌' : '—')) : '☐'} | 
                             Invitar: ${s.invitar ? '✓' : '☐'} | 
                             Encuesta: ${s.encuestaCompletada ? '🟢' : '🟠'}
                         `;
@@ -290,7 +304,7 @@ window.verHistoricoProspecto = function(id) {
                 <div class="grid grid-cols-2 gap-2 text-sm text-slate-700">
                     <div><strong>Oró:</strong> ${s.orar ? 'Sí' : 'No'}</div>
                     <div><strong>Invitó:</strong> ${s.invitar ? 'Sí' : 'No'}</div>
-                    <div><strong>Contactó:</strong> ${s.contactar ? (s.seContacto ? 'Sí' : 'Intentó pero no') : 'No'}</div>
+                    <div><strong>Contactó:</strong> ${s.contactar ? (s.seContacto === 'Sí' ? 'Sí' : (s.seContacto === 'No' ? 'Intentó pero no' : 'Pendiente')) : 'No'}</div>
                     <div><strong>Encuesta:</strong> ${s.encuestaCompletada ? 'Completada' : 'Pendiente'}</div>
                     ${s.tipoContacto ? `<div class="col-span-2"><strong>Medio:</strong> ${s.tipoContacto}</div>` : ''}
                     ${s.resultado ? `<div class="col-span-2"><strong>Resultado:</strong> ${s.resultado}</div>` : ''}
@@ -524,3 +538,93 @@ function renderCoordNotificaciones(container) {
 }
 
 // Funciones de notificaciones movidas a js/notificaciones.js
+
+window.openCoordProgresoModal = function(uid) {
+    const modal = document.getElementById('coordProgresoModal');
+    const content = document.getElementById('coordProgresoContent');
+    const title = document.getElementById('coordProgresoModalTitle');
+    if (!modal || !content) return;
+
+    const usuario = window._coordState.usuarios[uid];
+    if (!usuario) return;
+
+    const mArr = (typeof members !== 'undefined') ? members : [];
+    const nombreResp = _resolveNombreResponsable(usuario, mArr);
+    title.textContent = "Progreso: " + nombreResp;
+
+    const asignados = mArr.filter(m => m.liderMiembroId === usuario.miembroId);
+    const keyActual = (typeof getCurrentSemanaKey === 'function') ? getCurrentSemanaKey() : 'sem';
+    const rendicion = (window._coordState.rendiciones[uid] && window._coordState.rendiciones[uid][keyActual]) || null;
+
+    let html = '';
+
+    // Rendición de cuentas de la semana
+    html += `
+    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+        <h4 class="font-bold text-slate-700 text-sm mb-2"><i class="fas fa-clipboard-check text-blue-500 mr-1"></i> Rendición de Cuentas (Semana ${keyActual})</h4>
+        ${rendicion ? `
+            <div class="space-y-2 text-sm text-slate-600">
+                <p><strong>Completó Tareas:</strong> ${rendicion.completoTareas ? '✅ Sí' : '❌ No'}</p>
+                <p><strong>Actualizó Estados:</strong> ${rendicion.actualizoEstados ? '✅ Sí' : '❌ No'}</p>
+                <p><strong>Oró por Grupo:</strong> ${rendicion.oroPorGrupo ? '✅ Sí' : '❌ No'}</p>
+                <p><strong>Observaciones:</strong> ${rendicion.observaciones || '<em>Sin observaciones</em>'}</p>
+                <p class="text-[10px] text-slate-400 mt-2">Enviado el ${new Date(rendicion.fecha).toLocaleString()}</p>
+            </div>
+        ` : `
+            <div class="text-orange-500 font-bold text-sm bg-orange-50 p-3 rounded-lg"><i class="fas fa-clock"></i> Pendiente de enviar rendición esta semana.</div>
+        `}
+    </div>`;
+
+    // Estado de las personas asignadas
+    html += `
+    <div class="mt-4">
+        <h4 class="font-bold text-slate-700 text-sm mb-2"><i class="fas fa-users text-orange-500 mr-1"></i> Personas Asignadas (${asignados.length})</h4>
+        ${asignados.length === 0 ? '<p class="text-sm text-slate-500 italic">No tiene personas asignadas.</p>' : `
+            <div class="space-y-2 max-h-60 overflow-y-auto pr-2">
+                ${asignados.map(m => {
+                    const plan = (m.planSemanal && m.planSemanal[keyActual]) || null;
+                    const estadoText = m.estadoAsistencia || 'Normal';
+                    const estadoColor = estadoText.toLowerCase().includes('alej') ? 'text-red-500 font-bold' : (estadoText.toLowerCase().includes('enfri') ? 'text-orange-500 font-bold' : 'text-slate-600');
+                    return `
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 text-sm shadow-sm">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="font-bold text-slate-800">${m.nombre}</span>
+                            <span class="text-[10px] uppercase ${estadoColor}">${estadoText}</span>
+                        </div>
+                        ${plan ? (plan.tareas ? `
+                            <div class="text-xs font-bold text-orange-600 mt-1 mb-1">Obj: ${escHtml(RescueCore.getWeeklyDiscipleshipPlan(m.estadoAsistencia, m.estadoEspiritual).objetivo)}</div>
+                            <div class="text-[10px] text-slate-500">
+                                ${Object.keys(plan.tareas).map(tid => {
+                                    const t = plan.tareas[tid];
+                                    return `<span class="inline-block mr-2">${t.completada ? '✅' : '☐'} ${escHtml(tid.replace(/_/g, ' '))}</span>`;
+                                }).join('')}
+                            </div>
+                        ` : `
+                            <div class="text-xs text-slate-500 mt-1">
+                                Tareas (Prospecto): 
+                                Orar ${plan.orar ? '✅' : '☐'} | 
+                                Contactar ${plan.contactar ? (plan.seContacto === 'Sí' ? '✓' : (plan.seContacto === 'No' ? '❌' : '—')) : '☐'} | 
+                                Invitar ${plan.invitar ? '✅' : '☐'}
+                            </div>
+                        `) : `
+                            <div class="text-xs text-slate-400 mt-1 italic">Sin plan registrado para esta semana.</div>
+                        `}
+                    </div>
+                    `;
+                }).join('')}
+            </div>
+        `}
+    </div>`;
+
+    content.innerHTML = html;
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+};
+
+window.closeCoordProgresoModal = function() {
+    const modal = document.getElementById('coordProgresoModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+};

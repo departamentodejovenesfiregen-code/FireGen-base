@@ -195,6 +195,22 @@ function openNewMemberModal() {
         fechaInc.value = `${yyyy}-${mm}-${dd}`;
     }
     
+    const liderInput = document.getElementById('liderInputForm');
+    if (liderInput && window.currentUserData && typeof hasPermission === 'function') {
+        const canAssign = hasPermission('asignarMiembros', window.currentUserData.rol);
+        if (!canAssign) {
+            liderInput.setAttribute('readonly', 'true');
+            liderInput.classList.add('bg-slate-100', 'text-slate-500', 'cursor-not-allowed', 'pointer-events-none');
+            liderInput.classList.remove('focus:ring-4', 'focus:ring-orange-100', 'focus:border-orange-500');
+            liderInput.value = 'Sin asignar';
+        } else {
+            liderInput.removeAttribute('readonly');
+            liderInput.classList.remove('bg-slate-100', 'text-slate-500', 'cursor-not-allowed', 'pointer-events-none');
+            liderInput.classList.add('focus:ring-4', 'focus:ring-orange-100', 'focus:border-orange-500');
+            liderInput.value = '';
+        }
+    }
+
     openModal('userModal');
 }
 
@@ -213,7 +229,23 @@ function editMember(fid) {
     form.querySelector('[name="estadoEspiritual"]').value    = m.estadoEspiritual || 'Nuevo';
     form.querySelector('[name="areaServicio"]').value        = m.areaServicio || '';
     form.querySelector('[name="cargo"]').value               = m.cargo || '';
-    form.querySelector('[name="lider"]').value               = m.lider || '';
+    const liderInput = form.querySelector('[name="lider"]');
+    liderInput.value = m.lider || '';
+    
+    // Si el usuario no tiene permisos para asignar, solo lectura
+    if (window.currentUserData && typeof hasPermission === 'function') {
+        const canAssign = hasPermission('asignarMiembros', window.currentUserData.rol);
+        if (!canAssign) {
+            liderInput.setAttribute('readonly', 'true');
+            liderInput.classList.add('bg-slate-100', 'text-slate-500', 'cursor-not-allowed', 'pointer-events-none');
+            liderInput.classList.remove('focus:ring-4', 'focus:ring-orange-100', 'focus:border-orange-500');
+        } else {
+            liderInput.removeAttribute('readonly');
+            liderInput.classList.remove('bg-slate-100', 'text-slate-500', 'cursor-not-allowed', 'pointer-events-none');
+            liderInput.classList.add('focus:ring-4', 'focus:ring-orange-100', 'focus:border-orange-500');
+        }
+    }
+
     form.querySelector('[name="estadoAsistencia"]').value    = m.estadoAsistencia || '';
     form.querySelector('[name="fechaBautismo"]').value       = m.fechaBautismo || '';
     form.querySelector('[name="domicilio"]').value           = m.domicilio || '';
@@ -253,6 +285,11 @@ function deleteFromExpediente() {
 }
 
 function deleteMember(fid) {
+    // FASE3-S5.2: Verificar permiso antes de eliminar
+    if (typeof hasPermission === 'function' && !hasPermission('eliminarMiembros', window.currentUserRole)) {
+        alert('No tienes permiso para eliminar miembros.');
+        return;
+    }
     if (!confirm('¿Eliminar este registro permanentemente?')) return;
     db.ref('miembros/' + fid).remove()
         .catch(err => console.error('[FireGen] Error al eliminar:', err));
@@ -280,6 +317,17 @@ function initMemberForm() {
         const editId = document.getElementById('editMemberId').value;
         const fotoURL = fd.get('fotoURL') || '';
 
+        let newLider = fd.get('estadoEspiritual') === 'Líder' ? 'No aplica' : fd.get('lider');
+        
+        // FASE3-S5.2: Evitar que roles sin permiso modifiquen el lider.
+        if (editId && window.currentUserData && typeof hasPermission === 'function') {
+            const canAssign = hasPermission('asignarMiembros', window.currentUserData.rol);
+            if (!canAssign) {
+                const existingMember = members.find(m => m.firebaseId === editId);
+                newLider = existingMember ? (existingMember.lider || '') : newLider;
+            }
+        }
+
         const payload = {
             nombre:              fd.get('nombre'),
             fechaNac:            fd.get('fechaNac'),
@@ -288,7 +336,7 @@ function initMemberForm() {
             estadoEspiritual:    fd.get('estadoEspiritual'),
             areaServicio:        fd.get('areaServicio'),
             cargo:               fd.get('cargo'),
-            lider:               fd.get('estadoEspiritual') === 'Líder' ? 'No aplica' : fd.get('lider'),
+            lider:               newLider,
             estadoAsistencia:    fd.get('estadoAsistencia'),
             fechaBautismo:       fd.get('fechaBautismo'),
             domicilio:           fd.get('domicilio'),
@@ -326,7 +374,7 @@ function initMemberForm() {
                 }
             }
 
-            db.ref('miembros/' + editId).set(payload)
+            db.ref('miembros/' + editId).update(payload)
                 .catch(err => console.error('[FireGen] Error al actualizar:', err));
         } else {
             const newRef = db.ref('miembros').push();
@@ -407,6 +455,15 @@ function openExpediente(fid) {
     } else {
         mapsLink.href = '#';
         mapsLink.classList.add('opacity-50', 'pointer-events-none');
+    }
+
+    // Mostrar/Ocultar botón de eliminar
+    const delBtn = document.getElementById('expDeleteBtn');
+    if (delBtn) {
+        if (window.currentUserData && typeof hasPermission === 'function') {
+            const canDelete = hasPermission('eliminarMiembros', window.currentUserData.rol);
+            delBtn.style.display = canDelete ? 'flex' : 'none';
+        }
     }
 
     document.getElementById('expedienteOverlay').classList.add('active');

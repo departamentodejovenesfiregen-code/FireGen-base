@@ -2,9 +2,12 @@
  * FireGen V3.0 — js/plan-rescate-core.js
  * ─────────────────────────────────────────────────────────────
  * MOTOR DE LÓGICA: PLAN AL RESCATE Y RUTAS DE ACOMPAÑAMIENTO
- * Define reglas puras para prioridades, rutas de formación,
- * rutas de acompañamiento y acciones recomendadas, evitando
- * duplicidad en la UI.
+ * Etapa 5.2 / Build B3.275
+ *
+ * Estados espirituales: Nuevo | Oidor | Reconciliado | Bautizado | Líder
+ * Estados de asistencia: Activo | Inconstante | Enfriándose | Alejándose
+ *
+ * Modelo de acciones: required | recommended | optional
  * ─────────────────────────────────────────────────────────────
  */
 
@@ -15,20 +18,21 @@ const RescueCore = {
      */
     getFormationRoute(estadoEspiritual) {
         const map = {
-            'Nuevo creyente': 'Discipulado inicial / integración',
-            'Nuevo': 'Discipulado inicial / integración', // Compatibilidad histórica
-            'Creyente': 'Discipulado de crecimiento',
-            'Convertido': 'Formación / consolidación y crecimiento',
+            'Nuevo': 'Integración y fundamentos',
+            'Nuevo creyente': 'Integración y fundamentos', // Compat legacy
+            'Oidor': 'Acompañamiento y crecimiento',
+            'Creyente': 'Acompañamiento y crecimiento',    // Compat legacy
+            'Convertido': 'Formación y consolidación',     // Compat legacy
             'Reconciliado': 'Restauración y consolidación',
             'Bautizado': 'Formación y preparación para servir',
-            'Líder': 'Formación de liderazgo / multiplicación'
+            'Líder': 'Formación de liderazgo y multiplicación'
         };
         return map[estadoEspiritual] || 'Formación general';
     },
 
     /**
-     * Devuelve el nivel de prioridad (1-4) y su etiqueta según asistencia
-     * 1: Normal, 2: Seguimiento, 3: Alta, 4: Crítica
+     * Devuelve el nivel de prioridad (1-5) y su etiqueta según asistencia
+     * 1: Normal, 2: Seguimiento, 3: Alta, 4: Crítica, 5: Prospecto
      */
     getPriority(estadoAsistencia) {
         const state = (estadoAsistencia || '').toLowerCase();
@@ -42,7 +46,7 @@ const RescueCore = {
             return { level: 2, label: 'Seguimiento', color: 'yellow', icon: '🟡', bg: 'bg-yellow-50 text-yellow-700', border: 'border-yellow-200' };
         }
         if (state === 'prospecto') {
-            return { level: 2, label: 'Prospecto', color: 'indigo', icon: '👤', bg: 'bg-indigo-50 text-indigo-700', border: 'border-indigo-200' };
+            return { level: 5, label: 'Prospecto', color: 'indigo', icon: '👤', bg: 'bg-indigo-50 text-indigo-700', border: 'border-indigo-200' };
         }
         return { level: 1, label: 'Normal', color: 'green', icon: '🟢', bg: 'bg-green-50 text-green-700', border: 'border-green-200' };
     },
@@ -59,140 +63,189 @@ const RescueCore = {
     },
 
     /**
-     * Devuelve acciones recomendadas basadas en la combinación de estados
+     * Normaliza el estadoEspiritual a los nuevos valores.
+     * Convierte legacy → actual de forma transparente.
+     */
+    normalizeEstadoEspiritual(esp) {
+        if (!esp) return 'Nuevo';
+        if (esp === 'Nuevo creyente') return 'Nuevo';
+        if (esp === 'Creyente') return 'Oidor';
+        if (esp === 'Convertido') return 'Oidor';
+        return esp;
+    },
+
+    /**
+     * Devuelve acciones recomendadas (compatibilidad con UI legacy).
+     * Usa getWeeklyDiscipleshipPlan internamente.
      */
     getRecommendedActions(estadoEspiritual, estadoAsistencia) {
-        const prio = this.getPriority(estadoAsistencia).level;
-        const isNew = estadoEspiritual === 'Nuevo creyente' || estadoEspiritual === 'Nuevo';
-
-        if (prio === 4) {
-            return [
-                'Contactar hoy',
-                'Orar',
-                'Conversar personalmente',
-                isNew ? 'Programar seguimiento' : 'Seguimiento de restauración'
-            ];
-        } else if (prio === 3) {
-            return [
-                'Orar esta semana',
-                'Escribir por WhatsApp',
-                'Revisar si necesita apoyo'
-            ];
-        } else if (prio === 2) {
-            if (estadoAsistencia === 'Prospecto') {
-                return [
-                    'Orar',
-                    'Contactar (opcional)',
-                    'Invitar',
-                    'Encuesta (opcional)'
-                ];
-            }
-            return [
-                'Saludar en la reunión',
-                'Estar pendiente de su próxima asistencia'
-            ];
-        } else {
-            return [
-                'Seguimiento normal',
-                'Mantener contacto esporádico'
-            ];
-        }
+        const plan = this.getWeeklyDiscipleshipPlan(estadoAsistencia, estadoEspiritual);
+        // Devuelve solo las etiquetas de acciones required + recommended
+        return plan.tareas
+            .filter(t => t.type === 'required' || t.type === 'recommended')
+            .map(t => t.label);
     },
 
     /**
      * Genera la etiqueta principal de la "Siguiente Tarea"
      */
     getNextTaskLabel(estadoEspiritual, estadoAsistencia) {
-        const actions = this.getRecommendedActions(estadoEspiritual, estadoAsistencia);
-        return actions[0] || 'Revisar';
+        const plan = this.getWeeklyDiscipleshipPlan(estadoAsistencia, estadoEspiritual);
+        const first = plan.tareas.find(t => t.type === 'required');
+        return first ? first.label : 'Revisar';
     },
 
     /**
-     * Genera el plan semanal de discipulado combinando asistencia y estado espiritual
+     * ═══════════════════════════════════════════════════════════
+     * MOTOR CENTRAL DE DISCIPULADO SEMANAL
+     * Fuente única de verdad para planes de acompañamiento.
+     *
+     * Cada tarea tiene:
+     *   id:    identificador único
+     *   label: texto legible
+     *   type:  'required' | 'recommended' | 'optional'
+     * ═══════════════════════════════════════════════════════════
      */
     getWeeklyDiscipleshipPlan(estadoAsistencia, estadoEspiritual) {
         const asis = (estadoAsistencia || '').toLowerCase();
-        const esp = (estadoEspiritual || '').toLowerCase();
-        
+        const espNorm = this.normalizeEstadoEspiritual(estadoEspiritual);
+        const esp = (espNorm || '').toLowerCase();
+
         let nivel = 'Normal';
-        let objetivo = 'Acompañamiento normal';
+        let objetivo = 'Acompañamiento normal y crecimiento.';
         let tareas = [];
 
-        // Identificar el nivel base por asistencia
+        // ── ALEJÁNDOSE (Crítica) ────────────────────────────────
         if (asis.includes('alejándos') || asis.includes('alejado')) {
             nivel = 'Crítico';
-            objetivo = 'Restauración y recuperación';
+            objetivo = 'Restauración y recuperación.';
             tareas = [
-                { id: 'orar', label: 'Orar', required: true },
-                { id: 'contactar', label: 'Contactar', required: true },
-                { id: 'conversar', label: 'Escuchar / conversar', required: true },
-                { id: 'detectar_causa', label: 'Detectar causa del alejamiento', required: true },
-                { id: 'invitar_regresar', label: 'Invitar a regresar', required: true },
-                { id: 'planificar_siguiente', label: 'Planificar siguiente acompañamiento', required: true }
+                { id: 'registrar_resultado', label: 'Registrar resultado', type: 'required' },
+                { id: 'orar', label: 'Orar', type: 'recommended' },
+                { id: 'contactar', label: 'Contactar', type: 'recommended' },
+                { id: 'escuchar', label: 'Escuchar', type: 'recommended' },
+                { id: 'conversar', label: 'Conversar', type: 'recommended' },
+                { id: 'detectar_causa', label: 'Detectar causa', type: 'recommended' },
+                { id: 'invitar_regresar', label: 'Invitar a regresar', type: 'recommended' },
+                { id: 'acompanamiento_personal', label: 'Acompañamiento personal', type: 'recommended' },
+                { id: 'visita', label: 'Visita (opcional)', type: 'optional' },
+                { id: 'otra_accion', label: 'Otra acción realizada', type: 'optional' }
             ];
-            
-            if (esp.includes('nuevo')) {
-                objetivo += ' (Fundamentos e integración)';
-            } else if (esp.includes('líder') || esp.includes('lider')) {
-                objetivo += ' (Liderazgo y responsabilidad)';
+
+            // Matiz según estado espiritual
+            if (esp === 'nuevo') {
+                objetivo = 'Restauración y recuperación — fundamentos e integración.';
+            } else if (esp === 'oidor') {
+                objetivo = 'Restauración y recuperación — acompañamiento y crecimiento.';
+            } else if (esp === 'bautizado') {
+                objetivo = 'Restauración y recuperación — crecimiento y servicio.';
+            } else if (esp === 'líder' || esp === 'lider') {
+                objetivo = 'Restauración y recuperación — liderazgo y acompañamiento.';
+            } else if (esp === 'reconciliado') {
+                objetivo = 'Restauración y recuperación — fortalecimiento y continuidad.';
             }
 
+        // ── ENFRIÁNDOSE (Alta) ──────────────────────────────────
         } else if (asis.includes('enfriándos') || asis.includes('enfriado')) {
             nivel = 'Prioridad alta';
-            objetivo = 'Detectar el problema antes de un alejamiento mayor';
+            objetivo = 'Detectar necesidad y fortalecer el vínculo.';
             tareas = [
-                { id: 'orar', label: 'Orar', required: true },
-                { id: 'contactar', label: 'Contactar', required: true },
-                { id: 'conversar', label: 'Conversar', required: true },
-                { id: 'detectar_necesidad', label: 'Detectar necesidad', required: true },
-                { id: 'ofrecer_apoyo', label: 'Ofrecer apoyo', required: true }
+                { id: 'registrar_resultado', label: 'Registrar resultado', type: 'required' },
+                { id: 'orar', label: 'Orar', type: 'recommended' },
+                { id: 'contactar', label: 'Contactar', type: 'recommended' },
+                { id: 'conversar', label: 'Conversar', type: 'recommended' },
+                { id: 'detectar_necesidad', label: 'Detectar necesidad', type: 'recommended' },
+                { id: 'ofrecer_apoyo', label: 'Ofrecer apoyo', type: 'recommended' },
+                { id: 'invitar', label: 'Invitar', type: 'recommended' },
+                { id: 'visita', label: 'Visita (opcional)', type: 'optional' },
+                { id: 'otra_accion', label: 'Otra acción realizada', type: 'optional' }
             ];
 
+            // Matiz según estado espiritual
+            if (esp === 'nuevo') {
+                objetivo = 'Detectar necesidad — integración y fundamentos.';
+            } else if (esp === 'bautizado') {
+                objetivo = 'Fortalecer crecimiento y vínculo.';
+            } else if (esp === 'líder' || esp === 'lider') {
+                objetivo = 'Fortalecer vínculo — liderazgo y acompañamiento.';
+            }
+
+        // ── INCONSTANTE (Seguimiento) ───────────────────────────
         } else if (asis.includes('inconstante')) {
             nivel = 'Seguimiento preventivo';
-            objetivo = 'Recuperar constancia';
+            objetivo = 'Recuperar constancia.';
             tareas = [
-                { id: 'orar', label: 'Orar', required: true },
-                { id: 'saludar_acompanar', label: 'Saludar / acompañar', required: true },
-                { id: 'contactar_opcional', label: 'Contactar cuando corresponda', required: false },
-                { id: 'revisar_proxima', label: 'Revisar próxima asistencia', required: true },
-                { id: 'identificar_dificultad', label: 'Identificar dificultad', required: true }
+                { id: 'registrar_resultado', label: 'Registrar resultado', type: 'required' },
+                { id: 'orar', label: 'Orar', type: 'recommended' },
+                { id: 'acompanar', label: 'Acompañar', type: 'recommended' },
+                { id: 'enviar_mensaje', label: 'Enviar mensaje', type: 'recommended' },
+                { id: 'llamar', label: 'Llamar', type: 'recommended' },
+                { id: 'revisar_proxima', label: 'Revisar próxima asistencia', type: 'recommended' },
+                { id: 'identificar_dificultad', label: 'Identificar dificultad', type: 'recommended' },
+                { id: 'visita', label: 'Visita (opcional)', type: 'optional' },
+                { id: 'otra_accion', label: 'Otra acción realizada', type: 'optional' }
             ];
 
+        // ── ACTIVO (Normal) ─────────────────────────────────────
         } else {
-            // ACTIVO (default)
             nivel = 'Normal';
-            objetivo = 'Acompañamiento y formación';
-            
             tareas = [
-                { id: 'saludar', label: 'Saludar / recibir bien', required: true },
-                { id: 'acompanar', label: 'Acompañar', required: true },
-                { id: 'orar', label: 'Orar', required: true }
+                { id: 'registrar_resultado', label: 'Registrar resultado', type: 'required' },
+                { id: 'orar', label: 'Orar', type: 'recommended' },
+                { id: 'acompanar', label: 'Acompañar', type: 'recommended' }
             ];
 
-            // Ajustar según estado espiritual
-            if (esp.includes('nuevo')) {
-                objetivo = 'Integración y fundamentos';
-                tareas.push({ id: 'revisar_integracion', label: 'Revisar integración', required: true });
-                tareas.push({ id: 'discipulado_inicial', label: 'Discipulado inicial', required: true });
-            } else if (esp.includes('reconciliado')) {
-                objetivo = 'Restauración y consolidación';
-                tareas.push({ id: 'revisar_restauracion', label: 'Revisar restauración', required: true });
-                tareas.push({ id: 'fortalecer_continuidad', label: 'Fortalecer continuidad', required: true });
-            } else if (esp.includes('bautizado')) {
-                objetivo = 'Crecimiento, formación y servicio';
-                tareas.push({ id: 'fortalecer_formacion', label: 'Fortalecer formación', required: true });
-                tareas.push({ id: 'estimular_servicio', label: 'Estimular servicio', required: true });
-            } else if (esp.includes('líder') || esp.includes('lider')) {
-                objetivo = 'Acompañamiento de liderazgo y multiplicación';
-                tareas.push({ id: 'revisar_liderazgo', label: 'Revisar liderazgo', required: true });
-                tareas.push({ id: 'estimular_multiplicacion', label: 'Estimular multiplicación', required: true });
+            // Adaptar según estado espiritual
+            if (esp === 'nuevo') {
+                objetivo = 'Integración y fortalecimiento de fundamentos.';
+                tareas.push(
+                    { id: 'discipulado', label: 'Discipulado', type: 'recommended' },
+                    { id: 'enviar_mensaje', label: 'Enviar mensaje', type: 'optional' },
+                    { id: 'conversar', label: 'Conversar', type: 'optional' }
+                );
+            } else if (esp === 'oidor') {
+                objetivo = 'Acompañamiento y fortalecimiento de participación.';
+                tareas.push(
+                    { id: 'discipulado', label: 'Discipulado', type: 'recommended' },
+                    { id: 'animar_avanzar', label: 'Animar a avanzar', type: 'recommended' },
+                    { id: 'conversar', label: 'Conversar', type: 'optional' }
+                );
+            } else if (esp === 'reconciliado') {
+                objetivo = 'Restauración y fortalecimiento de continuidad.';
+                tareas.push(
+                    { id: 'fortalecer', label: 'Fortalecer continuidad', type: 'recommended' },
+                    { id: 'enviar_mensaje', label: 'Enviar mensaje', type: 'optional' },
+                    { id: 'conversar', label: 'Conversar', type: 'optional' }
+                );
+            } else if (esp === 'bautizado') {
+                objetivo = 'Crecimiento, formación y servicio.';
+                tareas.push(
+                    { id: 'formacion', label: 'Formación', type: 'recommended' },
+                    { id: 'servicio', label: 'Estimular servicio', type: 'recommended' },
+                    { id: 'conversar', label: 'Conversar', type: 'optional' }
+                );
+            } else if (esp === 'líder' || esp === 'lider') {
+                objetivo = 'Liderazgo, multiplicación y formación.';
+                tareas.push(
+                    { id: 'liderazgo', label: 'Fortalecer liderazgo', type: 'recommended' },
+                    { id: 'multiplicacion', label: 'Estimular multiplicación', type: 'recommended' },
+                    { id: 'formacion', label: 'Formación', type: 'optional' }
+                );
             } else {
-                // Creyente / Convertido
-                objetivo = 'Formación, consolidación y crecimiento';
-                tareas.push({ id: 'revisar_crecimiento', label: 'Revisar crecimiento', required: true });
-                tareas.push({ id: 'continuar_formacion', label: 'Continuar formación', required: true });
+                // Fallback
+                objetivo = 'Acompañamiento normal y crecimiento.';
+                tareas.push(
+                    { id: 'discipulado', label: 'Discipulado', type: 'recommended' },
+                    { id: 'conversar', label: 'Conversar', type: 'optional' }
+                );
             }
+
+            // Acciones opcionales comunes para Activo
+            tareas.push(
+                { id: 'visita', label: 'Visita (opcional)', type: 'optional' },
+                { id: 'actividad_especial', label: 'Actividad especial', type: 'optional' },
+                { id: 'otra_accion', label: 'Otra acción realizada', type: 'optional' }
+            );
         }
 
         return {
@@ -200,5 +253,43 @@ const RescueCore = {
             objetivo,
             tareas
         };
+    },
+
+    /**
+     * Migra datos legacy de estadoEspiritual en Firebase.
+     * Ejecutar una sola vez. Idempotente.
+     */
+    migrateEstadosEspirituales() {
+        if (typeof db === 'undefined') {
+            console.warn('[RescueCore] db no disponible para migración.');
+            return Promise.resolve(0);
+        }
+        return db.ref('miembros').once('value').then(snap => {
+            const data = snap.val();
+            if (!data) return 0;
+            const updates = {};
+            let count = 0;
+            Object.keys(data).forEach(key => {
+                const m = data[key];
+                if (m.estadoEspiritual === 'Nuevo creyente') {
+                    updates[`miembros/${key}/estadoEspiritual`] = 'Nuevo';
+                    count++;
+                } else if (m.estadoEspiritual === 'Creyente') {
+                    updates[`miembros/${key}/estadoEspiritual`] = 'Oidor';
+                    count++;
+                } else if (m.estadoEspiritual === 'Convertido') {
+                    updates[`miembros/${key}/estadoEspiritual`] = 'Oidor';
+                    count++;
+                }
+            });
+            if (count === 0) {
+                console.log('[RescueCore] Migración: nada que migrar, todos actualizados.');
+                return 0;
+            }
+            return db.ref().update(updates).then(() => {
+                console.log(`[RescueCore] Migración completada: ${count} miembros actualizados.`);
+                return count;
+            });
+        });
     }
 };

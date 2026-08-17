@@ -118,6 +118,8 @@ function downloadCSV(csv, fn) {
 function getStatusClass(s) {
     if (s === 'Lider' || s === 'Líder') return 'bg-purple-100 text-purple-700';
     if (s === 'Bautizado')               return 'bg-blue-100 text-blue-700';
+    if (s === 'Reconciliado')            return 'bg-teal-100 text-teal-700';
+    if (s === 'Oidor' || s === 'Creyente' || s === 'Convertido') return 'bg-emerald-100 text-emerald-700';
     if (s === 'Nuevo' || s === 'Nuevo creyente') return 'bg-orange-100 text-orange-700';
     return 'bg-slate-100 text-slate-600';
 }

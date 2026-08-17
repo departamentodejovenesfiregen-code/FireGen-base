@@ -252,6 +252,8 @@ function initAuth(onAuthenticated) {
             window.currentUserRole = rol;
             window.currentUserUid = user.uid;
             window.currentUserMemberId = data.miembroId || null;
+            window.currentUserData = data;
+            window.currentUserData.rol = rol; // asegurar rol normalizado
             currentUserMemberId = data.miembroId || null;
 
             // Mostrar nombre en header

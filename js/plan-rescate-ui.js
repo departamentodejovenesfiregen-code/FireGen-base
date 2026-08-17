@@ -267,7 +267,7 @@ function renderPersonaCard(p) {
         const plan = (p.planSemanal && p.planSemanal[semanaKey]) ? p.planSemanal[semanaKey] : {};
         const orarCheck = plan.orar ? '✓' : '☐';
         const invitarCheck = plan.invitar ? '✓' : '☐';
-        const contactarCheck = plan.contactar ? (plan.seContacto ? '✓' : '—') : '☐';
+        const contactarCheck = plan.contactar ? (plan.seContacto === 'Sí' ? '✓' : (plan.seContacto === 'No' ? '❌' : '—')) : '☐';
         const encuestaPill = plan.encuestaCompletada 
             ? '<span class="text-green-600">🟢 Encuesta completada</span>' 
             : '<span class="text-orange-500">🟠 Encuesta pendiente</span>';
@@ -346,7 +346,7 @@ function renderPersonaCard(p) {
 }
 
 function renderTareasTab() {
-    const tareas = misPersonas.filter(m => RescueCore.getPriority(m.estadoAsistencia).level > 1)
+    const tareas = misPersonas.filter(m => RescueCore.getPriority(m.estadoAsistencia).level >= 1)
         .sort((a, b) => RescueCore.getPriority(b.estadoAsistencia).level - RescueCore.getPriority(a.estadoAsistencia).level);
 
     if (tareas.length === 0) {
@@ -361,29 +361,29 @@ function renderTareasTab() {
 
     return `
         <div class="space-y-3">
-            <h3 class="text-xs font-black uppercase tracking-wider text-slate-500 mb-4 ml-1">Tareas Sugeridas (${tareas.length})</h3>
+            <h3 class="text-xs font-black uppercase tracking-wider text-slate-500 mb-4 ml-1">Guía de Acompañamiento Semanal (${tareas.length})</h3>
             ${tareas.map(p => {
                 const prio = RescueCore.getPriority(p.estadoAsistencia);
-                const nextTask = RescueCore.getNextTaskLabel(p.estadoEspiritual, p.estadoAsistencia);
+                const plan = RescueCore.getWeeklyDiscipleshipPlan(p.estadoAsistencia, p.estadoEspiritual);
                 const accRoute = RescueCore.getAccompanimentRoute(p.estadoAsistencia);
+                const recActions = plan.tareas.filter(t => t.type === 'recommended').slice(0, 3).map(t => t.label).join(' · ');
                 return `
-                <div class="bg-white p-3 md:p-4 rounded-xl border ${prio.border} flex items-center justify-between gap-3 shadow-sm hover:shadow-md transition-shadow">
-                    <div class="flex items-center gap-3 md:gap-4 min-w-0">
-                        <div class="w-10 h-10 rounded-full ${prio.bg} flex items-center justify-center font-black text-xl flex-shrink-0">
-                            ${prio.icon}
-                        </div>
-                        <div class="min-w-0">
-                            <h4 class="font-bold text-slate-800 text-sm truncate">${escHtml(p.nombre)}</h4>
-                            <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-0.5">
-                                <span class="text-xs font-bold text-orange-600 truncate">${escHtml(nextTask)}</span>
-                                <span class="hidden sm:inline text-slate-300">•</span>
-                                <span class="text-[10px] text-slate-500 truncate uppercase">${escHtml(accRoute)}</span>
+                <div class="bg-white p-3 md:p-4 rounded-xl border ${prio.border} shadow-sm hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3 md:gap-4 min-w-0">
+                            <div class="w-10 h-10 rounded-full ${prio.bg} flex items-center justify-center font-black text-xl flex-shrink-0">
+                                ${prio.icon}
+                            </div>
+                            <div class="min-w-0">
+                                <h4 class="font-bold text-slate-800 text-sm truncate">${escHtml(p.nombre)}</h4>
+                                <div class="text-xs font-bold text-orange-600 truncate mt-0.5">${escHtml(plan.objetivo)}</div>
+                                <div class="text-[10px] text-slate-400 truncate mt-0.5">${escHtml(recActions || accRoute)}</div>
                             </div>
                         </div>
+                        <button onclick="openPlanSemanalModal('${p.firebaseId}')" class="bg-orange-50 hover:bg-orange-100 text-orange-600 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors flex-shrink-0">
+                            <i class="fas fa-calendar-check"></i> Plan
+                        </button>
                     </div>
-                    <button onclick="openPlanSemanalModal('${p.firebaseId}')" class="bg-orange-50 hover:bg-orange-100 text-orange-600 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors flex-shrink-0">
-                        <i class="fas fa-calendar-check"></i> Plan
-                    </button>
                 </div>
                 `;
             }).join('')}
@@ -429,17 +429,46 @@ window.openPlanSemanalModal = function(personaId) {
 
         const weekPlan = RescueCore.getWeeklyDiscipleshipPlan(p.estadoAsistencia, p.estadoEspiritual);
         
-        weekPlan.tareas.forEach(tarea => {
-            const checked = plan.tareas && plan.tareas[tarea.id] && plan.tareas[tarea.id].completada ? 'checked' : '';
-            const isReq = tarea.required ? '<span class="text-xs text-red-500 ml-1">*</span>' : '<span class="text-xs text-slate-400 ml-1">(opcional)</span>';
-            container.innerHTML += `
-                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <label class="flex items-start gap-3 cursor-pointer">
-                        <input type="checkbox" name="planTareaCb" value="${tarea.id}" data-req="${tarea.required}" ${checked} class="w-5 h-5 mt-0.5 rounded text-indigo-500 focus:ring-indigo-500">
-                        <span class="text-sm font-semibold text-slate-700">${tarea.label}${isReq}</span>
-                    </label>
-                </div>
-            `;
+        // Mostrar objetivo de la semana
+        container.innerHTML = `
+            <div class="bg-orange-50 p-3 rounded-xl border border-orange-200 mb-3">
+                <div class="text-[10px] font-bold uppercase text-orange-500 tracking-wider">Objetivo de la semana</div>
+                <div class="text-sm font-bold text-slate-800 mt-1">${escHtml(weekPlan.objetivo)}</div>
+                <div class="text-[10px] text-slate-500 mt-1">Nivel: ${escHtml(weekPlan.nivel)}</div>
+            </div>
+        `;
+
+        // Agrupar tareas por tipo
+        const typeLabels = { required: 'Obligatorio', recommended: 'Recomendado', optional: 'Opcional' };
+        const typeIcons = { required: '🔴', recommended: '🟡', optional: '⚪' };
+        const typeBg = { required: 'border-red-200 bg-red-50/50', recommended: 'border-orange-200 bg-orange-50/50', optional: 'border-slate-200 bg-slate-50' };
+
+        ['required', 'recommended', 'optional'].forEach(type => {
+            const group = weekPlan.tareas.filter(t => t.type === type);
+            if (group.length === 0) return;
+            container.innerHTML += `<div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-3 mb-1 ml-1">${typeIcons[type]} ${typeLabels[type]}</div>`;
+            group.forEach(tarea => {
+                const checked = plan.tareas && plan.tareas[tarea.id] && plan.tareas[tarea.id].completada ? 'checked' : '';
+                const extraValue = plan.tareas && plan.tareas[tarea.id] && plan.tareas[tarea.id].desc ? escHtml(plan.tareas[tarea.id].desc) : '';
+                const isOtra = tarea.id === 'otra_accion';
+                
+                container.innerHTML += `
+                    <div class="p-3 rounded-xl border ${typeBg[type]} mb-1">
+                        <label class="flex items-start gap-3 cursor-pointer">
+                            <input type="checkbox" name="planTareaCb" value="${tarea.id}" data-type="${tarea.type}" ${checked} 
+                                   class="w-5 h-5 mt-0.5 rounded text-indigo-500 focus:ring-indigo-500"
+                                   ${isOtra ? `onchange="document.getElementById('otraAccionDesc_${tarea.id}').classList.toggle('hidden', !this.checked)"` : ''}>
+                            <div class="flex-1">
+                                <span class="text-sm font-semibold text-slate-700">${escHtml(tarea.label)}</span>
+                                ${isOtra ? `
+                                    <input type="text" id="otraAccionDesc_${tarea.id}" placeholder="Describe la acción..." value="${extraValue}"
+                                           class="mt-2 w-full text-sm border-b-2 border-slate-200 bg-transparent py-1 outline-none focus:border-orange-500 transition-all ${checked ? '' : 'hidden'}">
+                                ` : ''}
+                            </div>
+                        </label>
+                    </div>
+                `;
+            });
         });
     } else {
         subtitle.textContent = 'Selecciona las acciones que planeas realizar esta semana.';
@@ -498,8 +527,8 @@ window.openEncuestaProspectoModal = function(prospectoId) {
     }
     
     // Poblar el formulario
-    document.getElementById('encuestaSeContacto').checked = !!plan.seContacto;
-    document.getElementById('encuestaSeInvito').checked = !!plan.seInvito;
+    document.getElementById('encuestaSeContacto').value = plan.seContacto || 'Pendiente';
+    document.getElementById('encuestaSeInvito').value = plan.seInvito || 'Pendiente';
     document.getElementById('encuestaMedio').value = plan.tipoContacto || '';
     document.getElementById('encuestaResultado').value = plan.resultado || '';
     document.getElementById('encuestaObs').value = plan.observaciones || '';
@@ -598,12 +627,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Recopilar tareas generadas dinámicamente
                 const tareas = {};
                 const checkboxes = planForm.querySelectorAll('input[name="planTareaCb"]');
+                let validacionFallida = false;
                 checkboxes.forEach(cb => {
-                    tareas[cb.value] = {
+                    const t = {
                         completada: cb.checked,
-                        obligatoria: cb.getAttribute('data-req') === 'true'
+                        type: cb.getAttribute('data-type') || 'recommended'
                     };
+                    if (cb.value === 'otra_accion' && cb.checked) {
+                        const descInput = document.getElementById('otraAccionDesc_otra_accion');
+                        if (descInput && !descInput.value.trim()) {
+                            validacionFallida = true;
+                        } else {
+                            t.desc = descInput.value.trim();
+                        }
+                    }
+                    tareas[cb.value] = t;
                 });
+
+                if (validacionFallida) {
+                    if (typeof showToast === 'function') showToast('Si marcas "Otra acción", debes describirla.', 'error');
+                    else alert('Si marcas "Otra acción", debes describirla.');
+                    if (btn) btn.disabled = false;
+                    return;
+                }
 
                 data = {
                     tareas,
@@ -648,15 +694,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const btnSubmit = encuestaForm.querySelector('button[type="submit"]');
             const btnParcial = document.getElementById('btnGuardarParcialEncuesta');
             
-            const seContacto = document.getElementById('encuestaSeContacto').checked;
-            const seInvito = document.getElementById('encuestaSeInvito').checked;
+            const seContacto = document.getElementById('encuestaSeContacto').value;
+            const seInvito = document.getElementById('encuestaSeInvito').value;
             const tipoContacto = document.getElementById('encuestaMedio').value;
             const resultado = document.getElementById('encuestaResultado').value.trim();
             const observaciones = document.getElementById('encuestaObs').value.trim();
 
             if (isCompletada) {
                 // Validación estricta para COMPLETADA
-                if (seContacto && !tipoContacto) {
+                if (seContacto === 'Sí' && !tipoContacto) {
                     if (typeof showToast === 'function') showToast('Seleccione el tipo de contacto', 'error');
                     else alert('Seleccione el tipo de contacto');
                     return;
