@@ -277,10 +277,9 @@ const RescueCore = {
                 } else if (m.estadoEspiritual === 'Creyente') {
                     updates[`miembros/${key}/estadoEspiritual`] = 'Oidor';
                     count++;
-                } else if (m.estadoEspiritual === 'Convertido') {
-                    updates[`miembros/${key}/estadoEspiritual`] = 'Oidor';
-                    count++;
                 }
+                // FASE3-S5.2: NO convertir Convertido → Oidor automáticamente.
+                // Convertido se mantiene salvo justificación expresa del modelo de datos.
             });
             if (count === 0) {
                 console.log('[RescueCore] Migración: nada que migrar, todos actualizados.');

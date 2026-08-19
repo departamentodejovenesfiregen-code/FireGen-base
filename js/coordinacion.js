@@ -594,11 +594,18 @@ window.openCoordProgresoModal = function(uid) {
                         ${plan ? (plan.tareas ? `
                             <div class="text-xs font-bold text-orange-600 mt-1 mb-1">Obj: ${escHtml(RescueCore.getWeeklyDiscipleshipPlan(m.estadoAsistencia, m.estadoEspiritual).objetivo)}</div>
                             <div class="text-[10px] text-slate-500">
-                                ${Object.keys(plan.tareas).map(tid => {
-                                    const t = plan.tareas[tid];
-                                    return `<span class="inline-block mr-2">${t.completada ? '✅' : '☐'} ${escHtml(tid.replace(/_/g, ' '))}</span>`;
-                                }).join('')}
+                                ${(() => {
+                                    const wp = RescueCore.getWeeklyDiscipleshipPlan(m.estadoAsistencia, m.estadoEspiritual);
+                                    return Object.keys(plan.tareas).map(tid => {
+                                        const t = plan.tareas[tid];
+                                        const def = wp.tareas.find(x => x.id === tid);
+                                        const label = def ? def.label : tid.replace(/_/g, ' ');
+                                        const desc = t.desc ? ` (${escHtml(t.desc)})` : '';
+                                        return `<span class="inline-block mr-2 mb-1">${t.completada ? '✅' : '☐'} ${escHtml(label)}${desc}</span>`;
+                                    }).join('');
+                                })()}
                             </div>
+                            ${plan.resultado ? `<div class="text-[10px] text-slate-600 mt-1 border-t border-slate-100 pt-1"><strong>Resultado:</strong> ${escHtml(plan.resultado)}</div>` : ''}
                         ` : `
                             <div class="text-xs text-slate-500 mt-1">
                                 Tareas (Prospecto): 
@@ -606,6 +613,11 @@ window.openCoordProgresoModal = function(uid) {
                                 Contactar ${plan.contactar ? (plan.seContacto === 'Sí' ? '✓' : (plan.seContacto === 'No' ? '❌' : '—')) : '☐'} | 
                                 Invitar ${plan.invitar ? '✅' : '☐'}
                             </div>
+                            <div class="text-xs font-bold mt-1">Encuesta: ${
+                                getEncuestaStatus(plan) === 'COMPLETADA' ? '<span class="text-green-600">🟢 Completada</span>' : 
+                                getEncuestaStatus(plan) === 'EN PROGRESO' ? '<span class="text-yellow-600">🟡 En progreso</span>' : 
+                                '<span class="text-orange-500">🟠 Pendiente</span>'
+                            }</div>
                         `) : `
                             <div class="text-xs text-slate-400 mt-1 italic">Sin plan registrado para esta semana.</div>
                         `}

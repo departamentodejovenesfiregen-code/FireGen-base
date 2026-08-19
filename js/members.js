@@ -317,17 +317,13 @@ function initMemberForm() {
         const editId = document.getElementById('editMemberId').value;
         const fotoURL = fd.get('fotoURL') || '';
 
-        let newLider = fd.get('estadoEspiritual') === 'Líder' ? 'No aplica' : fd.get('lider');
-        
-        // FASE3-S5.2: Evitar que roles sin permiso modifiquen el lider.
-        if (editId && window.currentUserData && typeof hasPermission === 'function') {
-            const canAssign = hasPermission('asignarMiembros', window.currentUserData.rol);
-            if (!canAssign) {
-                const existingMember = members.find(m => m.firebaseId === editId);
-                newLider = existingMember ? (existingMember.lider || '') : newLider;
-            }
+        // FASE3-S5.2: Verificar permiso de edición
+        if (editId && typeof hasPermission === 'function' && !hasPermission('editarMiembros', window.currentUserRole)) {
+            alert('No tienes permiso para editar miembros.');
+            return;
         }
 
+        // Campos editables por todos los roles con editarMiembros
         const payload = {
             nombre:              fd.get('nombre'),
             fechaNac:            fd.get('fechaNac'),
@@ -336,13 +332,23 @@ function initMemberForm() {
             estadoEspiritual:    fd.get('estadoEspiritual'),
             areaServicio:        fd.get('areaServicio'),
             cargo:               fd.get('cargo'),
-            lider:               newLider,
             estadoAsistencia:    fd.get('estadoAsistencia'),
             fechaBautismo:       fd.get('fechaBautismo'),
             domicilio:           fd.get('domicilio'),
             fotoURL:             isSafeUrl(fotoURL) ? fotoURL : '',
             descripcionPersonal: fd.get('descripcionPersonal')
         };
+
+        // FASE3-S5.2: El campo lider solo puede ser modificado por roles con asignarMiembros
+        const canAssign = (typeof hasPermission === 'function') && hasPermission('asignarMiembros', window.currentUserRole);
+
+        if (canAssign) {
+            // Roles con permiso de asignar pueden cambiar el lider
+            let newLider = fd.get('estadoEspiritual') === 'Líder' ? 'No aplica' : fd.get('lider');
+            payload.lider = newLider;
+        }
+        // Si NO tiene permiso de asignar, simplemente no incluye lider/liderMiembroId/responsableMiembroId
+        // en el payload, por lo que update() no los tocará
 
         // FASE3-S1: Gestionar fechaIncorporacion
         const fechaIncRaw = fd.get('fechaIncorporacion') || '';
@@ -374,9 +380,14 @@ function initMemberForm() {
                 }
             }
 
+            // FASE3-S5.2: Usar update() para no sobrescribir campos no incluidos
             db.ref('miembros/' + editId).update(payload)
                 .catch(err => console.error('[FireGen] Error al actualizar:', err));
         } else {
+            // Nuevo miembro: incluir lider si está disponible
+            if (!canAssign) {
+                payload.lider = '';
+            }
             const newRef = db.ref('miembros').push();
             newRef.set(payload)
                 .then(() => {

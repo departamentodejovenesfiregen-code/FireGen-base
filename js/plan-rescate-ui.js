@@ -21,6 +21,44 @@ let misPersonas = [];
 let rescateCurrentFilter = 'all';
 
 /**
+ * getEncuestaStatus — Calcula el estado real de la encuesta.
+ * FASE3-S5.2: Fuente única de verdad para el estado de encuesta.
+ *
+ * @param {Object} encuesta - Objeto con seContacto, seInvito, resultado, tipoContacto, observaciones, encuestaCompletada
+ * @returns {'PENDIENTE'|'EN PROGRESO'|'COMPLETADA'}
+ */
+function getEncuestaStatus(encuesta) {
+    if (!encuesta || typeof encuesta !== 'object') return 'PENDIENTE';
+
+    const seContacto = encuesta.seContacto || 'Pendiente';
+    const seInvito = encuesta.seInvito || 'Pendiente';
+    const resultado = (encuesta.resultado || '').trim();
+    const tipoContacto = encuesta.tipoContacto || '';
+
+    // Si ya fue marcada como completada y cumple todas las condiciones
+    if (encuesta.encuestaCompletada === true) {
+        // Re-verificar condiciones por seguridad
+        if (seContacto !== 'Pendiente' && seInvito !== 'Pendiente' && resultado !== '') {
+            if (seContacto === 'Sí' && !tipoContacto) return 'EN PROGRESO';
+            return 'COMPLETADA';
+        }
+        // Datos inconsistentes: revertir a EN PROGRESO
+        return 'EN PROGRESO';
+    }
+
+    // Todo en estado inicial → PENDIENTE
+    if (seContacto === 'Pendiente' && seInvito === 'Pendiente' && resultado === '') {
+        return 'PENDIENTE';
+    }
+
+    // Hay información parcial → EN PROGRESO
+    return 'EN PROGRESO';
+}
+
+// Exponer globalmente para uso en coordinacion.js
+window.getEncuestaStatus = getEncuestaStatus;
+
+/**
  * getCurrentSemanaKey — Calcula la clave semanal estable del año actual.
  * Formato: YYYY_semNN — función compartida para evitar duplicación.
  * (también usada en coordinacion.js)
@@ -268,9 +306,13 @@ function renderPersonaCard(p) {
         const orarCheck = plan.orar ? '✓' : '☐';
         const invitarCheck = plan.invitar ? '✓' : '☐';
         const contactarCheck = plan.contactar ? (plan.seContacto === 'Sí' ? '✓' : (plan.seContacto === 'No' ? '❌' : '—')) : '☐';
-        const encuestaPill = plan.encuestaCompletada 
-            ? '<span class="text-green-600">🟢 Encuesta completada</span>' 
-            : '<span class="text-orange-500">🟠 Encuesta pendiente</span>';
+        const encStatus = getEncuestaStatus(plan);
+        const encuestaPillMap = {
+            'PENDIENTE': '<span class="text-orange-500">🟠 Pendiente</span>',
+            'EN PROGRESO': '<span class="text-yellow-600">🟡 En progreso</span>',
+            'COMPLETADA': '<span class="text-green-600">🟢 Completada</span>'
+        };
+        const encuestaPill = encuestaPillMap[encStatus] || encuestaPillMap['PENDIENTE'];
         
         planHtml = `
             <div class="mt-3 bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs text-slate-600">
@@ -471,7 +513,7 @@ window.openPlanSemanalModal = function(personaId) {
             });
         });
     } else {
-        subtitle.textContent = 'Selecciona las acciones que planeas realizar esta semana.';
+        subtitle.textContent = 'Registra las acciones realizadas esta semana.';
         resContainer.classList.add('hidden');
 
         // Prospectos tienen tareas fijas
@@ -702,6 +744,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (isCompletada) {
                 // Validación estricta para COMPLETADA
+                // FASE3-S5.2: seContacto y seInvito NO pueden ser Pendiente
+                if (seContacto === 'Pendiente') {
+                    if (typeof showToast === 'function') showToast('Debes responder "¿Se logró contactar?" antes de completar', 'error');
+                    else alert('Debes responder "¿Se logró contactar?" antes de completar');
+                    return;
+                }
+                if (seInvito === 'Pendiente') {
+                    if (typeof showToast === 'function') showToast('Debes responder "¿Se invitó a la iglesia?" antes de completar', 'error');
+                    else alert('Debes responder "¿Se invitó a la iglesia?" antes de completar');
+                    return;
+                }
                 if (seContacto === 'Sí' && !tipoContacto) {
                     if (typeof showToast === 'function') showToast('Seleccione el tipo de contacto', 'error');
                     else alert('Seleccione el tipo de contacto');
@@ -724,8 +777,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const displayEl = document.getElementById('userEmailDisplay');
             const nombre = displayEl?.textContent?.trim() || '';
 
-            // Estado de la encuesta: 'PENDIENTE', 'EN PROGRESO', 'COMPLETADA'
-            const estadoEncuesta = isCompletada ? 'COMPLETADA' : 'EN PROGRESO';
+            // FASE3-S5.2: Calcular estado real con getEncuestaStatus
+            const tempData = { seContacto, seInvito, tipoContacto, resultado, observaciones };
+            let estadoEncuesta;
+            if (isCompletada) {
+                estadoEncuesta = 'COMPLETADA';
+            } else {
+                // Guardar parcial: determinar si hay algún dato
+                estadoEncuesta = getEncuestaStatus(tempData);
+                // Si el resultado de getEncuestaStatus es COMPLETADA pero el usuario
+                // hizo click en "Guardar Parcial", mantenemos EN PROGRESO
+                if (estadoEncuesta === 'COMPLETADA') estadoEncuesta = 'EN PROGRESO';
+            }
 
             const data = {
                 seContacto,

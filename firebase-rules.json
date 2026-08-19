@@ -22,7 +22,12 @@
       ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')",
       "$miembroId": {
         ".write": "auth != null && ((!newData.exists() && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')) || (newData.exists() && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || ((root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal') && (!data.exists() ? (!newData.hasChild('liderMiembroId') && !newData.hasChild('responsableMiembroId')) : (newData.child('liderMiembroId').val() === data.child('liderMiembroId').val() && newData.child('responsableMiembroId').val() === data.child('responsableMiembroId').val() && newData.child('lider').val() === data.child('lider').val()))))))",
-        ".validate": "newData.hasChild('nombre') && newData.child('nombre').isString() && newData.child('nombre').val().length > 0"
+        ".validate": "newData.hasChild('nombre') && newData.child('nombre').isString() && newData.child('nombre').val().length > 0",
+        "planSemanal": {
+          "$semanaKey": {
+            ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('miembros/' + $miembroId + '/liderMiembroId').val() === root.child('usuarios/' + auth.uid + '/miembroId').val())"
+          }
+        }
       }
     },
 
