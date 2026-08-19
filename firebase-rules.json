@@ -31,6 +31,16 @@
       }
     },
 
+    "planesDiscipulado": {
+      ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')",
+      "$miembroId": {
+        ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('miembros/' + $miembroId + '/liderMiembroId').val() === root.child('usuarios/' + auth.uid + '/miembroId').val())",
+        "$semanaKey": {
+          ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('miembros/' + $miembroId + '/liderMiembroId').val() === root.child('usuarios/' + auth.uid + '/miembroId').val())"
+        }
+      }
+    },
+
     "rescateProspectos": {
       ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || (query.orderByChild === 'responsableMiembroId' && query.equalTo === root.child('usuarios/' + auth.uid + '/miembroId').val()))",
       "$prospectoId": {

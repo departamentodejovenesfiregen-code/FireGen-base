@@ -257,13 +257,17 @@ const RescueCore = {
 
     /**
      * Migra datos legacy de estadoEspiritual en Firebase.
-     * Ejecutar una sola vez. Idempotente.
+     * Ejecutar una sola vez. Idempotente mediante localStorage.
      */
     migrateEstadosEspirituales() {
         if (typeof db === 'undefined') {
             console.warn('[RescueCore] db no disponible para migración.');
             return Promise.resolve(0);
         }
+        if (localStorage.getItem('firegen_migration_estados_v3') === 'true') {
+            return Promise.resolve(0);
+        }
+
         return db.ref('miembros').once('value').then(snap => {
             const data = snap.val();
             if (!data) return 0;
@@ -279,16 +283,133 @@ const RescueCore = {
                     count++;
                 }
                 // FASE3-S5.2: NO convertir Convertido → Oidor automáticamente.
-                // Convertido se mantiene salvo justificación expresa del modelo de datos.
             });
             if (count === 0) {
                 console.log('[RescueCore] Migración: nada que migrar, todos actualizados.');
+                localStorage.setItem('firegen_migration_estados_v3', 'true');
                 return 0;
             }
             return db.ref().update(updates).then(() => {
                 console.log(`[RescueCore] Migración completada: ${count} miembros actualizados.`);
+                localStorage.setItem('firegen_migration_estados_v3', 'true');
                 return count;
+            }).catch(err => {
+                console.warn('[RescueCore] Error en migración (quizá falta de permisos, ignorar si no es admin):', err);
+                return 0;
+            });
+        });
+    },
+
+    /**
+     * Paso A - Normalizar datos de líderes.
+     * Si un miembro tiene 'lider' pero no 'liderMiembroId', busca si existe una correspondencia
+     * exacta e inequívoca con un miembro existente para completar 'liderMiembroId'.
+     */
+    normalizeLiderMiembroId() {
+        if (typeof db === 'undefined') return Promise.resolve(0);
+        if (localStorage.getItem('firegen_norm_liderid_v1') === 'true') return Promise.resolve(0);
+
+        return db.ref('miembros').once('value').then(snap => {
+            const data = snap.val();
+            if (!data) return 0;
+
+            const miembrosArray = Object.keys(data).map(k => ({ ...data[k], key: k }));
+            const updates = {};
+            let count = 0;
+
+            miembrosArray.forEach(m => {
+                if (!m.liderMiembroId && m.lider && m.lider !== 'No aplica') {
+                    // Buscar coincidencia exacta de nombre
+                    const matches = miembrosArray.filter(potencial => 
+                        potencial.nombre && potencial.nombre.toLowerCase() === m.lider.toLowerCase()
+                    );
+
+                    // Solo actualizar si hay una correspondencia INEQUÍVOCA (única)
+                    if (matches.length === 1) {
+                        updates[`miembros/${m.key}/liderMiembroId`] = matches[0].key;
+                        count++;
+                    }
+                }
+            });
+
+            if (count === 0) {
+                localStorage.setItem('firegen_norm_liderid_v1', 'true');
+                return 0;
+            }
+
+            return db.ref().update(updates).then(() => {
+                console.log(`[RescueCore] Normalización liderMiembroId completada: ${count} actualizados.`);
+                localStorage.setItem('firegen_norm_liderid_v1', 'true');
+                return count;
+            }).catch(err => {
+                console.warn('[RescueCore] Error en normalización (quizá falta permisos):', err);
+                return 0;
+            });
+        });
+    },
+
+    /**
+     * FASE 3 - Etapa 5.2 - MIGRACIÓN DEL PLAN SEMANAL ANTIGUO (Point 8)
+     * Lee miembros/{miembroId}/planSemanal y lo migra a planesDiscipulado/{miembroId}/...
+     * No borra el original, es idempotente, no sobreescribe.
+     */
+    migratePlanSemanal() {
+        if (typeof db === 'undefined') return Promise.resolve(0);
+        if (localStorage.getItem('firegen_migr_plansemanal_v1') === 'true') return Promise.resolve(0);
+
+        return Promise.all([
+            db.ref('miembros').once('value'),
+            db.ref('planesDiscipulado').once('value')
+        ]).then(([mSnap, pSnap]) => {
+            const miembros = mSnap.val();
+            const planesExistentes = pSnap.val() || {};
+            if (!miembros) return 0;
+
+            const updates = {};
+            let count = 0;
+
+            Object.keys(miembros).forEach(mId => {
+                const m = miembros[mId];
+                if (m.planSemanal) {
+                    Object.keys(m.planSemanal).forEach(semanaKey => {
+                        // Solo migramos si el destino no existe, para no sobrescribir uno nuevo
+                        if (!(planesExistentes[mId] && planesExistentes[mId][semanaKey])) {
+                            updates[`planesDiscipulado/${mId}/${semanaKey}`] = m.planSemanal[semanaKey];
+                            count++;
+                        }
+                    });
+                }
+            });
+
+            if (count === 0) {
+                localStorage.setItem('firegen_migr_plansemanal_v1', 'true');
+                return 0;
+            }
+
+            return db.ref().update(updates).then(() => {
+                console.log(`[RescueCore] Migración planesDiscipulado completada: ${count} semanas migradas.`);
+                localStorage.setItem('firegen_migr_plansemanal_v1', 'true');
+                return count;
+            }).catch(err => {
+                console.warn('[RescueCore] Error al migrar planesDiscipulado:', err);
+                return 0;
             });
         });
     }
 };
+
+// Auto-ejecutar la migración al cargar de forma diferida
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            if (typeof db !== 'undefined' && typeof window.currentUserData !== 'undefined') {
+                // Solo intentar si es un rol con permisos de escritura masiva (admin o coordinador)
+                if (window.currentUserData.rol === 'admin' || window.currentUserData.rol === 'coordinador') {
+                    RescueCore.migrateEstadosEspirituales();
+                    RescueCore.normalizeLiderMiembroId();
+                    RescueCore.migratePlanSemanal();
+                }
+            }
+        }, 5000);
+    });
+}

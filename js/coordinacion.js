@@ -539,7 +539,7 @@ function renderCoordNotificaciones(container) {
 
 // Funciones de notificaciones movidas a js/notificaciones.js
 
-window.openCoordProgresoModal = function(uid) {
+window.openCoordProgresoModal = async function(uid) {
     const modal = document.getElementById('coordProgresoModal');
     const content = document.getElementById('coordProgresoContent');
     const title = document.getElementById('coordProgresoModalTitle');
@@ -555,6 +555,17 @@ window.openCoordProgresoModal = function(uid) {
     const asignados = mArr.filter(m => m.liderMiembroId === usuario.miembroId);
     const keyActual = (typeof getCurrentSemanaKey === 'function') ? getCurrentSemanaKey() : 'sem';
     const rendicion = (window._coordState.rendiciones[uid] && window._coordState.rendiciones[uid][keyActual]) || null;
+
+    // FASE 3 - Etapa 5.2: Leer planesDiscipulado independientemente de miembros
+    await Promise.all(asignados.map(async m => {
+        try {
+            const snap = await db.ref(`planesDiscipulado/${m.firebaseId}/${keyActual}`).once('value');
+            m._fetchedPlan = snap.val() || null;
+        } catch(e) {
+            console.error('[Coordinacion] Error leyendo plan de', m.firebaseId, e);
+            m._fetchedPlan = null;
+        }
+    }));
 
     let html = '';
 
@@ -582,7 +593,7 @@ window.openCoordProgresoModal = function(uid) {
         ${asignados.length === 0 ? '<p class="text-sm text-slate-500 italic">No tiene personas asignadas.</p>' : `
             <div class="space-y-2 max-h-60 overflow-y-auto pr-2">
                 ${asignados.map(m => {
-                    const plan = (m.planSemanal && m.planSemanal[keyActual]) || null;
+                    const plan = m._fetchedPlan;
                     const estadoText = m.estadoAsistencia || 'Normal';
                     const estadoColor = estadoText.toLowerCase().includes('alej') ? 'text-red-500 font-bold' : (estadoText.toLowerCase().includes('enfri') ? 'text-orange-500 font-bold' : 'text-slate-600');
                     return `

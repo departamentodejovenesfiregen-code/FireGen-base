@@ -356,10 +356,17 @@ function renderPersonaCard(p) {
                     <i class="fas fa-hands-helping text-slate-400 w-4 text-center"></i>
                     <span class="truncate text-orange-600 font-semibold" title="${escHtml(accRoute)}">${escHtml(accRoute)}</span>
                 </div>
+                ${!p.liderMiembroId ? `
+                <div class="flex items-center gap-2 text-[10px] bg-red-50 text-red-600 p-2 rounded-lg border border-red-100 font-bold leading-tight">
+                    <i class="fas fa-exclamation-triangle w-4 text-center shrink-0"></i>
+                    <span>Asignación pendiente. Vinculación en Base Maestro incompleta.</span>
+                </div>
+                ` : `
                 <div class="flex items-center gap-2 text-xs bg-slate-50 p-2 rounded-lg border border-slate-100">
                     <i class="fas fa-tasks text-orange-500 w-4 text-center"></i>
                     <span class="font-bold text-slate-700 truncate">Tarea: ${escHtml(nextTask)}</span>
                 </div>
+                `}
                 ` : planHtml}
             </div>
 
@@ -372,7 +379,7 @@ function renderPersonaCard(p) {
                     <i class="fas fa-clipboard-list"></i> Encuesta
                 </button>
                 ` : `
-                <button onclick="openPlanSemanalModal('${p.firebaseId}')" class="flex-1 bg-slate-100 hover:bg-orange-50 text-slate-600 hover:text-orange-600 font-bold py-2 rounded-xl text-xs transition-all flex items-center justify-center gap-1">
+                <button ${!p.liderMiembroId ? 'disabled title="Vinculación incompleta en Base Maestro"' : `onclick="openPlanSemanalModal('${p.firebaseId}')"`} class="flex-1 ${!p.liderMiembroId ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : 'bg-slate-100 hover:bg-orange-50 text-slate-600 hover:text-orange-600'} font-bold py-2 rounded-xl text-xs transition-all flex items-center justify-center gap-1">
                     <i class="fas fa-edit"></i> Plan Semanal
                 </button>
                 `}
@@ -436,7 +443,7 @@ function renderTareasTab() {
 /**
  * openPlanSemanalModal — Abre el modal para registrar el plan semanal
  */
-window.openPlanSemanalModal = function(personaId) {
+window.openPlanSemanalModal = async function(personaId) {
     const modal = document.getElementById('planSemanalModal');
     if (!modal) return;
     
@@ -451,8 +458,18 @@ window.openPlanSemanalModal = function(personaId) {
 
     const semanaKey = getCurrentSemanaKey();
     let plan = {};
-    if (p.planSemanal && p.planSemanal[semanaKey]) {
-        plan = p.planSemanal[semanaKey];
+    
+    if (isMember) {
+        try {
+            const snap = await db.ref(`planesDiscipulado/${personaId}/${semanaKey}`).once('value');
+            plan = snap.val() || {};
+        } catch(e) {
+            console.error('[RescateUI] Error leyendo planesDiscipulado:', e);
+        }
+    } else {
+        if (p.planSemanal && p.planSemanal[semanaKey]) {
+            plan = p.planSemanal[semanaKey];
+        }
     }
     
     const subtitle = document.getElementById('planSemanalSubtitle');
@@ -585,43 +602,10 @@ window.closeEncuestaProspectoModal = function() {
 
 
 
-/**
- * openSeguimientoModal — Abre el modal para registrar un seguimiento
- */
-window.openSeguimientoModal = function(memberId, isProspecto = false) {
-    const modal = document.getElementById('seguimientoModal');
-    if (!modal) return;
-    document.getElementById('segMemberId').value = memberId;
-    
-    // Si es prospecto, agregar opciones de "Orar", "Invitar", "Encuesta"
-    const segTipo = document.getElementById('segTipo');
-    if (segTipo) {
-        if (isProspecto) {
-            segTipo.innerHTML = `
-                <option value="orar">Oración / Intercesión</option>
-                <option value="whatsapp">Contacto / WhatsApp</option>
-                <option value="invitar">Invitación</option>
-                <option value="encuesta">Encuesta finalizada</option>
-            `;
-        } else {
-            segTipo.innerHTML = `
-                <option value="whatsapp">Mensaje WhatsApp</option>
-                <option value="llamada">Llamada telefónica</option>
-                <option value="visita">Visita presencial</option>
-                <option value="encuentro">Encuentro en reunión</option>
-                <option value="oracion">Oración específica</option>
-            `;
-        }
-    }
-    
-    document.getElementById('segObs').value = '';
-    modal.classList.remove('hidden');
-};
+    // SEGUIMIENTOS LEGACY ELIMINADO: 
+    // - openSeguimientoModal()
+    // - closeSeguimientoModal()
 
-window.closeSeguimientoModal = function() {
-    const modal = document.getElementById('seguimientoModal');
-    if (modal) modal.classList.add('hidden');
-};
 
 window.closeRendicionModal = function() {
     const modal = document.getElementById('rendicionModal');
@@ -664,7 +648,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let refPath = '';
 
             if (isMember) {
-                refPath = `miembros/${prospectoId}/planSemanal/${semanaKey}`;
+                refPath = `planesDiscipulado/${prospectoId}/${semanaKey}`;
                 
                 // Recopilar tareas generadas dinámicamente
                 const tareas = {};
@@ -833,34 +817,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    const segForm = document.getElementById('seguimientoForm');
-    if (segForm) {
-        segForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const memberId = document.getElementById('segMemberId')?.value || '';
-            const tipo     = document.getElementById('segTipo')?.value || 'whatsapp';
-            const obs      = document.getElementById('segObs')?.value.trim() || '';
-            const uid      = window.currentUserUid || (typeof currentUser !== 'undefined' && currentUser ? currentUser.uid : 'anonimo');
-            const displayEl = document.getElementById('userEmailDisplay');
-            const nombre   = displayEl?.textContent?.trim() || '';
-
-            const registro = {
-                fecha:      new Date().toISOString(),
-                tipo,
-                obs,
-                liderUid:    uid,
-                liderNombre: nombre
-            };
-
-            try {
-                await db.ref(`seguimientos/${memberId}`).push(registro);
-                window.closeSeguimientoModal();
-                if (typeof showToast === 'function') showToast('Seguimiento registrado ✓', 'success');
-            } catch (err) {
-                alert('Error al guardar: ' + err.message);
-            }
-        });
-    }
+    // Formulario de seguimiento legacy eliminado
 
     const rendForm = document.getElementById('rendicionForm');
     if (rendForm) {
