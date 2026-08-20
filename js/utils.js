@@ -119,7 +119,8 @@ function getStatusClass(s) {
     if (s === 'Lider' || s === 'Líder') return 'bg-purple-100 text-purple-700';
     if (s === 'Bautizado')               return 'bg-blue-100 text-blue-700';
     if (s === 'Reconciliado')            return 'bg-teal-100 text-teal-700';
-    if (s === 'Oidor' || s === 'Creyente' || s === 'Convertido') return 'bg-emerald-100 text-emerald-700';
+    if (s === 'Convertido')              return 'bg-cyan-100 text-cyan-700';
+    if (s === 'Oidor' || s === 'Creyente') return 'bg-emerald-100 text-emerald-700';
     if (s === 'Nuevo' || s === 'Nuevo creyente') return 'bg-orange-100 text-orange-700';
     return 'bg-slate-100 text-slate-600';
 }
@@ -176,8 +177,8 @@ function hideConnectionError() {
  */
 function getFormationPath(spiritualStatus) {
     const status = (spiritualStatus || '').toLowerCase();
-    if (status === 'nuevo') return 'Discipulado inicial / integración';
-    if (status === 'creyente') return 'Discipulado de crecimiento';
+    if (status === 'nuevo' || status === 'nuevo creyente') return 'Discipulado inicial / integración';
+    if (status === 'oidor' || status === 'creyente') return 'Evangelización y participación';
     if (status === 'convertido') return 'Consolidación y crecimiento';
     if (status === 'reconciliado') return 'Restauración y consolidación';
     if (status === 'bautizado') return 'Formación y preparación para servir';

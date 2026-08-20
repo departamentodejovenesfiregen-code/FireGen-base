@@ -581,18 +581,41 @@ function triggerRetentionAlert(member) {
     const periodo = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     if (!periodo) return;
     const alertKey = 'alertasRescate/' + periodo + '/' + member.firebaseId;
+
+    let recomendacion = 'Restauración y acompañamiento general';
+    const esp = (member.estadoEspiritual || 'Nuevo').toLowerCase();
+    
+    if (esp === 'oidor' || esp === 'creyente') {
+        recomendacion = 'Acompañamiento y evangelización';
+    } else if (esp === 'convertido') {
+        recomendacion = 'Restauración y consolidación';
+    } else if (esp === 'reconciliado') {
+        recomendacion = 'Restauración y fortalecimiento';
+    } else if (esp === 'bautizado') {
+        recomendacion = 'Restauración y crecimiento';
+    } else if (esp === 'líder' || esp === 'lider') {
+        recomendacion = 'Restauración y acompañamiento de liderazgo';
+    } else if (esp === 'nuevo' || esp === 'nuevo creyente') {
+        recomendacion = 'Restauración e integración';
+    }
+
     db.ref(alertKey).once('value').then(snap => {
         if (snap.exists()) return;
-        db.ref(alertKey).set({ nombre: member.nombre, telefono: member.telefono || '', timestamp: Date.now() })
-            .catch(err => console.error('[FireGen] Error al crear alerta:', err));
-        addRescueChip(member.firebaseId, member.nombre, member.telefono || '');
+        db.ref(alertKey).set({ 
+            nombre: member.nombre, 
+            telefono: member.telefono || '', 
+            timestamp: Date.now(),
+            recomendacion: recomendacion,
+            estadoEspiritual: member.estadoEspiritual || 'Nuevo'
+        }).catch(err => console.error('[FireGen] Error al crear alerta:', err));
+        addRescueChip(member.firebaseId, member.nombre, member.telefono || '', recomendacion);
     }).catch(err => console.error('[FireGen] Error al verificar alerta:', err));
 }
 
 /**
  * addRescueChip — Agrega un chip visual de alerta de rescate.
  */
-function addRescueChip(fid, nombre, telefono) {
+function addRescueChip(fid, nombre, telefono, recomendacion) {
     const container = document.getElementById('rescue-alerts');
     const badge = document.getElementById('rescue-count-badge');
     const emptyMsg = container.querySelector('p');
@@ -610,6 +633,7 @@ function addRescueChip(fid, nombre, telefono) {
         <div class="flex-1 min-w-0">
             <p class="chip-name truncate">${escHtml(nombre)}</p>
             <p class="chip-phone">${escHtml(telefono) || 'Sin teléfono'}</p>
+            ${recomendacion ? `<p class="text-[9px] text-orange-600 font-bold leading-tight mt-1 bg-orange-50 p-1 rounded border border-orange-100">${escHtml(recomendacion)}</p>` : ''}
         </div>
         ${phone ? `<a href="${waUrl}" target="_blank" rel="noopener" class="flex-shrink-0 bg-green-500 text-white rounded-lg p-1.5 hover:bg-green-600 transition-colors"><i class="fab fa-whatsapp text-sm"></i></a>` : ''}`;
     container.appendChild(chip);
@@ -622,7 +646,7 @@ function loadRescueAlerts(periodo) {
     db.ref('alertasRescate/' + periodo).once('value').then(snap => {
         const data = snap.val();
         if (!data) return;
-        Object.entries(data).forEach(([fid, info]) => addRescueChip(fid, info.nombre, info.telefono || ''));
+        Object.entries(data).forEach(([fid, info]) => addRescueChip(fid, info.nombre, info.telefono || '', info.recomendacion || ''));
     }).catch(err => console.error('[FireGen] Error al cargar alertas:', err));
 }
 

@@ -4,7 +4,7 @@
  * MOTOR DE LÓGICA: PLAN AL RESCATE Y RUTAS DE ACOMPAÑAMIENTO
  * Etapa 5.2 / Build B3.275
  *
- * Estados espirituales: Nuevo | Oidor | Reconciliado | Bautizado | Líder
+ * Estados espirituales: Nuevo | Oidor | Convertido | Reconciliado | Bautizado | Líder
  * Estados de asistencia: Activo | Inconstante | Enfriándose | Alejándose
  *
  * Modelo de acciones: required | recommended | optional
@@ -18,14 +18,14 @@ const RescueCore = {
      */
     getFormationRoute(estadoEspiritual) {
         const map = {
-            'Nuevo': 'Integración y fundamentos',
-            'Nuevo creyente': 'Integración y fundamentos', // Compat legacy
-            'Oidor': 'Acompañamiento y crecimiento',
-            'Creyente': 'Acompañamiento y crecimiento',    // Compat legacy
-            'Convertido': 'Formación y consolidación',     // Compat legacy
-            'Reconciliado': 'Restauración y consolidación',
-            'Bautizado': 'Formación y preparación para servir',
-            'Líder': 'Formación de liderazgo y multiplicación'
+            'Nuevo': 'Integración + fundamentos + acompañamiento.',
+            'Nuevo creyente': 'Integración + fundamentos + acompañamiento.',
+            'Oidor': 'Evangelización + acompañamiento + participación.',
+            'Creyente': 'Evangelización + acompañamiento + participación.',
+            'Convertido': 'Consolidación + discipulado inicial + fundamentos + crecimiento.',
+            'Reconciliado': 'Restauración + consolidación + continuidad.',
+            'Bautizado': 'Crecimiento + madurez + formación + servicio.',
+            'Líder': 'Liderazgo + formación + multiplicación.'
         };
         return map[estadoEspiritual] || 'Formación general';
     },
@@ -70,7 +70,6 @@ const RescueCore = {
         if (!esp) return 'Nuevo';
         if (esp === 'Nuevo creyente') return 'Nuevo';
         if (esp === 'Creyente') return 'Oidor';
-        if (esp === 'Convertido') return 'Oidor';
         return esp;
     },
 
@@ -137,6 +136,8 @@ const RescueCore = {
                 objetivo = 'Restauración y recuperación — fundamentos e integración.';
             } else if (esp === 'oidor') {
                 objetivo = 'Restauración y recuperación — acompañamiento y crecimiento.';
+            } else if (esp === 'convertido') {
+                objetivo = 'Restauración y recuperación — consolidación.';
             } else if (esp === 'bautizado') {
                 objetivo = 'Restauración y recuperación — crecimiento y servicio.';
             } else if (esp === 'líder' || esp === 'lider') {
@@ -164,6 +165,23 @@ const RescueCore = {
             // Matiz según estado espiritual
             if (esp === 'nuevo') {
                 objetivo = 'Detectar necesidad — integración y fundamentos.';
+            } else if (esp === 'oidor') {
+                objetivo = 'Detectar necesidad — evangelización.';
+            } else if (esp === 'convertido') {
+                objetivo = 'Detectar necesidad — consolidación.';
+            } else if (esp === 'reconciliado') {
+                objetivo = 'Restauración, fortalecimiento y continuidad.';
+                tareas = [
+                    { id: 'registrar_resultado', label: 'Registrar resultado', type: 'required' },
+                    { id: 'orar', label: 'Orar', type: 'recommended' },
+                    { id: 'acompanar', label: 'Acompañar', type: 'recommended' },
+                    { id: 'conversar', label: 'Conversar', type: 'recommended' },
+                    { id: 'detectar_necesidad', label: 'Detectar necesidad', type: 'recommended' },
+                    { id: 'fortalecer_continuidad', label: 'Fortalecer continuidad', type: 'recommended' },
+                    { id: 'invitar', label: 'Invitar cuando corresponda', type: 'recommended' },
+                    { id: 'visita', label: 'Visita (opcional)', type: 'optional' },
+                    { id: 'otra_accion', label: 'Otra acción realizada', type: 'optional' }
+                ];
             } else if (esp === 'bautizado') {
                 objetivo = 'Fortalecer crecimiento y vínculo.';
             } else if (esp === 'líder' || esp === 'lider') {
@@ -186,6 +204,26 @@ const RescueCore = {
                 { id: 'otra_accion', label: 'Otra acción realizada', type: 'optional' }
             ];
 
+            // Matiz según estado espiritual
+            if (esp === 'nuevo') {
+                objetivo = 'Recuperar constancia — orientación de integración inicial.';
+            } else if (esp === 'oidor') {
+                objetivo = 'Recuperar constancia — acompañamiento y evangelización.';
+                tareas.push({ id: 'evangelizacion', label: 'Evangelización / Participación', type: 'recommended' });
+            } else if (esp === 'convertido') {
+                objetivo = 'Recuperar constancia — consolidación y discipulado.';
+                tareas.push({ id: 'consolidar', label: 'Consolidación / Discipulado', type: 'recommended' });
+            } else if (esp === 'reconciliado') {
+                objetivo = 'Recuperar constancia — restauración y continuidad.';
+                tareas.push({ id: 'restauracion', label: 'Restauración / Continuidad', type: 'recommended' });
+            } else if (esp === 'bautizado') {
+                objetivo = 'Recuperar constancia — crecimiento y acompañamiento.';
+                tareas.push({ id: 'crecimiento', label: 'Crecimiento / Acompañamiento', type: 'recommended' });
+            } else if (esp === 'líder' || esp === 'lider') {
+                objetivo = 'Recuperar constancia — liderazgo y acompañamiento.';
+                tareas.push({ id: 'liderazgo', label: 'Liderazgo / Acompañamiento', type: 'recommended' });
+            }
+
         // ── ACTIVO (Normal) ─────────────────────────────────────
         } else {
             nivel = 'Normal';
@@ -204,10 +242,17 @@ const RescueCore = {
                     { id: 'conversar', label: 'Conversar', type: 'optional' }
                 );
             } else if (esp === 'oidor') {
-                objetivo = 'Acompañamiento y fortalecimiento de participación.';
+                objetivo = 'Evangelización, acompañamiento y participación.';
+                tareas.push(
+                    { id: 'evangelizacion', label: 'Evangelización', type: 'recommended' },
+                    { id: 'animar_avanzar', label: 'Animar a avanzar', type: 'recommended' },
+                    { id: 'conversar', label: 'Conversar', type: 'optional' }
+                );
+            } else if (esp === 'convertido') {
+                objetivo = 'Discipulado, consolidación y crecimiento.';
                 tareas.push(
                     { id: 'discipulado', label: 'Discipulado', type: 'recommended' },
-                    { id: 'animar_avanzar', label: 'Animar a avanzar', type: 'recommended' },
+                    { id: 'consolidar', label: 'Consolidar', type: 'recommended' },
                     { id: 'conversar', label: 'Conversar', type: 'optional' }
                 );
             } else if (esp === 'reconciliado') {
