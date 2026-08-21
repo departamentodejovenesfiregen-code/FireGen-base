@@ -205,8 +205,9 @@ function cerrarMesSnapshot() {
     const [year, month] = periodo.split('-').map(Number);
     const periodEnd = new Date(year, month, 0);
     const totalMiembrosAlCierre = members.filter(member => {
-        if (!member.fechaIncorporacion) return true;
-        const fecha = new Date(member.fechaIncorporacion);
+        const incStr = member.fechaIncorporacion;
+        if (!incStr) return true;
+        const fecha = new Date(incStr);
         return !Number.isNaN(fecha.getTime()) && fecha <= periodEnd;
     }).length;
 

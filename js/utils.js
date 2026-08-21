@@ -136,6 +136,7 @@ function getEngagementClass(s) {
     if (s === 'Inconstante')  return 'eng-inconstante';
     if (s === 'Enfriandose' || s === 'Enfriándose') return 'eng-enfriando';
     if (s === 'Alejándose' || s === 'Alejando' || s === 'Alejado') return 'eng-alejado';
+    if (s === 'Sin determinar' || !s) return 'bg-slate-100 text-slate-600';
     return 'bg-slate-100 text-slate-600';
 }
 
@@ -337,7 +338,7 @@ function getOperationalSaturdaysForPeriod(periodo) {
  * @returns {string} Valor normalizado
  */
 function normalizeAttendanceStatus(s) {
-    if (!s) return '';
+    if (!s || s === 'Sin determinar') return 'Sin determinar';
     if (s === 'Alejado' || s === 'Alejando') return 'Alejándose';
     if (s === 'Enfriandose') return 'Enfriándose';
     return s;

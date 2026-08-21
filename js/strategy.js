@@ -138,8 +138,9 @@ function syncStrategy(periodo) {
                 const periodEnd = new Date(yr, mo, 0);
                 const totM = (typeof members !== 'undefined')
                     ? members.filter(m => {
-                        if (!m.fechaIncorporacion) return true;
-                        const f = new Date(m.fechaIncorporacion);
+                        const incStr = m.fechaIncorporacion;
+                        if (!incStr) return true;
+                        const f = new Date(incStr);
                         return !isNaN(f) && f <= periodEnd;
                     }).length
                     : '—';

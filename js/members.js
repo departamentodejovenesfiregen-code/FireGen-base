@@ -186,13 +186,10 @@ function openNewMemberModal() {
     document.getElementById('fotoPreview').classList.add('hidden');
     document.getElementById('fotoPreviewPlaceholder').classList.remove('hidden');
     
+    
     const fechaInc = document.getElementById('fechaIncorporacionInput');
     if (fechaInc) {
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const dd = String(today.getDate()).padStart(2, '0');
-        fechaInc.value = `${yyyy}-${mm}-${dd}`;
+        fechaInc.value = '';
     }
     
     const liderInput = document.getElementById('liderInputForm');
@@ -223,6 +220,7 @@ function editMember(fid) {
     document.getElementById('modalTitle').textContent = 'EDITAR MIEMBRO';
 
     form.querySelector('[name="nombre"]').value              = m.nombre || '';
+    
     form.querySelector('[name="fechaNac"]').value            = m.fechaNac || '';
     form.querySelector('[name="telefono"]').value            = m.telefono || '';
     form.querySelector('[name="social"]').value              = m.social || '';
@@ -246,7 +244,11 @@ function editMember(fid) {
         }
     }
 
-    form.querySelector('[name="estadoAsistencia"]').value    = m.estadoAsistencia || '';
+    const displayAsis = document.getElementById('displayEstadoAsistencia');
+    if (displayAsis) displayAsis.value = m.estadoAsistencia || 'Sin determinar';
+    // FASE4-E1: Rellenar estadoAsistenciaInicial
+    const selInicial = form.querySelector('[name="estadoAsistenciaInicial"]');
+    if (selInicial) selInicial.value = m.estadoAsistenciaInicial || 'Sin determinar';
     form.querySelector('[name="fechaBautismo"]').value       = m.fechaBautismo || '';
     form.querySelector('[name="domicilio"]').value           = m.domicilio || '';
     form.querySelector('[name="fotoURL"]').value             = m.fotoURL || '';
@@ -332,7 +334,6 @@ function initMemberForm() {
             estadoEspiritual:    fd.get('estadoEspiritual'),
             areaServicio:        fd.get('areaServicio'),
             cargo:               fd.get('cargo'),
-            estadoAsistencia:    fd.get('estadoAsistencia'),
             fechaBautismo:       fd.get('fechaBautismo'),
             domicilio:           fd.get('domicilio'),
             fotoURL:             isSafeUrl(fotoURL) ? fotoURL : '',
@@ -350,38 +351,76 @@ function initMemberForm() {
         // Si NO tiene permiso de asignar, simplemente no incluye lider/liderMiembroId/responsableMiembroId
         // en el payload, por lo que update() no los tocará
 
-        // FASE3-S1: Gestionar fechaIncorporacion
+        // FASE4-E1: Gestionar fechaIncorporacion visible vs fechaInicioEvaluacion
+        // fechaIncorporacion = dato real del usuario, puede estar vacío
+        // fechaInicioEvaluacion = dato técnico para el motor
         const fechaIncRaw = fd.get('fechaIncorporacion') || '';
-        if (editId) {
-            // En edición: preservar la fecha existente si el campo está vacío
-            const existingMember2 = members.find(m => m.firebaseId === editId);
-            payload.fechaIncorporacion = fechaIncRaw ||
-                (existingMember2 && existingMember2.fechaIncorporacion) || '';
-        } else {
-            // En creación: usar la fecha de hoy si no se preinformó
-            const today = new Date();
-            const yy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
-            payload.fechaIncorporacion = fechaIncRaw || `${yy}-${mm}-${dd}`;
-        }
+        const periodStartDate = (typeof AppConfig !== 'undefined' && AppConfig.current && AppConfig.current.period && AppConfig.current.period.start)
+            ? AppConfig.current.period.start : '2026-07-25';
+
+        // Leer estadoAsistenciaInicial del formulario
+        const estadoInicialForm = fd.get('estadoAsistenciaInicial') || 'Sin determinar';
 
         if (editId) {
-            // Verificar si el estado espiritual o asistencia cambió manualmente para registrar en el historial
             const existingMember = members.find(m => m.firebaseId === editId);
+            const origenActual = existingMember ? (existingMember.fechaIncorporacionOrigen || 'legacy') : 'legacy';
+            const fechaAnterior = existingMember ? (existingMember.fechaIncorporacion || '') : '';
+
+            payload.fechaIncorporacion = fechaIncRaw;
+            payload.fechaInicioEvaluacion = fechaIncRaw || periodStartDate;
+            payload.estadoAsistenciaInicial = estadoInicialForm;
+
+            // Determinar origen de la fecha:
+            // Solo promover a 'real' si el usuario introdujo una nueva fecha distinta a la anterior.
+            if (fechaIncRaw === '') {
+                payload.fechaIncorporacionOrigen = 'desconocida';
+            } else if (origenActual === 'real') {
+                payload.fechaIncorporacionOrigen = 'real'; // ya confirmada, mantener
+            } else if (fechaIncRaw !== fechaAnterior) {
+                // El usuario cambió la fecha explícitamente → ahora es real
+                payload.fechaIncorporacionOrigen = 'real';
+            } else {
+                // Misma fecha legacy/desconocida → no cambiar su origen todavía
+                payload.fechaIncorporacionOrigen = origenActual;
+            }
+
+            // Historial de cambios
             if (existingMember && existingMember.estadoEspiritual !== payload.estadoEspiritual) {
                 if (typeof logHistoryEvent === 'function') {
                     logHistoryEvent(editId, 'Cambio de Estado Espiritual', existingMember.estadoEspiritual || 'Nuevo', payload.estadoEspiritual);
                 }
             }
-            if (existingMember && existingMember.estadoAsistencia !== payload.estadoAsistencia) {
+
+            let requiresReevaluation = false;
+
+            if (existingMember && existingMember.estadoAsistenciaInicial !== payload.estadoAsistenciaInicial) {
                 if (typeof logHistoryEvent === 'function') {
-                    logHistoryEvent(editId, 'Cambio de Asistencia Manual', existingMember.estadoAsistencia || 'Activo', payload.estadoAsistencia);
+                    logHistoryEvent(editId, 'Corrección de Estado Inicial', existingMember.estadoAsistenciaInicial || 'Sin determinar', payload.estadoAsistenciaInicial);
                 }
+                requiresReevaluation = true;
+            }
+
+            if (existingMember && (fechaAnterior !== payload.fechaIncorporacion || origenActual !== payload.fechaIncorporacionOrigen)) {
+                if (fechaAnterior !== payload.fechaIncorporacion && typeof logHistoryEvent === 'function') {
+                    logHistoryEvent(editId, 'Corrección de Inicio de Evaluación', fechaAnterior || 'vacío', payload.fechaIncorporacion || 'vacío');
+                }
+                requiresReevaluation = true;
             }
 
             // FASE3-S5.2: Usar update() para no sobrescribir campos no incluidos
             db.ref('miembros/' + editId).update(payload)
+                .then(() => {
+                    if (requiresReevaluation && typeof updateEngagementStatus === 'function') {
+                        const memIdx = members.findIndex(m => m.firebaseId === editId);
+                        if (memIdx !== -1) {
+                            members[memIdx].estadoAsistenciaInicial = payload.estadoAsistenciaInicial;
+                            members[memIdx].fechaIncorporacion = payload.fechaIncorporacion;
+                            members[memIdx].fechaIncorporacionOrigen = payload.fechaIncorporacionOrigen;
+                            members[memIdx].fechaInicioEvaluacion = payload.fechaInicioEvaluacion;
+                        }
+                        updateEngagementStatus(editId);
+                    }
+                })
                 .catch(err => console.error('[FireGen] Error al actualizar:', err));
         } else {
             // Nuevo miembro: incluir lider si está disponible
@@ -427,6 +466,27 @@ function openExpediente(fid) {
     const badge = document.getElementById('expEngagementBadge');
     badge.textContent = m.estadoAsistencia || 'Sin determinar';
     badge.className   = 'text-xs font-bold px-3 py-1 rounded-full ' + getEngagementClass(m.estadoAsistencia || '');
+
+    // Asistencia — resultado del motor (solo lectura, fuera del formulario)
+    const expEstadoAsis = document.getElementById('expEstadoAsistencia');
+    if (expEstadoAsis) expEstadoAsis.textContent = m.estadoAsistencia || 'Sin determinar';
+    const expEstadoIni = document.getElementById('expEstadoInicial');
+    if (expEstadoIni) expEstadoIni.textContent = m.estadoAsistenciaInicial || 'Sin determinar';
+    const expTend = document.getElementById('expTendencia');
+    if (expTend) expTend.textContent = m.tendencia || '—';
+    const expMad = document.getElementById('expMadurez');
+    if (expMad) expMad.textContent = m.madurezEvaluacion || '—';
+    const expFechaInc = document.getElementById('expFechaIncorporacion');
+    if (expFechaInc) {
+        if (m.fechaIncorporacion) {
+            const parts = m.fechaIncorporacion.split('-');
+            const oriLabel = m.fechaIncorporacionOrigen === 'real' ? '' : m.fechaIncorporacionOrigen === 'legacy' ? ' (legacy)' : ' (sin confirmar)';
+            expFechaInc.textContent = `${parts[2]}/${parts[1]}/${parts[0]}${oriLabel}`;
+        } else {
+            expFechaInc.textContent = '—';
+        }
+    }
+
 
     document.getElementById('expEdad').textContent     = m.fechaNac ? calculateAge(m.fechaNac) + ' años' : '—';
     document.getElementById('expTelefono').textContent = m.telefono || '—';

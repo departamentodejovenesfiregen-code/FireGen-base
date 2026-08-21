@@ -72,11 +72,18 @@ function syncAttendance(periodo) {
                     } else if (rawSemanas[i] !== undefined) {
                         estado = rawSemanas[i];
                     }
-                    if (member && typeof isSaturdayBeforeIncorporation === 'function' && isSaturdayBeforeIncorporation(member, satDate) && estado === 3) {
+                    // SIN CULTO tiene prioridad
+                    if (currentFechasSinCulto[satDate]) {
+                        return 5;
+                    }
+                    // Si el sábado es antes de la fecha REAL de incorporación, marcar como no aplicable
+                    if (member && typeof isSaturdayBeforeIncorporation === 'function' && isSaturdayBeforeIncorporation(member, satDate)) {
                         return 4;
                     }
-                    if (currentFechasSinCulto[satDate]) {
-                        return 5; // Estado 5 = Sin Culto
+                    // Si había un 4 legacy almacenado pero la fecha ya no está protegida (origen != real),
+                    // normalizar a 3 (?) para permitir edición
+                    if (estado === 4) {
+                        return 3;
                     }
                     return estado;
                 });
@@ -143,11 +150,16 @@ function renderAttendance() {
     members.forEach(m => {
         let sem = currentAttData[m.firebaseId];
         if (!sem) {
-            sem = Array.from({ length: n }, (_, i) => {
-                const satDate = saturdays[i];
-                return (typeof isSaturdayBeforeIncorporation === 'function' && isSaturdayBeforeIncorporation(m, satDate)) ? 4 : 3;
-            });
+            sem = Array.from({ length: n }, () => 3);
         }
+        sem = sem.map((st, i) => {
+            const satDate = saturdays[i];
+            if (!satDate) return st;
+            if (currentFechasSinCulto && currentFechasSinCulto[satDate]) return 5;
+            if (typeof isSaturdayBeforeIncorporation === 'function' && isSaturdayBeforeIncorporation(m, satDate)) return 4;
+            // Restore legacy 4s or 5s to 3 if they no longer apply
+            return (st === 4 || st === 5) ? 3 : st;
+        });
         const nota = currentAttNotes[m.firebaseId] || '';
         const total = sem.reduce((a, s) => a + (s === 1 || s === 2 ? 1 : 0), 0);
         const row = document.createElement('tr');
@@ -179,11 +191,15 @@ function renderAttendance() {
     members.forEach(m => {
         let sem = currentAttData[m.firebaseId];
         if (!sem) {
-            sem = Array.from({ length: n }, (_, i) => {
-                const satDate = saturdays[i];
-                return (typeof isSaturdayBeforeIncorporation === 'function' && isSaturdayBeforeIncorporation(m, satDate)) ? 4 : 3;
-            });
+            sem = Array.from({ length: n }, () => 3);
         }
+        sem = sem.map((st, i) => {
+            const satDate = saturdays[i];
+            if (!satDate) return st;
+            if (currentFechasSinCulto && currentFechasSinCulto[satDate]) return 5;
+            if (typeof isSaturdayBeforeIncorporation === 'function' && isSaturdayBeforeIncorporation(m, satDate)) return 4;
+            return (st === 4 || st === 5) ? 3 : st;
+        });
         const nota = currentAttNotes[m.firebaseId] || '';
         const total = sem.reduce((a, s) => a + (s === 1 || s === 2 ? 1 : 0), 0);
         const card = document.createElement('div');
@@ -237,6 +253,7 @@ function initAttendanceEventDelegation() {
 
 function isSaturdayBeforeIncorporation(member, satDate) {
     if (!member || !member.fechaIncorporacion) return false;
+    if (member.fechaIncorporacionOrigen !== 'real') return false;
     return new Date(satDate + 'T00:00:00') < new Date(member.fechaIncorporacion + 'T00:00:00');
 }
 
@@ -268,7 +285,16 @@ function toggleAtt(fid, week, periodo) {
         sem = sem.slice();
     }
 
-    sem[week] = (sem[week] === 4) ? 4 : (sem[week] + 1) % 4;
+    if (sem[week] === 4 || sem[week] === 5) {
+        // If it was 4 or 5 but the date is no longer blocked, cycle it normally (starts at 0 'Falta' or 1 'Asistencia', typically after 3 'Missing' comes 0 or 1).
+        // Standard progression from 3 is 0. But let's just cycle it to 0 directly.
+        sem[week] = 0;
+    } else if (sem[week] === 3) {
+        sem[week] = 0; // De Sin dato -> Falta (para que no salte a Asistencia directo si el ciclo es (st+1)%4, wait, normal cycle: 3 -> 0 -> 1 -> 2 -> 3)
+    } else {
+        sem[week] = (sem[week] + 1) % 4;
+    }
+    
     currentAttData[fid] = sem;
 
     const updates = {};
@@ -440,31 +466,37 @@ function pushAttendanceToReport() {
 /**
  * updateEngagementStatus — Motor de clasificación de asistencia individual.
  *
- * FASE3-S1 — Lógica reescrita:
- *  1. Obtiene sábados reales de los últimos 2 meses.
+ * FASE4-E1 — Lógica reescrita:
+ *  1. Obtiene sábados reales.
  *  2. Filtra desde la fecha de incorporación del miembro.
- *  3. Excluye ? (=3) de todos los cálculos.
- *  4. Calcula: porcentaje, racha de faltas recientes, racha de asistencias recientes.
- *  5. Prioridad: Alejándose (≥5) > Enfriándose (3-4) > recuperación (≥4) > Inconstante (<50%) > Activo.
- *  6. No clasifica agresivamente con < 4 sábados evaluables.
+ *  3. Excluye ? (=3) y fechas SIN CULTO de todos los cálculos.
+ *  4. Utiliza evaluateAttendanceState() como única fuente de verdad.
  *
  * @param {string} memberId
  */
 function updateEngagementStatus(memberId) {
     const member = members.find(x => x.firebaseId === memberId);
     if (!member) return;
-    // Obtener fecha de incorporación o fallback
+    // FASE4-E1: Obtener fecha de inicio de evaluación, separar conceptualmente de fechaIncorporacion
     const periodStart = (AppConfig.current && AppConfig.current.period && AppConfig.current.period.start)
-        ? AppConfig.current.period.start : AppConfig.defaults.period.start;
-    const incorporationStr = member.fechaIncorporacion || periodStart;
-    const incorporationDate = new Date(incorporationStr + 'T00:00:00');
+        ? AppConfig.current.period.start : '2026-07-25';
+    const periodEnd = (AppConfig.current && AppConfig.current.period && AppConfig.current.period.end)
+        ? AppConfig.current.period.end : '2029-07-31';
+    const pStartObj = new Date(periodStart + 'T00:00:00');
+    const iniEvalStr = member.fechaInicioEvaluacion || periodStart;
+    const iniEvalObj = new Date(iniEvalStr + 'T00:00:00');
+    const effectiveStart = iniEvalObj > pStartObj ? iniEvalObj : pStartObj;
 
     const today = new Date();
     today.setHours(23, 59, 59, 999);
 
+    // No evaluar más allá del fin del período oficial
+    const periodEndDate = new Date(periodEnd + 'T23:59:59');
+    const effectiveEnd = today < periodEndDate ? today : periodEndDate;
+
     const periodos = [];
-    let cursor = new Date(incorporationDate.getFullYear(), incorporationDate.getMonth(), 1);
-    while (cursor <= today) {
+    let cursor = new Date(effectiveStart.getFullYear(), effectiveStart.getMonth(), 1);
+    while (cursor <= effectiveEnd) {
         const periodo = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
         periodos.push(periodo);
         cursor.setMonth(cursor.getMonth() + 1);
@@ -494,10 +526,9 @@ function updateEngagementStatus(memberId) {
 
                 saturdays.forEach((satDate, j) => {
                     const sat = new Date(satDate + 'T00:00:00');
-                    if (sat < incorporationDate) return;
-                    if (sat > today) return;
-
-                    if (fechasSinCulto[satDate]) return; // Omitir completamente días "Sin Culto"
+                    if (sat < effectiveStart) return;    // Antes de evaluación
+                    if (sat > effectiveEnd) return;          // Futuro o fuera del período
+                    if (fechasSinCulto[satDate]) return;     // SIN CULTO: excluir completamente
 
                     let estado;
                     if (Object.prototype.hasOwnProperty.call(rawFechas, satDate)) {
@@ -511,61 +542,33 @@ function updateEngagementStatus(memberId) {
                 });
             }
 
-            // ── Filtrar 0, 1, 2 (evaluables) y calcular rachas ──
-            const evaluables = Object.keys(recordMap)
-                .sort()
-                .map(date => recordMap[date])
-                .filter(s => s === 0 || s === 1 || s === 2);
-
-            let recentAbsentStreak = 0, recentPresentStreak = 0;
-            let countingAbsent = true, countingPresent = true;
-            for (let i = evaluables.length - 1; i >= 0; i--) {
-                const s = evaluables[i];
-                if (countingAbsent) {
-                    if (s === 0) recentAbsentStreak++;
-                    else countingAbsent = false;
-                }
-                if (countingPresent) {
-                    if (s === 1 || s === 2) recentPresentStreak++;
-                    else countingPresent = false;
-                }
-                if (!countingAbsent && !countingPresent) break;
-            }
-
+            // FASE4-E1: Evaluar usando función central
+            const evalResult = evaluateAttendanceState(member, recordMap, effectiveEnd);
             const estadoActual = normalizeAttendanceStatus(member.estadoAsistencia);
-            let nuevoEstado = estadoActual;
+            const nuevoEstado = evalResult.nuevoEstado;
 
-            if (evaluables.length < 8) {
-                // Ventana incompleta: aplicar rachas críticas, pero sin clasificar por porcentaje
-                if (recentAbsentStreak >= 5) {
-                    nuevoEstado = 'Alejándose';
-                } else if (recentAbsentStreak >= 3) {
-                    nuevoEstado = 'Enfriándose';
-                } else if (estadoActual !== 'Activo' && recentPresentStreak >= 4) {
-                    nuevoEstado = 'Activo';
+            // Determinar si hay cambios que persistir
+            const estadoCambio = estadoActual !== nuevoEstado;
+            const tendenciaCambio = (member.tendencia || 'estable') !== evalResult.tendencia;
+            const madurezCambio = (member.madurezEvaluacion || 'insuficiente') !== evalResult.madurezEvaluacion;
+
+            if (estadoCambio || tendenciaCambio || madurezCambio) {
+                const updatePayload = {
+                    tendencia: evalResult.tendencia,
+                    madurezEvaluacion: evalResult.madurezEvaluacion
+                };
+
+                if (estadoCambio) {
+                    updatePayload.estadoAsistencia = nuevoEstado;
+                    if (typeof logHistoryEvent === 'function') {
+                        logHistoryEvent(memberId, 'Cambio de Asistencia Automático', estadoActual, nuevoEstado, evalResult.razon || 'Motor FASE4-E1');
+                    }
                 }
-                // Si no hay racha clara, mantener estado actual (no clasificar por porcentaje con pocos datos)
-            } else {
-                // Ventana completa (últimos 8 evaluables)
-                const window = evaluables.slice(-8);
-                const asistencias = window.filter(s => s === 1 || s === 2).length;
-                const porcentaje = asistencias / 8;
 
-                if (recentAbsentStreak >= 5) nuevoEstado = 'Alejándose';
-                else if (recentAbsentStreak >= 3) nuevoEstado = 'Enfriándose';
-                else if (recentPresentStreak >= 4) nuevoEstado = 'Activo';
-                else if (porcentaje < 0.5) nuevoEstado = 'Inconstante';
-                else nuevoEstado = 'Activo';
-            }
-
-            // ── Aplicar si cambió ──
-            if (estadoActual !== nuevoEstado) {
-                if (typeof logHistoryEvent === 'function') {
-                    logHistoryEvent(memberId, 'Cambio de Asistencia Automático', estadoActual, nuevoEstado, 'Motor FASE3-S1');
-                }
-                db.ref('miembros/' + memberId).update({ estadoAsistencia: nuevoEstado })
+                db.ref('miembros/' + memberId).update(updatePayload)
                     .catch(err => console.error('[FireGen] Error al actualizar estado:', err));
-                if (nuevoEstado === 'Alejándose') triggerRetentionAlert(member);
+
+                if (estadoCambio && nuevoEstado === 'Alejándose') triggerRetentionAlert(member);
             }
         })
         .catch(err => console.error('[FireGen Engagement] Error al leer historial:', err));
@@ -671,3 +674,224 @@ function exportAttendance() {
     });
     downloadCSV(csv, `FireGen_Asistencia_${period}.csv`);
 }
+
+/**
+ * evaluateAttendanceState - Función centralizada del motor (FASE4-E1)
+ * Única fuente de verdad para determinar el estado de asistencia.
+ * @param {Object} member - Miembro
+ * @param {Object} recordMap - Mapa de fechas a estados (ya filtrado: sin SIN CULTO, sin pre-evaluación)
+ * @param {Date} currentDate - Fecha dinámica de evaluación
+ * @returns {Object}
+ */
+function evaluateAttendanceState(member, recordMap, currentDate) {
+    // 1. NORMALIZAR
+    const sortedDates = Object.keys(recordMap).sort();
+    const evaluables = sortedDates.map(date => recordMap[date]).filter(s => s === 0 || s === 1 || s === 2);
+
+    const estadoInicial = typeof normalizeAttendanceStatus === 'function'
+        ? normalizeAttendanceStatus(member.estadoAsistenciaInicial)
+        : (member.estadoAsistenciaInicial || 'Sin determinar');
+        
+    const estadoAnterior = typeof normalizeAttendanceStatus === 'function'
+        ? normalizeAttendanceStatus(member.estadoAsistencia)
+        : (member.estadoAsistencia || 'Sin determinar');
+
+    // 2. MEDIR
+    const totalEvaluables = evaluables.length;
+    const asistencias = evaluables.filter(s => s === 1 || s === 2).length;
+    const faltas = totalEvaluables - asistencias;
+    
+    let rachaFaltas = 0, rachaAsistencias = 0;
+    let countingAbsent = true, countingPresent = true;
+    for (let i = evaluables.length - 1; i >= 0; i--) {
+        const s = evaluables[i];
+        if (countingAbsent) { if (s === 0) rachaFaltas++; else countingAbsent = false; }
+        if (countingPresent) { if (s === 1 || s === 2) rachaAsistencias++; else countingPresent = false; }
+        if (!countingAbsent && !countingPresent) break;
+    }
+    const rachaActual = rachaAsistencias > 0 ? rachaAsistencias : -rachaFaltas;
+
+    let cambiosDeEstado = 0;
+    for (let i = 1; i < evaluables.length; i++) {
+        if ((evaluables[i - 1] === 0 ? 0 : 1) !== (evaluables[i] === 0 ? 0 : 1)) cambiosDeEstado++;
+    }
+    const regularidad = totalEvaluables > 1 ? cambiosDeEstado / (totalEvaluables - 1) : 0;
+
+    // 3. VENTANAS
+    const corta = evaluables.slice(-4);
+    const media = evaluables.slice(-8);
+    
+    const porcentajeCorto = corta.length > 0 ? corta.filter(s => s === 1 || s === 2).length / corta.length : 0;
+    const porcentajeMedio = media.length > 0 ? media.filter(s => s === 1 || s === 2).length / media.length : 0;
+    const porcentajeLargo = totalEvaluables > 0 ? asistencias / totalEvaluables : 0;
+
+    // 4. NIVEL ACTUAL
+    let scoreRecencia = porcentajeLargo;
+    if (totalEvaluables >= 12) {
+        scoreRecencia = (porcentajeCorto * 0.5) + (porcentajeMedio * 0.3) + (porcentajeLargo * 0.2);
+    } else if (totalEvaluables >= 8) {
+        scoreRecencia = (porcentajeCorto * 0.6) + (porcentajeLargo * 0.4);
+    } else if (totalEvaluables >= 4) {
+        scoreRecencia = (porcentajeCorto * 0.7) + (porcentajeLargo * 0.3);
+    }
+    const nivelReciente = scoreRecencia;
+
+    // 5. TENDENCIA
+    let tendencia = 'estable';
+    if (totalEvaluables >= 8) {
+        const anteriorCorto = evaluables.slice(-8, -4);
+        const pAnteriorCorto = anteriorCorto.filter(s => s === 1 || s === 2).length / 4;
+        const deltaCorto = porcentajeCorto - pAnteriorCorto;
+        
+        let deltaCombinado = deltaCorto;
+
+        if (totalEvaluables >= 12) {
+            const lenAnteriorMedia = totalEvaluables >= 16 ? 8 : (totalEvaluables - 8);
+            if (lenAnteriorMedia >= 4) {
+                const arrAnteriorMedia = evaluables.slice(-(8 + lenAnteriorMedia), -8);
+                const pAnteriorMedia = arrAnteriorMedia.filter(s => s === 1 || s === 2).length / lenAnteriorMedia;
+                const deltaMedio = porcentajeMedio - pAnteriorMedia;
+                deltaCombinado = (deltaCorto * 0.7) + (deltaMedio * 0.3);
+            }
+        }
+
+        if (deltaCombinado >= 0.15) tendencia = 'ascendente';
+        else if (deltaCombinado <= -0.15) tendencia = 'descendente';
+    }
+
+    // 6. REGULARIDAD
+    const esAlternanciaAlta = regularidad >= 0.4 && porcentajeLargo >= 0.25 && porcentajeLargo <= 0.75 && totalEvaluables >= 4;
+
+    // 7. RECUPERACIÓN
+    const contextoNegativo = estadoAnterior === 'Alejándose' || estadoAnterior === 'Enfriándose' || estadoInicial === 'Alejándose';
+    let recuperacionDetectada = false;
+    let recuperacionSostenida = false;
+    if (contextoNegativo && rachaAsistencias > 0) {
+        recuperacionDetectada = true;
+        if (rachaAsistencias >= 3 && porcentajeCorto >= 0.75 && tendencia !== 'descendente' && porcentajeMedio >= 0.5) {
+            recuperacionSostenida = true;
+        }
+    }
+
+    // 8. DETERIORO — Solo aplica si ya hay estado positivo confirmado (no Sin determinar con datos insuficientes)
+    const contextoPositivoConfirmado = estadoAnterior === 'Activo';
+    const contextoEvaluacion = estadoAnterior === 'Sin determinar';
+    let deterioroDetectado = false;
+    let deterioroSostenido = false;
+    if ((contextoPositivoConfirmado || contextoEvaluacion) && rachaFaltas > 0) {
+        // Deterioro sostenido: evento duro (3+ faltas) — aplica a ambos contextos
+        if (rachaFaltas >= 3) {
+            deterioroSostenido = true;
+        }
+        // Deterioro detectado: patrón con madurez suficiente — solo para contexto positivo confirmado
+        if (contextoPositivoConfirmado && tendencia === 'descendente' && nivelReciente < 0.6 && rachaFaltas >= 2) {
+            deterioroDetectado = true;
+        }
+    }
+
+    // 9. TRAYECTORIA
+    let trayectoria = 'estable';
+    if (recuperacionSostenida || (recuperacionDetectada && tendencia === 'ascendente')) trayectoria = 'recuperación';
+    else if (deterioroSostenido || deterioroDetectado) trayectoria = 'deterioro';
+    else if (esAlternanciaAlta) trayectoria = 'irregularidad';
+
+    // 10. MADUREZ
+    let madurezEvaluacion = 'insuficiente';
+    if (totalEvaluables >= 12) madurezEvaluacion = 'análisis de mediano plazo';
+    else if (totalEvaluables >= 8) madurezEvaluacion = 'tendencia inicial';
+    else if (totalEvaluables >= 4) madurezEvaluacion = 'patrón preliminar';
+
+    const esInconstante = madurezEvaluacion !== 'insuficiente' &&
+                          esAlternanciaAlta &&
+                          trayectoria === 'irregularidad' &&
+                          !deterioroSostenido &&
+                          !recuperacionSostenida;
+
+    // 11. CLASIFICACIÓN & 12. HISTERESIS
+    let nuevoEstado = estadoAnterior;
+    let razon = 'Sin cambio: evidencia no suficiente para reclasificar.';
+
+    if (totalEvaluables < 4) {
+        // MADUREZ INSUFICIENTE — solo eventos duros, conservar inicial en el resto
+        if (rachaFaltas >= 4) { nuevoEstado = 'Alejándose'; razon = '4+ faltas consecutivas con datos limitados.'; }
+        else if (rachaFaltas === 3) { nuevoEstado = 'Enfriándose'; razon = '3 faltas consecutivas.'; }
+        else { nuevoEstado = estadoInicial; razon = 'Evidencia insuficiente, conservar estado inicial.'; }
+
+    } else {
+        // EVENTOS DUROS — aplican independientemente del estado
+        if (rachaFaltas >= 4) { nuevoEstado = 'Alejándose'; razon = '4+ faltas consecutivas.'; }
+        else if (rachaFaltas === 3) { nuevoEstado = 'Enfriándose'; razon = '3 faltas consecutivas.'; }
+
+        else if (estadoAnterior === 'Alejándose') {
+            if (recuperacionSostenida) { nuevoEstado = 'Activo'; razon = 'Recuperación sostenida desde Alejándose.'; }
+            else if (rachaAsistencias >= 2 && porcentajeCorto >= 0.5) { nuevoEstado = 'Enfriándose'; razon = 'Recuperación inicial desde Alejándose.'; }
+            else { nuevoEstado = 'Alejándose'; razon = 'Sin recuperación sostenida.'; }
+
+        } else if (estadoAnterior === 'Enfriándose') {
+            if (recuperacionSostenida) { nuevoEstado = 'Activo'; razon = 'Recuperación sostenida desde Enfriándose.'; }
+            else { nuevoEstado = 'Enfriándose'; razon = 'Sin recuperación consolidada.'; }
+
+        } else if (estadoAnterior === 'Activo') {
+            if (esInconstante) { nuevoEstado = 'Inconstante'; razon = 'Patrón de alternancia real detectado.'; }
+            else if (deterioroSostenido || deterioroDetectado) { nuevoEstado = 'Enfriándose'; razon = 'Deterioro confirmado desde Activo.'; }
+            else if (nivelReciente >= 0.6) { nuevoEstado = 'Activo'; razon = 'Nivel de asistencia saludable.'; }
+            else { nuevoEstado = 'Activo'; razon = 'Nivel aceptable, sin deterioro grave.'; }
+
+        } else if (estadoAnterior === 'Sin determinar') {
+            // EN EVALUACIÓN: requiere más evidencia para salir de este estado.
+            // No se convierte en Inconstante directamente desde aquí.
+            if (esInconstante && totalEvaluables >= 8) { nuevoEstado = 'Inconstante'; razon = 'Patrón alternante confirmado con historial suficiente.'; }
+            else if (deterioroSostenido) { nuevoEstado = 'Enfriándose'; razon = 'Deterioro grave durante evaluación.'; }
+            else if (
+                nivelReciente >= 0.70 &&
+                (rachaAsistencias >= 3 || (totalEvaluables >= 8 && rachaAsistencias >= 2))
+            ) {
+                nuevoEstado = 'Activo'; razon = 'Evaluación completada con asistencia consistente.';
+            }
+            else {
+                // Conservar Sin determinar hasta tener evidencia más clara
+                nuevoEstado = 'Sin determinar'; razon = 'En evaluación: datos insuficientes para clasificar.';
+            }
+
+        } else if (estadoAnterior === 'Inconstante') {
+            if (recuperacionSostenida) { nuevoEstado = 'Activo'; razon = 'Recuperación sostenida desde Inconstante.'; }
+            else if (deterioroSostenido) { nuevoEstado = 'Enfriándose'; razon = 'Deterioro desde Inconstante.'; }
+            else if (esInconstante) { nuevoEstado = 'Inconstante'; razon = 'Patrón irregular continúa.'; }
+            else if (nivelReciente >= 0.65 && rachaAsistencias >= 3) { nuevoEstado = 'Activo'; razon = 'Mejora sostenida desde Inconstante.'; }
+            else { nuevoEstado = 'Inconstante'; razon = 'Sin cambio definitivo.'; }
+
+        } else {
+            nuevoEstado = estadoAnterior; razon = 'Conservar estado actual.';
+        }
+    }
+
+    // 13. RESULTADO
+    return {
+        estadoInicial,
+        estadoAnterior,
+        nuevoEstado,
+        madurezEvaluacion,
+        porcentajeCorto: Math.round(porcentajeCorto * 100),
+        porcentajeMedio: Math.round(porcentajeMedio * 100),
+        porcentajeLargo: Math.round(porcentajeLargo * 100),
+        scoreRecencia: Math.round(scoreRecencia * 100),
+        faltasConsecutivas: rachaFaltas,
+        asistenciasConsecutivas: rachaAsistencias,
+        rachaActual,
+        nivelReciente,
+        tendencia,
+        regularidad,
+        trayectoria,
+        esInconstante,
+        recuperacionDetectada,
+        recuperacionSostenida,
+        deterioroDetectado,
+        deterioroSostenido,
+        senalDatosInsuficientes: totalEvaluables < 4,
+        reunionesEvaluables: totalEvaluables,
+        asistencias,
+        faltas,
+        razon
+    };
+}
+

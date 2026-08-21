@@ -814,10 +814,10 @@
                         class="w-full p-3.5 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-orange-100 focus:border-orange-500 disabled:bg-slate-100 disabled:text-slate-500">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Estado de Asistencia</label>
-                    <select name="estadoAsistencia"
-                        class="w-full p-3.5 border border-slate-200 rounded-xl outline-none bg-white font-bold text-orange-600 focus:ring-4 focus:ring-orange-100 focus:border-orange-500">
-                        <option value="">Sin determinar</option>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Estado Asist. Inicial</label>
+                    <select name="estadoAsistenciaInicial"
+                        class="w-full p-3.5 border border-slate-200 rounded-xl outline-none bg-slate-50 text-slate-600 focus:ring-4 focus:ring-orange-100 focus:border-orange-500" title="Punto de partida histórico de asistencia">
+                        <option value="Sin determinar">Sin determinar</option>
                         <option value="Activo">Activo</option>
                         <option value="Inconstante">Inconstante</option>
                         <option value="Enfriándose">Enfriándose</option>
@@ -942,6 +942,33 @@
                         <div class="text-right">
                             <p class="text-[10px] text-slate-400 font-bold">F. Bautismo</p>
                             <p class="font-bold text-slate-700 text-sm" id="expFechaBautismo">—</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Asistencia — resultado del motor -->
+                <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
+                    <p class="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-2">Asistencia</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase">Estado Actual</p>
+                            <p class="font-black text-slate-800 text-sm" id="expEstadoAsistencia">—</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-slate-400 font-bold uppercase">Estado Inicial</p>
+                            <p class="font-bold text-slate-600 text-sm" id="expEstadoInicial">—</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase">Tendencia</p>
+                            <p class="font-bold text-slate-700 text-sm" id="expTendencia">—</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-slate-400 font-bold uppercase">Madurez</p>
+                            <p class="font-bold text-slate-700 text-sm" id="expMadurez">—</p>
+                        </div>
+                        <div class="col-span-2">
+                            <p class="text-[10px] text-slate-400 font-bold uppercase">F. Incorporación</p>
+                            <p class="font-bold text-slate-700 text-sm" id="expFechaIncorporacion">—</p>
                         </div>
                     </div>
                 </div>

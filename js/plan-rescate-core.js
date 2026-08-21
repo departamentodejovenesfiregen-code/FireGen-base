@@ -48,6 +48,9 @@ const RescueCore = {
         if (state === 'prospecto') {
             return { level: 5, label: 'Prospecto', color: 'indigo', icon: '👤', bg: 'bg-indigo-50 text-indigo-700', border: 'border-indigo-200' };
         }
+        if (state.includes('sin determinar')) {
+            return { level: 1, label: 'En evaluación', color: 'slate', icon: '⏳', bg: 'bg-slate-50 text-slate-600', border: 'border-slate-200' };
+        }
         return { level: 1, label: 'Normal', color: 'green', icon: '🟢', bg: 'bg-green-50 text-green-700', border: 'border-green-200' };
     },
 
@@ -55,6 +58,9 @@ const RescueCore = {
      * Devuelve la Ruta de Acompañamiento según el estado de asistencia
      */
     getAccompanimentRoute(estadoAsistencia) {
+        const state = (estadoAsistencia || '').toLowerCase();
+        if (state.includes('sin determinar')) return 'Evaluación inicial';
+        
         const prio = this.getPriority(estadoAsistencia).level;
         if (prio === 4) return 'Plan al Rescate / Intervención prioritaria';
         if (prio === 3) return 'Seguimiento prioritario';
@@ -223,6 +229,17 @@ const RescueCore = {
                 objetivo = 'Recuperar constancia — liderazgo y acompañamiento.';
                 tareas.push({ id: 'liderazgo', label: 'Liderazgo / Acompañamiento', type: 'recommended' });
             }
+        // ── SIN DETERMINAR (En evaluación) ──────────────────────
+        } else if (asis.includes('sin determinar')) {
+            nivel = 'En evaluación';
+            tareas = [
+                { id: 'registrar_resultado', label: 'Registrar resultado', type: 'required' },
+                { id: 'orar', label: 'Orar', type: 'recommended' },
+                { id: 'acompanar', label: 'Acompañar', type: 'recommended' },
+                { id: 'conversar', label: 'Conversar', type: 'optional' },
+                { id: 'otra_accion', label: 'Otra acción realizada', type: 'optional' }
+            ];
+            objetivo = 'Acompañamiento inicial y observación.';
 
         // ── ACTIVO (Normal) ─────────────────────────────────────
         } else {
