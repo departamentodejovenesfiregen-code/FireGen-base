@@ -427,6 +427,14 @@ function initMemberForm() {
             if (!canAssign) {
                 payload.lider = '';
             }
+            
+            // FASE4-E1: Configurar fechas iniciales
+            payload.fechaIncorporacion = fechaIncRaw;
+            payload.fechaInicioEvaluacion = fechaIncRaw || periodStartDate;
+            payload.fechaIncorporacionOrigen = fechaIncRaw ? 'real' : 'desconocida';
+            payload.estadoAsistenciaInicial = estadoInicialForm;
+            payload.estadoAsistencia = estadoInicialForm; // Estado actual es igual al inicial al crear
+            
             const newRef = db.ref('miembros').push();
             newRef.set(payload)
                 .then(() => {

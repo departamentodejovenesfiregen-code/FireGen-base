@@ -102,26 +102,57 @@ textarea {
     opacity: 0.5;
 }
 
-/* ── PRINT ── */
+/* ── PRINT ARCHITECTURE ── */
+#monthlyReportPrint {
+    display: none;
+}
+
 @media print {
-  .no-print {
-    display: none !important;
-  }
+    .no-print,
+    #directorioOverlay,
+    #notificacionesOverlay,
+    #rescateOverlay,
+    #coordinacionOverlay,
+    #expedienteOverlay {
+        display: none !important;
+    }
 
-  body {
-    background: white;
-    padding: 0;
-  }
+    body {
+        background: white;
+        padding: 0;
+    }
 
-  .card {
-    box-shadow: none;
-    border: 1px solid #e2e8f0;
-    margin-bottom: 20px;
-  }
+    body > * {
+        visibility: hidden !important;
+    }
 
-  .max-w-screen-2xl {
-    max-width: 100% !important;
-  }
+    body > #monthlyReportPrint {
+        visibility: visible !important;
+        display: block !important;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+
+    body > #monthlyReportPrint * {
+        visibility: visible !important;
+    }
+
+    thead {
+        display: table-header-group;
+    }
+
+    tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    .card {
+        box-shadow: none;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 20px;
+    }
 }
 
 /* ── SLIDE-OVER EXPEDIENTE ── */

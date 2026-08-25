@@ -60,9 +60,13 @@ function syncReport(periodo) {
                 if (!fData) return;
 
                 row.querySelector('.rep-tema').value = fData.tema || '';
+                row.querySelector('.rep-predicador').value = fData.predicador || '';
+                row.querySelector('.rep-cita').value = fData.citaBiblica || '';
                 row.querySelector('.rep-asist').value = fData.asist || '';
                 row.querySelector('.rep-nuevos').value = fData.nuevos || '';
-                row.querySelector('.rep-decis').value = fData.decis || '';
+                // Compatibilidad con datos legacy (campo decis)
+                row.querySelector('.rep-observaciones').value =
+                    fData.observaciones !== undefined ? fData.observaciones : (fData.decis || '');
             });
             if (d.bautismos !== undefined) document.getElementById('inp-bautismos').value = d.bautismos;
             if (d.servicio !== undefined) {
@@ -104,9 +108,11 @@ function clearReportFields() {
     document.getElementById('repSerie').value = '';
     document.querySelectorAll('.row-report-data').forEach(r => {
         r.querySelector('.rep-tema').value = '';
+        r.querySelector('.rep-predicador').value = '';
+        r.querySelector('.rep-cita').value = '';
         r.querySelector('.rep-asist').value = '';
         r.querySelector('.rep-nuevos').value = '';
-        r.querySelector('.rep-decis').value = '';
+        r.querySelector('.rep-observaciones').value = '';
     });
     ['inp-bautismos', 'inp-servicio', 'inp-alejados', 'inp-rescatados'].forEach(id => {
         document.getElementById(id).value = 0;
@@ -133,16 +139,27 @@ function saveReportRow(idx) {
     if (!p || !satDate) return;
     const row = document.querySelectorAll('.row-report-data')[idx];
 
-    const updates = {};
-    updates[`fechas/${satDate}/tema`] = row.querySelector('.rep-tema').value;
-    updates[`fechas/${satDate}/asist`] = parseInt(row.querySelector('.rep-asist').value) || 0;
-    updates[`fechas/${satDate}/nuevos`] = parseInt(row.querySelector('.rep-nuevos').value) || 0;
-    updates[`fechas/${satDate}/decis`] = row.querySelector('.rep-decis').value;
+    const tema = row.querySelector('.rep-tema').value;
+    const predicador = row.querySelector('.rep-predicador').value;
+    const citaBiblica = row.querySelector('.rep-cita').value;
+    const asist = parseInt(row.querySelector('.rep-asist').value) || 0;
+    const nuevos = parseInt(row.querySelector('.rep-nuevos').value) || 0;
+    const observaciones = row.querySelector('.rep-observaciones').value;
 
-    updates[`sem${idx + 1}/tema`] = row.querySelector('.rep-tema').value;
-    updates[`sem${idx + 1}/asist`] = parseInt(row.querySelector('.rep-asist').value) || 0;
-    updates[`sem${idx + 1}/nuevos`] = parseInt(row.querySelector('.rep-nuevos').value) || 0;
-    updates[`sem${idx + 1}/decis`] = row.querySelector('.rep-decis').value;
+    const updates = {};
+    updates[`fechas/${satDate}/tema`] = tema;
+    updates[`fechas/${satDate}/predicador`] = predicador;
+    updates[`fechas/${satDate}/citaBiblica`] = citaBiblica;
+    updates[`fechas/${satDate}/asist`] = asist;
+    updates[`fechas/${satDate}/nuevos`] = nuevos;
+    updates[`fechas/${satDate}/observaciones`] = observaciones;
+
+    updates[`sem${idx + 1}/tema`] = tema;
+    updates[`sem${idx + 1}/predicador`] = predicador;
+    updates[`sem${idx + 1}/citaBiblica`] = citaBiblica;
+    updates[`sem${idx + 1}/asist`] = asist;
+    updates[`sem${idx + 1}/nuevos`] = nuevos;
+    updates[`sem${idx + 1}/observaciones`] = observaciones;
 
     db.ref('informes/' + p).update(updates).catch(err => console.error('[FireGen] Error al guardar fila de informe:', err));
     updateMonthlyStats();
@@ -266,7 +283,9 @@ function bindReportInputs() {
     });
     document.querySelectorAll('.row-report-data').forEach((row, i) => {
         row.querySelector('.rep-tema').addEventListener('input', () => saveReportRowDebounced(i));
-        row.querySelector('.rep-decis').addEventListener('input', () => saveReportRowDebounced(i));
+        row.querySelector('.rep-predicador').addEventListener('input', () => saveReportRowDebounced(i));
+        row.querySelector('.rep-cita').addEventListener('input', () => saveReportRowDebounced(i));
+        row.querySelector('.rep-observaciones').addEventListener('input', () => saveReportRowDebounced(i));
     });
     document.getElementById('inp-bautismos').addEventListener('input', function () {
         const val = parseInt(this.value) || 0;
@@ -305,14 +324,215 @@ function exportMonthlyReport() {
     const per = document.getElementById('repPeriodo').value || 'S_P';
     const saturdays = getOperationalSaturdaysForPeriod(per);
     const serie = document.getElementById('repSerie').value || '';
-    let csv = `INFORME MENSUAL FIREGEN - ${per}\nSerie: ${serie.replace(/"/g, '""')}\nSábado,Tema,Asistencia,Nuevos,Decisiones\n`;
+    const secretario = document.getElementById('repSecretario').value || '';
+    const q = s => '"' + (s || '').replace(/"/g, '""') + '"';
+
+    let csv = `INFORME MENSUAL FIREGEN - ${per}\n`;
+    csv += `Serie: ${q(serie)}\n`;
+    csv += `Secretario: ${q(secretario)}\n\n`;
+    csv += `S\u00e1bado,Tema Predicado,Predicador,Cita B\u00edblica,Asistencia,Nuevos,Observaciones\n`;
+
     document.querySelectorAll('.row-report-data').forEach((row, i) => {
         if (!saturdays[i]) return;
-        const tema = (row.querySelector('.rep-tema').value || '').replace(/"/g, '""');
-        const decis = (row.querySelector('.rep-decis').value || '').replace(/"/g, '""');
-        csv += `${getSaturdayLabel(saturdays[i])},"${tema}",${row.querySelector('.rep-asist').value || 0},${row.querySelector('.rep-nuevos').value || 0},"${decis}"\n`;
+        const tema = q(row.querySelector('.rep-tema').value);
+        const pred = q(row.querySelector('.rep-predicador').value);
+        const cita = q(row.querySelector('.rep-cita').value);
+        const asist = row.querySelector('.rep-asist').value || 0;
+        const nuevos = row.querySelector('.rep-nuevos').value || 0;
+        const obs = q(row.querySelector('.rep-observaciones').value);
+        csv += `${getSaturdayLabel(saturdays[i])},${tema},${pred},${cita},${asist},${nuevos},${obs}\n`;
     });
-    csv += `\nMETRICAS CLAVE\nBautismos,${document.getElementById('inp-bautismos').value}\nAl Servicio,${document.getElementById('inp-servicio').value}\nAlejados,${document.getElementById('inp-alejados').value}\nRescatados,${document.getElementById('inp-rescatados').value}\nPromedio,${document.getElementById('rep-avg').innerText}\n`;
+
+    csv += `\nMETRICAS CLAVE\n`;
+    csv += `Bautismos,${document.getElementById('inp-bautismos').value}\n`;
+    csv += `Al Servicio,${document.getElementById('inp-servicio').value}\n`;
+    csv += `Alejados,${document.getElementById('inp-alejados').value}\n`;
+    csv += `Rescatados,${document.getElementById('inp-rescatados').value}\n`;
+    csv += `Promedio,${document.getElementById('rep-avg').innerText}\n`;
+
+    // ── DIRECTORIO DE J\u00d3VENES ──
+    csv += `\nDIRECTORIO DE J\u00d3VENES\n`;
+    csv += `N\u00b0,Nombre,Edad,Tel\u00e9fono,Redes,Estado Espiritual,\u00c1rea Servicio,Cargo,Responsable,Estado Asistencia,F. Bautismo,Domicilio\n`;
+    (members || []).forEach((m, idx) => {
+        const edad = m.fechaNac ? calculateAge(m.fechaNac) : '';
+        const bautismo = m.fechaBautismo ? m.fechaBautismo.split('-').reverse().join('/') : '';
+        const row = [
+            idx + 1,
+            q(m.nombre),
+            edad,
+            q(m.telefono),
+            q(m.social),
+            q(m.estadoEspiritual),
+            q(m.areaServicio),
+            q(m.cargo),
+            q(m.lider),
+            q(m.estadoAsistencia),
+            bautismo,
+            q(m.domicilio)
+        ];
+        csv += row.join(',') + '\n';
+    });
+
     downloadCSV(csv, `FireGen_InformeMensual_${per}.csv`);
 }
 
+/* ── PDF OFICIAL — Vista de impresi\u00f3n controlada ─────────────── */
+
+async function generateMonthlyReportPDF() {
+    const per = document.getElementById('repPeriodo').value || '';
+    const serie = document.getElementById('repSerie').value || '';
+    const secretario = document.getElementById('repSecretario').value || '';
+    const saturdays = getOperationalSaturdaysForPeriod(per);
+
+    // Construir filas del informe con espaciado mejorado (11.5px, padding 8px 10px)
+    let rowsHtml = '';
+    document.querySelectorAll('.row-report-data').forEach((row, i) => {
+        if (!saturdays[i] || row.style.display === 'none') return;
+        const label = getSaturdayLabel(saturdays[i]);
+        const tema = escHtml(row.querySelector('.rep-tema').value || '\u2014');
+        const pred = escHtml(row.querySelector('.rep-predicador').value || '\u2014');
+        const cita = escHtml(row.querySelector('.rep-cita').value || '\u2014');
+        const asist = row.querySelector('.rep-asist').value || '0';
+        const nuevos = row.querySelector('.rep-nuevos').value || '0';
+        const obs = escHtml(row.querySelector('.rep-observaciones').value || '');
+        rowsHtml += `<tr>
+            <td style="padding:10px 12px;border:1px solid #e2e8f0;font-weight:bold;white-space:nowrap;font-size:12px">${label}</td>
+            <td style="padding:10px 12px;border:1px solid #e2e8f0;font-size:12px;word-wrap:break-word">${tema}</td>
+            <td style="padding:10px 12px;border:1px solid #e2e8f0;font-size:12px;word-wrap:break-word">${pred}</td>
+            <td style="padding:10px 12px;border:1px solid #e2e8f0;font-size:12px;word-wrap:break-word">${cita}</td>
+            <td style="padding:10px 12px;border:1px solid #e2e8f0;text-align:center;font-weight:bold;font-size:12px">${asist}</td>
+            <td style="padding:10px 12px;border:1px solid #e2e8f0;text-align:center;font-weight:bold;font-size:12px">${nuevos}</td>
+            <td style="padding:10px 12px;border:1px solid #e2e8f0;font-size:12px;word-wrap:break-word">${obs}</td>
+        </tr>`;
+    });
+
+    // Construir directorio
+    let dirRows = '';
+    (members || []).forEach((m, idx) => {
+        const edad = m.fechaNac ? calculateAge(m.fechaNac) : '\u2014';
+        const bautismo = m.fechaBautismo ? m.fechaBautismo.split('-').reverse().join('/') : '\u2014';
+        dirRows += `<tr>
+            <td style="padding:4px 6px;border:1px solid #e2e8f0;text-align:center">${idx + 1}</td>
+            <td style="padding:4px 6px;border:1px solid #e2e8f0;font-weight:bold">${escHtml(m.nombre || '')}</td>
+            <td style="padding:4px 6px;border:1px solid #e2e8f0;text-align:center">${edad}</td>
+            <td style="padding:4px 6px;border:1px solid #e2e8f0">${escHtml(m.telefono || '')}</td>
+            <td style="padding:4px 6px;border:1px solid #e2e8f0">${escHtml(m.social || '')}</td>
+            <td style="padding:4px 6px;border:1px solid #e2e8f0">${escHtml(m.estadoEspiritual || '')}</td>
+            <td style="padding:4px 6px;border:1px solid #e2e8f0">${escHtml(m.areaServicio || '')}</td>
+            <td style="padding:4px 6px;border:1px solid #e2e8f0">${escHtml(m.cargo || '')}</td>
+            <td style="padding:4px 6px;border:1px solid #e2e8f0">${escHtml(m.lider || '')}</td>
+            <td style="padding:4px 6px;border:1px solid #e2e8f0">${escHtml(m.estadoAsistencia || '')}</td>
+            <td style="padding:4px 6px;border:1px solid #e2e8f0;text-align:center">${bautismo}</td>
+            <td style="padding:4px 6px;border:1px solid #e2e8f0">${escHtml(m.domicilio || '')}</td>
+        </tr>`;
+    });
+
+    const thStyle = 'padding:10px 12px;background:#f8fafc;border:1px solid #cbd5e1;font-size:11px;text-transform:uppercase;letter-spacing:0.05em';
+    const thStyleSm = 'padding:4px 6px;background:#f8fafc;border:1px solid #cbd5e1;font-size:9px;text-transform:uppercase;letter-spacing:0.05em';
+
+    const fechaGen = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' });
+
+    const printHtml = `
+        <div style="font-family:sans-serif;color:#1e293b;padding:20px;display:flex;flex-direction:column;min-height:calc(297mm - 24mm);">
+            <div style="flex-grow:1;">
+                <div style="border-top:3px solid #ea580c;padding-top:20px;margin-bottom:32px;display:flex;align-items:center;gap:16px">
+                    <img src="assets/logo/logo-principal.png" alt="FireGen" style="width:58px;height:58px;object-fit:contain;" />
+                    <div>
+                        <h1 style="font-size:22px;font-weight:900;margin:0;text-transform:uppercase;color:#1e293b;">FIREGEN <span style="font-weight:400">|</span> INFORME MENSUAL</h1>
+                        <p style="margin:8px 0 0;font-size:12px;color:#64748b;font-weight:600;letter-spacing:0.02em">PER\u00cdODO: ${escHtml(per)} &nbsp;|&nbsp; SERIE: ${escHtml(serie)} &nbsp;|&nbsp; SECRETARIO: ${escHtml(secretario)}</p>
+                    </div>
+                </div>
+
+                <table style="width:100%;border-collapse:collapse;margin-bottom:40px;">
+                    <thead><tr>
+                        <th style="${thStyle};width:8%">S\u00e1bado</th>
+                        <th style="${thStyle};width:22%">Tema Predicado</th>
+                        <th style="${thStyle};width:15%">Predicador</th>
+                        <th style="${thStyle};width:15%">Cita B\u00edblica</th>
+                        <th style="${thStyle};width:8%">Asist.</th>
+                        <th style="${thStyle};width:8%">Nuevos</th>
+                        <th style="${thStyle};width:24%">Observaciones</th>
+                    </tr></thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+
+                <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px;">
+                    <div style="border:1px solid #fed7aa;background:#fff7ed;padding:14px 16px;border-radius:10px">
+                        <div style="font-size:11px;font-weight:900;color:#c2410c;text-transform:uppercase;margin-bottom:6px">Bautismos</div>
+                        <div style="font-size:26px;font-weight:900;color:#7c2d12">${document.getElementById('inp-bautismos').value || 0}</div>
+                    </div>
+                    <div style="border:1px solid #bfdbfe;background:#eff6ff;padding:14px 16px;border-radius:10px">
+                        <div style="font-size:11px;font-weight:900;color:#1d4ed8;text-transform:uppercase;margin-bottom:6px">Al Servicio</div>
+                        <div style="font-size:26px;font-weight:900;color:#1e3a8a">${document.getElementById('inp-servicio').value || 0}</div>
+                    </div>
+                    <div style="border:1px solid #fecaca;background:#fef2f2;padding:14px 16px;border-radius:10px">
+                        <div style="font-size:11px;font-weight:900;color:#b91c1c;text-transform:uppercase;margin-bottom:6px">Alejados</div>
+                        <div style="font-size:26px;font-weight:900;color:#7f1d1d">${document.getElementById('inp-alejados').value || 0}</div>
+                    </div>
+                    <div style="border:1px solid #bbf7d0;background:#f0fdf4;padding:14px 16px;border-radius:10px">
+                        <div style="font-size:11px;font-weight:900;color:#15803d;text-transform:uppercase;margin-bottom:6px">Rescatados</div>
+                        <div style="font-size:26px;font-weight:900;color:#14532d">${document.getElementById('inp-rescatados').value || 0}</div>
+                    </div>
+                    <div style="border:1px solid #e2e8f0;background:#f8fafc;padding:14px 16px;border-radius:10px">
+                        <div style="font-size:11px;font-weight:900;color:#475569;text-transform:uppercase;margin-bottom:6px">Prom. Asist.</div>
+                        <div style="font-size:26px;font-weight:900;color:#1e293b">${document.getElementById('rep-avg').innerText || 0}</div>
+                    </div>
+                </div>
+            </div>
+            <div style="text-align:center;padding-top:20px;border-top:1px solid #e2e8f0;margin-top:auto;font-size:10px;color:#94a3b8;text-transform:uppercase;font-weight:bold;letter-spacing:0.05em">
+                FireGen \u2022 Informe Mensual \u2022 Generado el ${fechaGen}
+            </div>
+
+            <div style="break-before:page;page-break-before:always;padding-top:16px">
+                <div style="border-bottom:2px solid #ea580c;padding-bottom:8px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
+                    <img src="assets/logo/logo-principal.png" alt="FireGen" style="width:32px;height:32px;object-fit:contain;" />
+                    <h2 style="font-size:16px;font-weight:900;text-transform:uppercase;margin:0;color:#1e293b;letter-spacing:0.02em">DIRECTORIO DE J\u00d3VENES</h2>
+                </div>
+                <table style="width:100%;border-collapse:collapse;font-size:8.5px">
+                    <thead><tr>
+                        <th style="${thStyleSm}">N\u00b0</th>
+                        <th style="${thStyleSm}">Nombre</th>
+                        <th style="${thStyleSm}">Edad</th>
+                        <th style="${thStyleSm}">Tel\u00e9fono</th>
+                        <th style="${thStyleSm}">Redes</th>
+                        <th style="${thStyleSm}">Est. Espiritual</th>
+                        <th style="${thStyleSm}">&Aacute;rea</th>
+                        <th style="${thStyleSm}">Cargo</th>
+                        <th style="${thStyleSm}">Responsable</th>
+                        <th style="${thStyleSm}">Est. Asistencia</th>
+                        <th style="${thStyleSm}">Bautismo</th>
+                        <th style="${thStyleSm}">Domicilio</th>
+                    </tr></thead>
+                    <tbody>${dirRows}</tbody>
+                </table>
+            </div>
+        </div>`;
+
+    const container = document.getElementById('monthlyReportPrint');
+    container.innerHTML = printHtml;
+
+    document.body.classList.add('firegen-printing');
+
+    const restorePrintMode = () => {
+        document.body.classList.remove('firegen-printing');
+        container.innerHTML = '';
+        container.style.display = 'none';
+    };
+
+    window.addEventListener('afterprint', restorePrintMode, { once: true });
+    
+    // Esperar imágenes antes de imprimir
+    const images = [...container.querySelectorAll('img')];
+    await Promise.all(images.map(img => {
+        if (img.complete && img.naturalWidth > 0) {
+            return img.decode ? img.decode().catch(() => {}) : Promise.resolve();
+        }
+        return new Promise(resolve => {
+            const done = () => resolve();
+            img.addEventListener('load', done, { once: true });
+            img.addEventListener('error', done, { once: true });
+        });
+    }));
+
+    window.print();
+}

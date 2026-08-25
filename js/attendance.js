@@ -141,13 +141,20 @@ function renderAttendance() {
         thead.innerHTML = hHtml;
     }
 
+    // ── Filtro de líderes ─────────────────────────────────────
+    const includeLideres = document.getElementById('att-include-lideres') ? document.getElementById('att-include-lideres').checked : true;
+    const filteredMembers = includeLideres ? members : members.filter(m => {
+        const est = (m.estadoEspiritual || '').toLowerCase();
+        return est !== 'líder' && est !== 'lider';
+    });
+
     // ── Tabla Desktop ────────────────────────────────────────
     const body = document.getElementById('attendanceBody');
     const empty = document.getElementById('emptyAttendance');
     body.innerHTML = '';
-    empty.classList.toggle('hidden', members.length > 0);
+    empty.classList.toggle('hidden', filteredMembers.length > 0);
 
-    members.forEach(m => {
+    filteredMembers.forEach(m => {
         let sem = currentAttData[m.firebaseId];
         if (!sem) {
             sem = Array.from({ length: n }, () => 3);
@@ -182,13 +189,13 @@ function renderAttendance() {
         if (!c.classList.contains('flex') && c.id !== 'emptyAttendanceMobile' && c.id !== 'sin-culto-mobile-wrapper') c.remove();
     });
 
-    if (!members.length) {
+    if (!filteredMembers.length) {
         mobileEmpty.classList.remove('hidden');
         return;
     }
     mobileEmpty.classList.add('hidden');
 
-    members.forEach(m => {
+    filteredMembers.forEach(m => {
         let sem = currentAttData[m.firebaseId];
         if (!sem) {
             sem = Array.from({ length: n }, () => 3);

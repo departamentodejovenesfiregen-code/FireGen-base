@@ -219,11 +219,17 @@
                 </div>
 
                 <!-- V2.5: banner autosync -->
-                <div class="mb-3 flex items-center gap-2 px-1">
-                    <i class="fas fa-bolt text-orange-400 text-xs"></i>
-                    <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Asistencia sincronizada
-                        automáticamente con el Informe Mensual</span>
-                    <span id="attSyncBadge" class="auto-badge"><i class="fas fa-check-circle"></i> Guardado</span>
+                <div class="mb-2 flex flex-wrap items-center gap-3 px-1">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-bolt text-orange-400 text-xs"></i>
+                        <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Asistencia sincronizada automáticamente con el Informe Mensual</span>
+                        <span id="attSyncBadge" class="auto-badge"><i class="fas fa-check-circle"></i> Guardado</span>
+                    </div>
+                    <label class="flex items-center gap-2 ml-auto cursor-pointer select-none no-print" title="Filtrar líderes de la lista nominal">
+                        <input type="checkbox" id="att-include-lideres" checked onchange="renderAttendance()"
+                            class="w-4 h-4 rounded accent-orange-500 cursor-pointer">
+                        <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Incluir líderes</span>
+                    </label>
                 </div>
 
                 <!-- Tabla DESKTOP asistencia -->
@@ -349,101 +355,69 @@
                         <div class="mb-3 p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-start gap-3">
                             <i class="fas fa-info-circle text-blue-500 mt-0.5 flex-shrink-0"></i>
                             <p class="text-xs text-blue-700 font-medium">Los campos <strong>Asist.</strong> y
-                                <strong>Nuevos</strong> se sincronizan automáticamente desde Asistencia. La
-                                <strong>Serie del Mes</strong>,
-                                Tema y Decisiones se ingresan manualmente y se guardan en Firebase al escribir.
+                                <strong>Nuevos</strong> se sincronizan automáticamente desde Asistencia.
+                                <strong>Tema, Predicador, Cita Bíblica y Observaciones</strong> se ingresan manualmente y se guardan en Firebase al escribir.
                             </p>
                         </div>
 
                         <div class="overflow-x-auto mb-8">
-                            <table
-                                class="w-full text-sm border border-slate-200 rounded-xl overflow-hidden min-w-[500px]">
+                            <table class="text-sm border border-slate-200 rounded-xl overflow-hidden" style="table-layout:auto;width:100%;">
                                 <thead>
                                     <tr class="bg-slate-50 text-slate-600 border-b">
-                                        <th class="p-4 border-r">Sábado</th>
-                                        <th class="p-4 border-r">Tema Predicado</th>
-                                        <th class="p-4 border-r text-center">Asist. <span
-                                                class="text-[9px] text-blue-500">AUTO</span></th>
-                                        <th class="p-4 border-r text-center">Nuevos <span
-                                                class="text-[9px] text-blue-500">AUTO</span></th>
-                                        <th class="p-4 text-center min-w-[150px]">Decis.</th>
+                                        <th class="p-3 border-r whitespace-nowrap">Sábado</th>
+                                        <th class="p-3 border-r">Tema Predicado</th>
+                                        <th class="p-3 border-r">Predicador</th>
+                                        <th class="p-3 border-r">Cita Bíblica</th>
+                                        <th class="p-3 border-r text-center whitespace-nowrap">Asist. <span class="text-[9px] text-blue-500">AUTO</span></th>
+                                        <th class="p-3 border-r text-center whitespace-nowrap">Nuevos <span class="text-[9px] text-blue-500">AUTO</span></th>
+                                        <th class="p-3">Observaciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr class="border-b row-report-data">
-                                        <td class="p-4 border-r font-bold text-slate-500"><span
-                                                class="rep-sem-label">Semana 1</span></td>
-                                        <td class="p-4 border-r"><input type="text"
-                                                class="w-full outline-none bg-transparent rep-tema" placeholder="Tema…">
-                                        </td>
-                                        <td class="p-4 border-r"><input type="number" readonly
-                                                class="w-full text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-asist cursor-default">
-                                        </td>
-                                        <td class="p-4 border-r"><input type="number" readonly
-                                                class="w-full text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-nuevos cursor-default">
-                                        </td>
-                                        <td class="p-4"><input type="text"
-                                                class="w-full text-center outline-none bg-transparent rep-decis"></td>
+                                        <td class="p-3 border-r font-bold text-slate-500 whitespace-nowrap"><span class="rep-sem-label">Semana 1</span></td>
+                                        <td class="p-3 border-r"><input type="text" class="w-full outline-none bg-transparent rep-tema" placeholder="Tema…"></td>
+                                        <td class="p-3 border-r"><input type="text" class="w-full outline-none bg-transparent rep-predicador" placeholder="Predicador…"></td>
+                                        <td class="p-3 border-r"><input type="text" class="w-full outline-none bg-transparent rep-cita" placeholder="Ej: Heb 11:1"></td>
+                                        <td class="p-3 border-r"><input type="number" readonly class="w-20 text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-asist cursor-default"></td>
+                                        <td class="p-3 border-r"><input type="number" readonly class="w-20 text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-nuevos cursor-default"></td>
+                                        <td class="p-3"><input type="text" class="w-full outline-none bg-transparent rep-observaciones" placeholder="Observaciones…"></td>
                                     </tr>
                                     <tr class="border-b row-report-data">
-                                        <td class="p-4 border-r font-bold text-slate-500"><span
-                                                class="rep-sem-label">Semana 2</span></td>
-                                        <td class="p-4 border-r"><input type="text"
-                                                class="w-full outline-none bg-transparent rep-tema" placeholder="Tema…">
-                                        </td>
-                                        <td class="p-4 border-r"><input type="number" readonly
-                                                class="w-full text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-asist cursor-default">
-                                        </td>
-                                        <td class="p-4 border-r"><input type="number" readonly
-                                                class="w-full text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-nuevos cursor-default">
-                                        </td>
-                                        <td class="p-4"><input type="text"
-                                                class="w-full text-center outline-none bg-transparent rep-decis"></td>
+                                        <td class="p-3 border-r font-bold text-slate-500 whitespace-nowrap"><span class="rep-sem-label">Semana 2</span></td>
+                                        <td class="p-3 border-r"><input type="text" class="w-full outline-none bg-transparent rep-tema" placeholder="Tema…"></td>
+                                        <td class="p-3 border-r"><input type="text" class="w-full outline-none bg-transparent rep-predicador" placeholder="Predicador…"></td>
+                                        <td class="p-3 border-r"><input type="text" class="w-full outline-none bg-transparent rep-cita" placeholder="Ej: Heb 11:1"></td>
+                                        <td class="p-3 border-r"><input type="number" readonly class="w-20 text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-asist cursor-default"></td>
+                                        <td class="p-3 border-r"><input type="number" readonly class="w-20 text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-nuevos cursor-default"></td>
+                                        <td class="p-3"><input type="text" class="w-full outline-none bg-transparent rep-observaciones" placeholder="Observaciones…"></td>
                                     </tr>
                                     <tr class="border-b row-report-data">
-                                        <td class="p-4 border-r font-bold text-slate-500"><span
-                                                class="rep-sem-label">Semana 3</span></td>
-                                        <td class="p-4 border-r"><input type="text"
-                                                class="w-full outline-none bg-transparent rep-tema" placeholder="Tema…">
-                                        </td>
-                                        <td class="p-4 border-r"><input type="number" readonly
-                                                class="w-full text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-asist cursor-default">
-                                        </td>
-                                        <td class="p-4 border-r"><input type="number" readonly
-                                                class="w-full text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-nuevos cursor-default">
-                                        </td>
-                                        <td class="p-4"><input type="text"
-                                                class="w-full text-center outline-none bg-transparent rep-decis"></td>
+                                        <td class="p-3 border-r font-bold text-slate-500 whitespace-nowrap"><span class="rep-sem-label">Semana 3</span></td>
+                                        <td class="p-3 border-r"><input type="text" class="w-full outline-none bg-transparent rep-tema" placeholder="Tema…"></td>
+                                        <td class="p-3 border-r"><input type="text" class="w-full outline-none bg-transparent rep-predicador" placeholder="Predicador…"></td>
+                                        <td class="p-3 border-r"><input type="text" class="w-full outline-none bg-transparent rep-cita" placeholder="Ej: Heb 11:1"></td>
+                                        <td class="p-3 border-r"><input type="number" readonly class="w-20 text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-asist cursor-default"></td>
+                                        <td class="p-3 border-r"><input type="number" readonly class="w-20 text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-nuevos cursor-default"></td>
+                                        <td class="p-3"><input type="text" class="w-full outline-none bg-transparent rep-observaciones" placeholder="Observaciones…"></td>
                                     </tr>
                                     <tr class="border-b row-report-data">
-                                        <td class="p-4 border-r font-bold text-slate-500"><span
-                                                class="rep-sem-label">Semana 4</span></td>
-                                        <td class="p-4 border-r"><input type="text"
-                                                class="w-full outline-none bg-transparent rep-tema" placeholder="Tema…">
-                                        </td>
-                                        <td class="p-4 border-r"><input type="number" readonly
-                                                class="w-full text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-asist cursor-default">
-                                        </td>
-                                        <td class="p-4 border-r"><input type="number" readonly
-                                                class="w-full text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-nuevos cursor-default">
-                                        </td>
-                                        <td class="p-4"><input type="text"
-                                                class="w-full text-center outline-none bg-transparent rep-decis"></td>
+                                        <td class="p-3 border-r font-bold text-slate-500 whitespace-nowrap"><span class="rep-sem-label">Semana 4</span></td>
+                                        <td class="p-3 border-r"><input type="text" class="w-full outline-none bg-transparent rep-tema" placeholder="Tema…"></td>
+                                        <td class="p-3 border-r"><input type="text" class="w-full outline-none bg-transparent rep-predicador" placeholder="Predicador…"></td>
+                                        <td class="p-3 border-r"><input type="text" class="w-full outline-none bg-transparent rep-cita" placeholder="Ej: Heb 11:1"></td>
+                                        <td class="p-3 border-r"><input type="number" readonly class="w-20 text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-asist cursor-default"></td>
+                                        <td class="p-3 border-r"><input type="number" readonly class="w-20 text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-nuevos cursor-default"></td>
+                                        <td class="p-3"><input type="text" class="w-full outline-none bg-transparent rep-observaciones" placeholder="Observaciones…"></td>
                                     </tr>
                                     <tr class="border-b row-report-data">
-                                        <td class="p-4 border-r font-bold text-slate-500"><span
-                                                class="rep-sem-label">Semana 5</span></td>
-                                        <td class="p-4 border-r"><input type="text"
-                                                class="w-full outline-none bg-transparent rep-tema" placeholder="Tema…">
-                                        </td>
-                                        <td class="p-4 border-r"><input type="number" readonly
-                                                class="w-full text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-asist cursor-default">
-                                        </td>
-                                        <td class="p-4 border-r"><input type="number" readonly
-                                                class="w-full text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-nuevos cursor-default">
-                                        </td>
-                                        <td class="p-4"><input type="text"
-                                                class="w-full text-center outline-none bg-transparent rep-decis"></td>
+                                        <td class="p-3 border-r font-bold text-slate-500 whitespace-nowrap"><span class="rep-sem-label">Semana 5</span></td>
+                                        <td class="p-3 border-r"><input type="text" class="w-full outline-none bg-transparent rep-tema" placeholder="Tema…"></td>
+                                        <td class="p-3 border-r"><input type="text" class="w-full outline-none bg-transparent rep-predicador" placeholder="Predicador…"></td>
+                                        <td class="p-3 border-r"><input type="text" class="w-full outline-none bg-transparent rep-cita" placeholder="Ej: Heb 11:1"></td>
+                                        <td class="p-3 border-r"><input type="number" readonly class="w-20 text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-asist cursor-default"></td>
+                                        <td class="p-3 border-r"><input type="number" readonly class="w-20 text-center outline-none bg-blue-50 font-black text-blue-800 rounded-lg rep-nuevos cursor-default"></td>
+                                        <td class="p-3"><input type="text" class="w-full outline-none bg-transparent rep-observaciones" placeholder="Observaciones…"></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -514,7 +488,7 @@
                                     <i class="fas fa-check-circle"></i> Mes Cerrado (Histórico)
                                 </div>
                             </div>
-                            <button onclick="window.print()"
+                            <button onclick="generateMonthlyReportPDF()"
                                 class="w-full mt-2 bg-orange-600 py-3.5 rounded-xl font-black shadow-lg no-print hover:bg-orange-500 transition-colors">
                                 GENERAR PDF OFICIAL
                             </button>
@@ -1467,6 +1441,8 @@
     <script src="js/user-management.js?v=B3.275"></script>
     <script src="js/admin-config.js?v=B3.275"></script>
     <script src="js/app.js?v=B3.275"></script>
+<!-- Contenedor de impresión controlada — solo visible durante window.print() -->
+<div id="monthlyReportPrint" style="display:none;"></div>
 </body>
 
 </html>
