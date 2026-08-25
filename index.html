@@ -1068,9 +1068,9 @@
                             <button onclick="showNewPeriodForm()" class="text-xs text-slate-400 hover:text-orange-500 font-bold transition-colors"><i class="fas fa-edit"></i></button>
                             <button onclick="closeRecordPeriod()" class="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg font-bold transition-colors"><i class="fas fa-lock mr-1"></i>Cerrar período</button>
                         </div>
-                        <div id="closedPeriodsSelect" class="flex items-center gap-2 mb-3">
+                        <div id="closedPeriodsSelect" class="flex flex-wrap items-center gap-2 mb-3">
                             <label class="text-xs text-slate-500 font-bold uppercase tracking-wide whitespace-nowrap">Ver período:</label>
-                            <select id="periodSelector" onchange="loadPeriodData()" class="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-sm font-bold bg-white text-slate-700 outline-none focus:ring-2 focus:ring-orange-500"></select>
+                            <select id="periodSelector" onchange="loadPeriodData()" class="flex-1 min-w-[200px] px-3 py-1.5 border border-slate-200 rounded-lg text-sm font-bold bg-white text-slate-700 outline-none focus:ring-2 focus:ring-orange-500"></select>
                         </div>
                     </div>
                 </div>
@@ -1097,8 +1097,8 @@
                             </select>
                         </div>
                     </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs">
+                    <div class="overflow-x-auto pb-4">
+                        <table class="w-full text-left text-xs min-w-[800px] whitespace-nowrap">
                             <thead class="text-slate-400 uppercase text-[10px] font-bold">
                                 <tr>
                                     <th class="p-2 border-b">Persona</th>
@@ -1127,9 +1127,14 @@
                         <i class="fas fa-user-astronaut text-purple-600"></i>
                     </div>
                     <h3 class="text-lg font-black text-slate-800 uppercase tracking-tight">2. Asistencia Nominal NextGen</h3>
-                    <button onclick="openNextGenModal()" class="ml-auto bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-bold text-xs shadow transition-colors flex items-center gap-1">
-                        <i class="fas fa-plus"></i> Agregar Adolescente
+                    <input type="month" id="nextGenMonthSelector" onchange="renderNextGenTable()" class="ml-2 bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-purple-500 hidden sm:block">
+                    <button onclick="openNextGenModal()" class="ml-auto bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2 rounded-xl font-bold text-xs shadow transition-colors flex items-center gap-1">
+                        <i class="fas fa-plus"></i> <span class="hidden sm:inline">Agregar Adolescente</span>
                     </button>
+                </div>
+                <!-- Mobile selector -->
+                <div class="mb-4 sm:hidden">
+                    <input type="month" id="nextGenMonthSelectorMobile" onchange="document.getElementById('nextGenMonthSelector').value = this.value; renderNextGenTable()" class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-purple-500">
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs min-w-[600px]">
@@ -1156,8 +1161,8 @@
                         <i class="fas fa-plus"></i> Registrar Invitación
                     </button>
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs">
+                <div class="overflow-x-auto pb-4">
+                    <table class="w-full text-left text-xs min-w-[600px] whitespace-nowrap">
                         <thead class="text-slate-400 uppercase text-[10px] font-bold">
                             <tr>
                                 <th class="p-2 border-b">Fecha</th>

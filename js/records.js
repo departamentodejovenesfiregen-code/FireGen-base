@@ -479,7 +479,34 @@ function renderNextGenTable(periodoSabs, opSabs) {
     }
     if (empty) empty.classList.add('hidden');
 
-    const sortedSabs = [...(periodoSabs || [])].sort();
+    let sortedSabs = [];
+    if (!periodoSabs && typeof currentPeriod !== 'undefined' && currentPeriod) {
+        const curDate = new Date();
+        const todayLocal = `${curDate.getFullYear()}-${String(curDate.getMonth() + 1).padStart(2, '0')}-${String(curDate.getDate()).padStart(2, '0')}`;
+        const start = currentPeriod.fechaInicio;
+        const end = currentPeriod.cerrado ? (currentPeriod.fechaFin || currentPeriod.fechaCierre || todayLocal) : (currentPeriod.fechaFin || todayLocal);
+        periodoSabs = getSaturdaysBetween(start, end);
+    }
+    
+    // Apply month filter
+    const monthSelector = document.getElementById('nextGenMonthSelector');
+    const mobileSelector = document.getElementById('nextGenMonthSelectorMobile');
+    
+    if (monthSelector && !monthSelector.value) {
+        const d = new Date();
+        const curM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        monthSelector.value = curM;
+        if (mobileSelector) mobileSelector.value = curM;
+    }
+    
+    const selectedMonth = monthSelector ? monthSelector.value : '';
+    
+    if (periodoSabs) {
+        sortedSabs = [...periodoSabs].sort();
+        if (selectedMonth) {
+            sortedSabs = sortedSabs.filter(d => d.startsWith(selectedMonth));
+        }
+    }
 
     // Build header
     let thHtml = '<tr><th class="p-2 border-b text-left">Adolescente</th><th class="p-2 border-b">Descripción</th>';
