@@ -12,7 +12,7 @@
  * @param {string} tab - ID de la pestaña a mostrar ('master', 'attendance', 'report', 'strategy')
  */
 function switchTab(tab) {
-    ['master', 'attendance', 'report', 'strategy', 'config', 'records'].forEach(s => {
+    ['master', 'attendance', 'report', 'strategy', 'config'].forEach(s => {
         const view = document.getElementById('view-' + s);
         if (view) view.classList.add('hidden');
 
@@ -36,7 +36,6 @@ function switchTab(tab) {
     if (tab === 'attendance' && typeof renderAttendance === 'function') renderAttendance();
     if (tab === 'report' && typeof updateMonthlyStats === 'function') updateMonthlyStats();
     if (tab === 'strategy' && typeof refreshChart === 'function') refreshChart();
-    if (tab === 'records' && typeof initRecords === 'function') initRecords();
     if (tab === 'config') window.dispatchEvent(new Event('configTabOpened'));
 
     // Actualizar visibilidad de botones flotantes (FABs) según la pestaña actual
@@ -44,6 +43,61 @@ function switchTab(tab) {
         applyRolePermissions(window.currentUserRole);
     }
 }
+
+// ════════ FUNCIONES DE NAVEGACIÓN RÉCORD ════════
+function openAttendanceRecords() {
+    document.getElementById('main-header')?.classList.add('hidden');
+    document.getElementById('bottomNav')?.classList.add('hidden');
+    document.getElementById('view-attendance')?.classList.add('hidden');
+    const vr = document.getElementById('view-records');
+    if (vr) {
+        vr.classList.remove('hidden');
+        vr.style.display = 'block';
+    }
+    if (typeof initRecords === 'function') initRecords();
+    switchRecordsSection('periodo');
+}
+window.openAttendanceRecords = openAttendanceRecords;
+
+function closeAttendanceRecords() {
+    const vr = document.getElementById('view-records');
+    if (vr) {
+        vr.classList.add('hidden');
+        vr.style.display = '';
+    }
+    document.getElementById('view-attendance')?.classList.remove('hidden');
+    document.getElementById('main-header')?.classList.remove('hidden');
+    document.getElementById('bottomNav')?.classList.remove('hidden');
+    if (typeof renderAttendance === 'function') renderAttendance();
+}
+window.closeAttendanceRecords = closeAttendanceRecords;
+
+function switchRecordsSection(section) {
+    const sectionMap = {
+        periodo: 'recordsSectionPeriodo',
+        nextgen: 'recordsSectionNextGen',
+        invitaciones: 'recordsSectionInvitaciones'
+    };
+    ['periodo', 'nextgen', 'invitaciones'].forEach(s => {
+        const btn = document.getElementById('recordsSubtab-' + s);
+        const container = document.getElementById(sectionMap[s]);
+        if (!btn || !container) return;
+        
+        if (s === section) {
+            container.classList.remove('hidden');
+            if(s === 'periodo') {
+                btn.className = "px-2 py-4 text-sm font-bold border-b-2 border-orange-500 text-orange-600 whitespace-nowrap transition-colors";
+            } else {
+                btn.className = "px-2 py-4 text-sm font-bold border-b-2 border-purple-500 text-purple-600 whitespace-nowrap transition-colors";
+            }
+        } else {
+            container.classList.add('hidden');
+            btn.className = "px-2 py-4 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap transition-colors";
+        }
+    });
+}
+window.switchRecordsSection = switchRecordsSection;
+
 
 /**
  * openModal / closeModal — Manejo genérico de modales.

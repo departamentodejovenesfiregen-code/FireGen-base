@@ -19,7 +19,7 @@
  */
 
 /** Cambiar en CADA publicación junto con ?v= en HTML y js/version.js */
-var BUILD_VERSION = 'B3.275';
+var BUILD_VERSION = 'B3.276';
 var CACHE_NAME = 'firegen-' + BUILD_VERSION;
 var OFFLINE_URL = 'offline.html';
 var V = BUILD_VERSION;
@@ -38,6 +38,7 @@ var PRECACHE_URLS = [
   'js/charts.js?v=' + V,
   'js/members.js?v=' + V,
   'js/attendance.js?v=' + V,
+  'js/records.js?v=' + V,
   'js/reports.js?v=' + V,
   'js/strategy.js?v=' + V,
   'js/auth.js?v=' + V,
@@ -46,7 +47,7 @@ var PRECACHE_URLS = [
   'js/coordinacion.js?v=' + V,
   'js/admin-config.js?v=' + V,
   'js/user-management.js?v=' + V,
-  'js/app.js?v=' + V
+  'js/app.js?v=B3.276'
 ];
 
 function isExternal(url) {

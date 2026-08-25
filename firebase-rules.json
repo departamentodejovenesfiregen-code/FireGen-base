@@ -2,12 +2,10 @@
   "rules": {
     ".read": false,
     ".write": false,
-
     "configuracion": {
       ".read": "auth != null",
       ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val())"
     },
-
     "usuarios": {
       ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')",
       "$uid": {
@@ -17,7 +15,6 @@
       },
       ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val())"
     },
-
     "miembros": {
       ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')",
       "$miembroId": {
@@ -30,7 +27,6 @@
         }
       }
     },
-
     "planesDiscipulado": {
       ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')",
       "$miembroId": {
@@ -40,7 +36,6 @@
         }
       }
     },
-
     "rescateProspectos": {
       ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || (query.orderByChild === 'responsableMiembroId' && query.equalTo === root.child('usuarios/' + auth.uid + '/miembroId').val()))",
       "$prospectoId": {
@@ -54,39 +49,32 @@
         }
       }
     },
-
     "historial_cambios": {
       ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')",
       "$entryId": {
         ".write": "auth != null && !data.exists() && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')"
       }
     },
-
     "asistencias": {
       ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')",
       ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')"
     },
-
     "informes": {
       ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')",
       ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario')"
     },
-
     "estrategias": {
       ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')",
       ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')"
     },
-
     "analisis": {
       ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')",
       ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')"
     },
-
     "alertasRescate": {
       ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')",
       ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')"
     },
-
     "seguimientos": {
       ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')",
       "$memberId": {
@@ -94,7 +82,6 @@
         ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('miembros/' + $memberId + '/liderMiembroId').val() === root.child('usuarios/' + auth.uid + '/miembroId').val())"
       }
     },
-
     "rendicionCuentas": {
       ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')",
       "$uid": {
@@ -102,21 +89,18 @@
         ".write": "auth != null && auth.uid === $uid && (root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal' || auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val())"
       }
     },
-
     "historicoMensual": {
       ".read": "auth != null",
       "$periodo": {
         ".write": "auth != null && !data.exists() && newData.exists() && newData.child('cerrado').val() === true && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')"
       }
     },
-
     "historicoAnual": {
       ".read": "auth != null",
       "$anio": {
         ".write": "auth != null && !data.exists() && newData.exists() && newData.child('cerrado').val() === true && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')"
       }
     },
-
     "notificaciones": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
@@ -125,10 +109,33 @@
         }
       }
     },
-
     "mensajes": {
       ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')",
       ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador')"
+    },
+    "recordPeriods": {
+      ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')",
+      ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')"
+    },
+    "adolescentesApoyo": {
+      ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')",
+      ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')"
+    },
+    "asistenciaNextGen": {
+      ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')",
+      ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')"
+    },
+    "invitaciones": {
+      ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')",
+      ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')"
+    },
+    "reconocimientos": {
+      ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')",
+      ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')"
+    },
+    "configAsistencia": {
+      ".read": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')",
+      ".write": "auth != null && (auth.token.email === 'departamentodejovenesfiregen@gmail.com' || auth.token.email === root.child('configuracion/adminEmail').val() || root.child('usuarios/' + auth.uid + '/rol').val() === 'coordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vicecoordinador' || root.child('usuarios/' + auth.uid + '/rol').val() === 'secretario' || root.child('usuarios/' + auth.uid + '/rol').val() === 'tesorero' || root.child('usuarios/' + auth.uid + '/rol').val() === 'vocal')"
     }
   }
 }

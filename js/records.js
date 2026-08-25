@@ -27,22 +27,27 @@ let recordsData = {
 // ─────────────────────────────────────────────────────────────
 
 function getSaturdaysBetween(start, end) {
+    if (!start || !end) return [];
     const result = [];
     const s = new Date(start + 'T00:00:00');
-    const e = new Date(end + 'T00:00:00');
+    const e = new Date(end + 'T23:59:59');
     // Avanzar al primer sábado >= start
     const day = s.getDay(); // 0=dom,6=sab
     const daysToSat = (6 - day + 7) % 7;
     const cur = new Date(s);
     cur.setDate(cur.getDate() + daysToSat);
     while (cur <= e) {
-        result.push(cur.toISOString().split('T')[0]);
+        const y = cur.getFullYear();
+        const m = String(cur.getMonth() + 1).padStart(2, '0');
+        const d = String(cur.getDate()).padStart(2, '0');
+        result.push(`${y}-${m}-${d}`);
         cur.setDate(cur.getDate() + 7);
     }
     return result;
 }
 
 function getMonthsBetween(start, end) {
+    if (!start || !end) return [];
     const months = new Set();
     const s = new Date(start + 'T00:00:00');
     const e = new Date(end + 'T00:00:00');
@@ -64,7 +69,25 @@ function formatDateEs(isoDate) {
 // INIT
 // ─────────────────────────────────────────────────────────────
 
+function renderRecordsError(msg) {
+    const dash = document.getElementById('recordsDashboard');
+    if (dash) {
+        dash.innerHTML = `<div class="col-span-full p-6 text-center text-red-600 bg-red-50 border border-red-200 rounded-xl">
+            <i class="fas fa-exclamation-triangle text-3xl mb-3 block"></i>
+            <h3 class="font-bold text-lg mb-1">Error de Sistema</h3>
+            <p class="text-sm">${msg}</p>
+            <p class="text-xs text-red-400 mt-2">Posibles causas: conexión, permisos o sesión expirada.</p>
+        </div>`;
+    }
+}
+
 function initRecords() {
+    if (typeof db === 'undefined' || !db) {
+        console.error('[Records] Error: Firebase (db) no está disponible.');
+        renderRecordsError('No se pudo cargar Récord y Reconocimientos.');
+        return;
+    }
+
     db.ref('recordPeriods').once('value').then(snap => {
         allPeriods = [];
         const data = snap.val() || {};
@@ -72,6 +95,9 @@ function initRecords() {
         allPeriods.sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''));
 
         renderPeriodUI();
+    }).catch(error => {
+        console.error('[Records] Error cargando períodos:', error);
+        renderRecordsError('No se pudo cargar Récord y Reconocimientos.');
     });
 }
 window.initRecords = initRecords;
@@ -84,7 +110,7 @@ function renderPeriodUI() {
     if (!allPeriods.length) {
         noPeriodMsg.classList.remove('hidden');
         activePeriodPanel.classList.add('hidden');
-        periodFormPanel.classList.add('hidden');
+        periodFormPanel.classList.remove('hidden'); // Show form directly
         clearRecordsUI();
         return;
     }
@@ -130,46 +156,67 @@ function loadPeriodData() {
     }
 
     // Calculate date range
+    const curDate = new Date();
+    const todayLocal = `${curDate.getFullYear()}-${String(curDate.getMonth() + 1).padStart(2, '0')}-${String(curDate.getDate()).padStart(2, '0')}`;
     const start = currentPeriod.fechaInicio;
     const end = currentPeriod.cerrado
-        ? (currentPeriod.fechaFin || currentPeriod.fechaCierre || new Date().toISOString().split('T')[0])
-        : (currentPeriod.fechaFin || new Date().toISOString().split('T')[0]);
+        ? (currentPeriod.fechaFin || currentPeriod.fechaCierre || todayLocal)
+        : (currentPeriod.fechaFin || todayLocal);
+
 
     const months = getMonthsBetween(start, end);
 
     // Load all data
-    const promises = [
-        db.ref('miembros').once('value'),
-        db.ref('adolescentesApoyo').once('value'),
-        db.ref(`invitaciones/${pid}`).once('value'),
-        db.ref(`reconocimientos/${pid}`).once('value'),
+    const requests = [
+        { key: 'members', path: 'miembros' },
+        { key: 'nextGen', path: 'adolescentesApoyo' },
+        { key: 'invitaciones', path: `invitaciones/${pid}` },
+        { key: 'reconocimientos', path: `reconocimientos/${pid}` }
     ];
 
     months.forEach(m => {
-        promises.push(db.ref(`asistencias/${m}`).once('value'));
-        promises.push(db.ref(`asistenciaNextGen/${m}`).once('value'));
-        promises.push(db.ref(`configAsistencia/${m}/fechasSinCulto`).once('value'));
+        requests.push({ key: `asistencias_${m}`, path: `asistencias/${m}` });
+        requests.push({ key: `asistNextGen_${m}`, path: `asistenciaNextGen/${m}` });
+        requests.push({ key: `fechasSinCulto_${m}`, path: `asistencias/${m}/config/fechasSinCulto` });
     });
 
-    Promise.all(promises).then(snaps => {
-        recordsData.members = snaps[0].val() || {};
-        recordsData.nextGen = snaps[1].val() || {};
-        recordsData.invitaciones = snaps[2].val() || {};
-        recordsData.reconocimientos = snaps[3].val() || {};
+    const promises = requests.map(req => db.ref(req.path).once('value'));
 
+    Promise.allSettled(promises).then(results => {
+        recordsData.members = {};
+        recordsData.nextGen = {};
+        recordsData.invitaciones = {};
+        recordsData.reconocimientos = {};
         recordsData.asistencias = {};
         recordsData.asistNextGen = {};
         recordsData.fechasSinCulto = {};
 
-        let idx = 4;
-        months.forEach(m => {
-            recordsData.asistencias[m] = snaps[idx++].val() || {};
-            recordsData.asistNextGen[m] = snaps[idx++].val() || {};
-            Object.assign(recordsData.fechasSinCulto, snaps[idx++].val() || {});
+        results.forEach((res, i) => {
+            const req = requests[i];
+            if (res.status === 'rejected') {
+                console.error('[Records] Ruta falló:', req.path, res.reason);
+            } else {
+                const val = res.value.val() || {};
+                if (req.key === 'members') recordsData.members = val;
+                else if (req.key === 'nextGen') recordsData.nextGen = val;
+                else if (req.key === 'invitaciones') recordsData.invitaciones = val;
+                else if (req.key === 'reconocimientos') recordsData.reconocimientos = val;
+                else if (req.key.startsWith('asistencias_')) {
+                    const m = req.key.split('_')[1];
+                    recordsData.asistencias[m] = val;
+                }
+                else if (req.key.startsWith('asistNextGen_')) {
+                    const m = req.key.split('_')[1];
+                    recordsData.asistNextGen[m] = val;
+                }
+                else if (req.key.startsWith('fechasSinCulto_')) {
+                    Object.assign(recordsData.fechasSinCulto, val);
+                }
+            }
         });
 
         // Add firebaseId to each member
-        Object.keys(recordsData.members).forEach(k => {
+        Object.keys(recordsData.members || {}).forEach(k => {
             if (!recordsData.members[k].eliminado) {
                 recordsData.members[k].firebaseId = k;
             }
@@ -404,7 +451,7 @@ function renderIndividualRecords() {
             <td class="p-2 border-b text-center"><i class="fas fa-fire text-orange-400 mr-0.5"></i>${s.rachaMax}</td>
             <td class="p-2 border-b text-center font-bold text-blue-600">${s.invitacionesCount}</td>
             <td class="p-2 border-b">${premiosHtml}</td>
-            <td class="p-2 border-b text-center"><button onclick="openPremioModal('${s.id}','${s.tipo}')" title="Registrar premio" class="text-yellow-500 hover:text-yellow-700 text-base"><i class="fas fa-award"></i></button></td>
+            <td class="p-2 border-b text-center"><button type="button" onclick="openPremioModal('${s.id}','${s.tipo}')" title="Registrar premio" class="text-yellow-500 hover:text-yellow-700 text-base"><i class="fas fa-award"></i></button></td>
         </tr>`;
     }).join('') || '<tr><td colspan="9" class="p-4 text-center text-slate-400">Sin datos en este período</td></tr>';
 }
@@ -504,8 +551,8 @@ function renderNextGenTable(periodoSabs, opSabs) {
             <td class="p-2 border-b text-center font-black text-slate-700">${totalAsist}</td>
             <td class="p-2 border-b text-center font-bold text-orange-500">${rachaMax}</td>
             <td class="p-2 border-b text-center">
-                <button onclick="editNextGen('${ng.id}')" class="text-slate-400 hover:text-blue-500 mr-1"><i class="fas fa-edit"></i></button>
-                <button onclick="deleteNextGen('${ng.id}')" class="text-slate-400 hover:text-red-500"><i class="fas fa-trash"></i></button>
+                <button type="button" onclick="editNextGen('${ng.id}')" class="text-slate-400 hover:text-blue-500 mr-1"><i class="fas fa-edit"></i></button>
+                <button type="button" onclick="deleteNextGen('${ng.id}')" class="text-slate-400 hover:text-red-500"><i class="fas fa-trash"></i></button>
             </td>
         </tr>`;
     }).join('');
@@ -516,9 +563,15 @@ function toggleNextGenAtt(ngId, date, currentlyPresent) {
     const monthKey = date.substring(0, 7);
     const ref = db.ref(`asistenciaNextGen/${monthKey}/${ngId}/fechas/${date}`);
     if (currentlyPresent) {
-        ref.remove().then(() => initRecords());
+        ref.remove().then(() => initRecords()).catch(err => {
+            console.error('[Records][NextGen] Error toggle:', err);
+            alert('No se pudo guardar la asistencia de NextGen.');
+        });
     } else {
-        ref.set(true).then(() => initRecords());
+        ref.set(true).then(() => initRecords()).catch(err => {
+            console.error('[Records][NextGen] Error toggle:', err);
+            alert('No se pudo guardar la asistencia de NextGen.');
+        });
     }
 }
 window.toggleNextGenAtt = toggleNextGenAtt;
@@ -551,13 +604,19 @@ function saveNextGen() {
     db.ref('adolescentesApoyo/' + id).set({ nombreCompleto: nombre, descripcion: desc }).then(() => {
         closeNextGenModal();
         initRecords();
+    }).catch(error => {
+        console.error('[Records][NextGen] Error:', error);
+        alert('No se pudo guardar el adolescente.');
     });
 }
 window.saveNextGen = saveNextGen;
 
 function deleteNextGen(id) {
     if (!confirm('¿Eliminar este registro de NextGen? Los datos de asistencia guardados NO se eliminan.')) return;
-    db.ref('adolescentesApoyo/' + id).remove().then(() => initRecords());
+    db.ref('adolescentesApoyo/' + id).remove().then(() => initRecords()).catch(error => {
+        console.error('[Records][NextGen] Error:', error);
+        alert('No se pudo eliminar el adolescente.');
+    });
 }
 window.deleteNextGen = deleteNextGen;
 
@@ -590,7 +649,7 @@ function renderInvitacionesTable() {
             <td class="p-2 border-b">${tipo}</td>
             <td class="p-2 border-b font-bold text-blue-600">${inv.invitadoNombre || '—'}</td>
             <td class="p-2 border-b text-slate-500 text-xs">${inv.evento || '—'}</td>
-            <td class="p-2 border-b text-right"><button onclick="deleteInvitacion('${inv.id}')" class="text-red-400 hover:text-red-600"><i class="fas fa-trash"></i></button></td>
+            <td class="p-2 border-b text-right"><button type="button" onclick="deleteInvitacion('${inv.id}')" class="text-red-400 hover:text-red-600"><i class="fas fa-trash"></i></button></td>
         </tr>`;
     }).join('');
 }
@@ -640,13 +699,19 @@ function saveInvitacion() {
     }).then(() => {
         closeInvitacionModal();
         initRecords();
+    }).catch(error => {
+        console.error('[Records][Invitaciones] Error:', error);
+        alert('No se pudo guardar la invitación.');
     });
 }
 window.saveInvitacion = saveInvitacion;
 
 function deleteInvitacion(id) {
     if (!currentPeriod || !confirm('¿Eliminar esta invitación?')) return;
-    db.ref(`invitaciones/${currentPeriod.id}/${id}`).remove().then(() => initRecords());
+    db.ref(`invitaciones/${currentPeriod.id}/${id}`).remove().then(() => initRecords()).catch(error => {
+        console.error('[Records][Invitaciones] Error:', error);
+        alert('No se pudo eliminar la invitación.');
+    });
 }
 window.deleteInvitacion = deleteInvitacion;
 
@@ -688,6 +753,9 @@ function savePremio() {
     }).then(() => {
         closePremioModal();
         initRecords();
+    }).catch(error => {
+        console.error('[Records][Premios] Error:', error);
+        alert('No se pudo guardar el premio.');
     });
 }
 window.savePremio = savePremio;
@@ -722,18 +790,27 @@ function saveRecordPeriod() {
 
     if (!fechaInicio) return alert('La fecha de inicio es obligatoria.');
 
+    const data = { nombre: nombre || `Período ${fechaInicio}`, fechaInicio, fechaFin: fechaFin || null };
+
     // If editing current open period
     if (currentPeriod && !currentPeriod.cerrado) {
-        db.ref(`recordPeriods/${currentPeriod.id}`).update({ nombre: nombre || currentPeriod.nombre, fechaInicio, fechaFin: fechaFin || null }).then(() => {
+        db.ref(`recordPeriods/${currentPeriod.id}`).update(data).then(() => {
             hidePeriodForm();
             initRecords();
+        }).catch(err => {
+            console.error('[Records] Error al guardar período:', err);
+            alert('Error al guardar el período. Verifique permisos.');
         });
     } else {
         // Create new
         const id = db.ref('recordPeriods').push().key;
-        db.ref(`recordPeriods/${id}`).set({ nombre: nombre || `Período ${fechaInicio}`, fechaInicio, fechaFin: fechaFin || null, cerrado: false }).then(() => {
+        data.cerrado = false;
+        db.ref(`recordPeriods/${id}`).set(data).then(() => {
             hidePeriodForm();
             initRecords();
+        }).catch(err => {
+            console.error('[Records] Error al crear período:', err);
+            alert('Error al crear el período. Verifique permisos.');
         });
     }
 }
@@ -742,12 +819,16 @@ window.saveRecordPeriod = saveRecordPeriod;
 function closeRecordPeriod() {
     if (!currentPeriod || currentPeriod.cerrado) return;
     if (!confirm(`¿Cerrar el período "${currentPeriod.nombre}"? Esto lo marcará como finalizado.`)) return;
-    const today = new Date().toISOString().split('T')[0];
+    const curDate = new Date();
+    const todayLocal = `${curDate.getFullYear()}-${String(curDate.getMonth() + 1).padStart(2, '0')}-${String(curDate.getDate()).padStart(2, '0')}`;
     db.ref(`recordPeriods/${currentPeriod.id}`).update({
         cerrado: true,
-        fechaCierre: today,
-        fechaFin: currentPeriod.fechaFin || today
-    }).then(() => initRecords());
+        fechaCierre: todayLocal,
+        fechaFin: currentPeriod.fechaFin || todayLocal
+    }).then(() => initRecords()).catch(err => {
+        console.error('[Records] Error al cerrar período:', err);
+        alert('Error al cerrar el período. Verifique permisos.');
+    });
 }
 window.closeRecordPeriod = closeRecordPeriod;
 
