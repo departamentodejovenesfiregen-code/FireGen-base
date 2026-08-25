@@ -17,11 +17,11 @@ function initChart() {
     growthChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: MESES_LABELS,
+            labels: [],
             datasets: [
                 {
                     label: 'Asistencia Promedio',
-                    data: Array(12).fill(0),
+                    data: [],
                     borderColor: '#f97316',
                     backgroundColor: 'rgba(249, 115, 22, 0.1)',
                     borderWidth: 3,
@@ -31,11 +31,12 @@ function initChart() {
                     pointBorderColor: '#ea580c',
                     pointBorderWidth: 2,
                     pointRadius: 4,
-                    pointHoverRadius: 6
+                    pointHoverRadius: 6,
+                    spanGaps: true
                 },
                 {
                     label: 'Nuevos',
-                    data: Array(12).fill(0),
+                    data: [],
                     borderColor: '#3b82f6',
                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
                     borderWidth: 2,
@@ -45,7 +46,8 @@ function initChart() {
                     pointBackgroundColor: '#fff',
                     pointBorderColor: '#2563eb',
                     pointBorderWidth: 2,
-                    pointRadius: 3
+                    pointRadius: 3,
+                    spanGaps: true
                 }
             ]
         },
@@ -71,14 +73,32 @@ function initChart() {
                     bodyFont: { family: "'Inter', sans-serif", size: 12 },
                     padding: 10,
                     cornerRadius: 8,
-                    displayColors: true
+                    displayColors: true,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += context.parsed.y;
+                            }
+                            return label;
+                        }
+                    }
                 }
             },
             scales: {
                 y: {
                     beginAtZero: true,
                     grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
-                    ticks: { color: '#64748b', font: { size: 10 } }
+                    ticks: { color: '#64748b', font: { size: 10 } },
+                    title: {
+                        display: true,
+                        text: 'Promedio de asistentes',
+                        color: '#64748b',
+                        font: { size: 11 }
+                    }
                 },
                 x: {
                     grid: { display: false, drawBorder: false },
@@ -114,7 +134,6 @@ function initChartYearSelect() {
 
 /**
  * refreshChart — Carga los datos de Firebase y actualiza la gráfica.
- * FIX: OPT-03 — Incluye debounce para evitar saturar Firebase al tipear rápido.
  */
 function refreshChart() {
     if (!growthChart) return;
@@ -124,27 +143,56 @@ function refreshChart() {
         const yearSel = document.getElementById('chartYearSelect');
         const year = parseInt(yearSel ? yearSel.value : new Date().getFullYear());
         
-        const promises = [];
-        for(let m = 1; m <= 12; m++) {
-            const p = `${year}-${String(m).padStart(2, '0')}`;
-            promises.push(db.ref(`historicoMensual/${p}`).once('value'));
+        let opMonths = [];
+        if (typeof AppConfig !== 'undefined' && typeof AppConfig.getOperationalMonths === 'function') {
+            opMonths = AppConfig.getOperationalMonths(year);
+        } else {
+            for(let m=1; m<=12; m++) opMonths.push(`${year}-${String(m).padStart(2, '0')}`);
         }
 
-        Promise.all(promises).then(snaps => {
-            const avgData = [];
-            const newResData = [];
-            
-            snaps.forEach(snap => {
+        const labels = opMonths.map(ym => MESES_LABELS[parseInt(ym.split('-')[1]) - 1]);
+        
+        const promises = opMonths.map(ym => {
+            return db.ref(`historicoMensual/${ym}`).once('value').then(snap => {
                 const monthData = snap.val();
                 if (monthData && monthData.cerrado) {
-                    avgData.push(monthData.asistenciaPromedio || 0);
-                    newResData.push(monthData.nuevos || 0);
-                } else {
-                    avgData.push(0);
-                    newResData.push(0);
+                    return { ym, avg: monthData.asistenciaPromedio, nuevos: monthData.nuevos };
                 }
+                // Si no está cerrado, revisar informes activos
+                return db.ref(`informes/${ym}`).once('value').then(infSnap => {
+                    const inf = infSnap.val();
+                    if (!inf) return { ym, avg: null, nuevos: null };
+                    
+                    let totalAsist = 0;
+                    let totalNuevos = 0;
+                    let count = 0;
+
+                    // Formato principal: informes/{ym}/fechas/{satDate}/{asist,nuevos}
+                    const rows = inf.fechas
+                        ? Object.values(inf.fechas)
+                        : Object.keys(inf)
+                            .filter(k => k.startsWith('sem'))
+                            .map(k => inf[k]);
+
+                    rows.forEach(s => {
+                        if (s && s.asist !== undefined && s.asist !== '') {
+                            totalAsist += parseInt(s.asist) || 0;
+                            totalNuevos += parseInt(s.nuevos) || 0;
+                            count++;
+                        }
+                    });
+                    
+                    if (count === 0) return { ym, avg: null, nuevos: null };
+                    return { ym, avg: Math.round(totalAsist / count), nuevos: totalNuevos };
+                });
             });
+        });
+
+        Promise.all(promises).then(results => {
+            const avgData = results.map(r => (r.avg !== null && r.avg !== undefined) ? r.avg : null);
+            const newResData = results.map(r => (r.nuevos !== null && r.nuevos !== undefined) ? r.nuevos : null);
             
+            growthChart.data.labels = labels;
             growthChart.data.datasets[0].data = avgData;
             growthChart.data.datasets[1].data = newResData;
             growthChart.update();

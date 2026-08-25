@@ -12,7 +12,7 @@
  * @param {string} tab - ID de la pestaña a mostrar ('master', 'attendance', 'report', 'strategy')
  */
 function switchTab(tab) {
-    ['master', 'attendance', 'report', 'strategy', 'config'].forEach(s => {
+    ['master', 'attendance', 'report', 'strategy', 'config', 'records'].forEach(s => {
         const view = document.getElementById('view-' + s);
         if (view) view.classList.add('hidden');
 
@@ -36,6 +36,7 @@ function switchTab(tab) {
     if (tab === 'attendance' && typeof renderAttendance === 'function') renderAttendance();
     if (tab === 'report' && typeof updateMonthlyStats === 'function') updateMonthlyStats();
     if (tab === 'strategy' && typeof refreshChart === 'function') refreshChart();
+    if (tab === 'records' && typeof initRecords === 'function') initRecords();
     if (tab === 'config') window.dispatchEvent(new Event('configTabOpened'));
 
     // Actualizar visibilidad de botones flotantes (FABs) según la pestaña actual
