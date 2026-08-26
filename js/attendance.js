@@ -494,8 +494,8 @@ function updateEngagementStatus(memberId) {
     const iniEvalObj = new Date(iniEvalStr + 'T00:00:00');
     const effectiveStart = iniEvalObj > pStartObj ? iniEvalObj : pStartObj;
 
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
+    const todayStr = typeof getFireGenTodayISO === 'function' ? getFireGenTodayISO() : new Date().toISOString().split('T')[0];
+    const today = new Date(todayStr + 'T23:59:59');
 
     // No evaluar más allá del fin del período oficial
     const periodEndDate = new Date(periodEnd + 'T23:59:59');
@@ -587,8 +587,8 @@ function triggerRetentionAlert(member) {
     // PUNTO 1 FIX: usar AppConfig como fuente de verdad del período activo.
     // No depender del input DOM repPeriodo que puede estar vacío si el usuario
     // no abrió la pestaña de Informe en esa sesión.
-    const now = new Date();
-    const periodo = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const todayStr = typeof getFireGenTodayISO === 'function' ? getFireGenTodayISO() : new Date().toISOString().split('T')[0];
+    const periodo = todayStr.substring(0, 7);
     if (!periodo) return;
     const alertKey = 'alertasRescate/' + periodo + '/' + member.firebaseId;
 

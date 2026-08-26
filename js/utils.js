@@ -8,6 +8,28 @@
  */
 
 /* ── Constantes globales ── */
+let firegenServerTimeOffset = 0;
+
+// Listen for Firebase server time offset
+if (typeof firebase !== 'undefined' && firebase.database) {
+    firebase.database().ref('.info/serverTimeOffset').on('value', snap => {
+        firegenServerTimeOffset = snap.val() || 0;
+    });
+}
+
+/**
+ * getFireGenTodayISO — Obtiene la fecha operativa actual considerando
+ * el desfasaje de tiempo del servidor de Firebase.
+ * @returns {string} Fecha en formato YYYY-MM-DD
+ */
+function getFireGenTodayISO() {
+    const d = new Date(Date.now() + firegenServerTimeOffset);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
 const MESES_LABELS = [
     'Enero','Febrero','Marzo','Abril','Mayo','Junio',
     'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'

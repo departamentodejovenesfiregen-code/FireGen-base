@@ -156,8 +156,7 @@ function loadPeriodData() {
     }
 
     // Calculate date range
-    const curDate = new Date();
-    const todayLocal = `${curDate.getFullYear()}-${String(curDate.getMonth() + 1).padStart(2, '0')}-${String(curDate.getDate()).padStart(2, '0')}`;
+    const todayLocal = typeof getFireGenTodayISO === 'function' ? getFireGenTodayISO() : new Date().toISOString().split('T')[0];
     const start = currentPeriod.fechaInicio;
     const end = currentPeriod.cerrado
         ? (currentPeriod.fechaFin || currentPeriod.fechaCierre || todayLocal)
@@ -245,13 +244,17 @@ function clearRecordsUI() {
 function calculateRecords(startDate, endDate) {
     recordsStats = [];
     const periodoSabs = getSaturdaysBetween(startDate, endDate);
+    const todayLocal = typeof getFireGenTodayISO === 'function' ? getFireGenTodayISO() : new Date().toISOString().split('T')[0];
     const opSabs = periodoSabs.filter(d => !recordsData.fechasSinCulto[d]);
+    console.log(`[Records] Fecha oficial:\n${todayLocal}`);
+    console.log(`[Records] Sábados del período:\n[${periodoSabs.join(', ')}]`);
+    console.log(`[Records] Sábados operativos:\n[${opSabs.join(', ')}]`);
 
     // Jóvenes
     Object.keys(recordsData.members).forEach(fid => {
         const m = recordsData.members[fid];
         if (m.eliminado) return;
-        const st = calcJovenStats(fid, m.fechaIncorporacion || '', opSabs, periodoSabs);
+        const st = calcJovenStats(fid, m, opSabs, periodoSabs);
         if (st.oportunidades >= 0) {
             recordsStats.push({ id: fid, nombre: m.nombre, tipo: 'joven', ...st });
         }
@@ -285,20 +288,29 @@ function calculateRecords(startDate, endDate) {
     renderIndividualRecords();
 }
 
-function calcJovenStats(fid, fechaIncorporacion, opSabs, allSabs) {
+function calcJovenStats(fid, m, opSabs, allSabs) {
+    const fechaInc = String(m.fechaIncorporacion || '').slice(0, 10);
+    const fechaIncorporacionOrigen = m.fechaIncorporacionOrigen || '';
+
     // Build flat attendance map from monthly data
     const attMap = {};
-    Object.keys(recordsData.asistencias).forEach(m => {
-        const mData = recordsData.asistencias[m][fid];
+    Object.keys(recordsData.asistencias).forEach(month => {
+        const mData = recordsData.asistencias[month][fid];
         if (!mData) return;
         if (mData.fechas) {
             Object.keys(mData.fechas).forEach(d => { attMap[d] = mData.fechas[d]; });
-        } else if (Array.isArray(mData.semanas)) {
+        }
+        if (Array.isArray(mData.semanas)) {
             // Legacy format - need operational saturdays for that month
-            const [y, mo] = m.split('-').map(Number);
+            const [y, mo] = month.split('-').map(Number);
             if (typeof getOperationalSaturdays === 'function') {
                 const sats = getOperationalSaturdays(y, mo);
-                mData.semanas.forEach((st, i) => { if (sats[i]) attMap[sats[i]] = st; });
+                mData.semanas.forEach((st, i) => {
+                    const sat = sats[i];
+                    if (sat && !attMap.hasOwnProperty(sat)) {
+                        attMap[sat] = st;
+                    }
+                });
             }
         }
     });
@@ -310,26 +322,40 @@ function calcJovenStats(fid, fechaIncorporacion, opSabs, allSabs) {
 
     // Sort operational saturdays to process chronologically
     const sortedSabs = [...opSabs].sort();
+    
+    console.log(`[Records] Joven: ${m.nombre}`);
 
     sortedSabs.forEach(d => {
-        // Skip dates before incorporation
-        if (fechaIncorporacion && d < fechaIncorporacion) return;
+        // Skip dates before incorporation ONLY if origin is real
+        if (fechaInc && fechaIncorporacionOrigen === 'real' && d < fechaInc) {
+            console.log(`[Records] Evaluación: ${d} | estado: 4 | excluido | motivo: antes de incorporación real (${fechaInc})`);
+            return;
+        }
 
-        oportunidades++;
         const st = attMap.hasOwnProperty(d) ? Number(attMap[d]) : 3;
 
-        if (st === 1 || st === 2) {
+        if (st === 3 || st === 4 || st === 5) {
+            let motivo = st === 3 ? '?' : (st === 5 ? 'SIN CULTO' : 'no aplicable');
+            console.log(`[Records] Evaluación: ${d} | estado: ${st} | excluido | motivo: ${motivo}`);
+            return;
+        }
+
+        if (st === 0) {
+            // Falta - rompe racha, cuenta como oportunidad
+            oportunidades++;
+            rachaActual = 0;
+            console.log(`[Records] Evaluación: ${d} | estado: 0 | incluido | motivo: oportunidad (falta)`);
+        } else if (st === 1 || st === 2) {
+            // Asistencia - aumenta racha, cuenta como oportunidad
+            oportunidades++;
             asistencias++;
             rachaActual++;
             if (rachaActual > rachaMax) rachaMax = rachaActual;
-        } else if (st === 0) {
-            // Falta - rompe racha
-            rachaActual = 0;
+            console.log(`[Records] Evaluación: ${d} | estado: ${st} | incluido | motivo: oportunidad (asistencia)`);
         }
-        // st === 3 (?): neutral - no aumenta ni rompe
     });
 
-    const constancia = oportunidades > 0 ? (asistencias / oportunidades) * 100 : 0;
+    const constancia = oportunidades > 0 ? (asistencias / oportunidades) * 100 : null;
     return { asistencias, oportunidades, constancia, rachaMax };
 }
 
@@ -392,7 +418,7 @@ function renderRecordsDashboard() {
 
     const cards = [
         { icon: 'fa-star text-yellow-500', title: '🥇 Mayor Asistencia', winners: majAsist, val: s => `${s.asistencias} cultos` },
-        { icon: 'fa-shield-heart text-red-400', title: '⭐ Mayor Constancia', winners: majConst, val: s => `${s.constancia.toFixed(1)}% (${s.oportunidades} oport.)`, note: `Mín ${MIN_OPORTUNIDADES_CONSTANCIA} oportunidades` },
+        { icon: 'fa-shield-heart text-red-400', title: '🏆 Mayor Constancia', winners: majConst, val: s => `${s.constancia === null ? 'N/E' : s.constancia.toFixed(1) + '%'} (${s.oportunidades} oport.)`, note: `Mín ${MIN_OPORTUNIDADES_CONSTANCIA} oportunidades` },
         { icon: 'fa-fire text-orange-500', title: '🔥 Mayor Racha', winners: majRacha, val: s => `${s.rachaMax} consecutivos` },
         { icon: 'fa-bullseye text-blue-500', title: '🎯 Más Invitaciones', winners: majInv, val: s => `${s.invitacionesCount} invitaciones` },
         { icon: 'fa-user-astronaut text-purple-500', title: '🔥 NextGen — Asistencia', winners: ngAsist, val: s => `${s.asistencias} apoyos` },
@@ -431,7 +457,7 @@ function renderIndividualRecords() {
     else if (filter === 'premiados') data = data.filter(s => s.premios && s.premios.length > 0);
     else if (filter === 'no-premiados') data = data.filter(s => !s.premios || s.premios.length === 0);
 
-    data.sort((a, b) => b.constancia - a.constancia || b.asistencias - a.asistencias);
+    data.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
 
     tbody.innerHTML = data.map(s => {
         const tipoBadge = s.tipo === 'joven'
@@ -447,7 +473,7 @@ function renderIndividualRecords() {
             <td class="p-2 border-b">${tipoBadge}</td>
             <td class="p-2 border-b text-center font-bold">${s.asistencias}</td>
             <td class="p-2 border-b text-center text-slate-500">${s.oportunidades}</td>
-            <td class="p-2 border-b text-center font-bold">${s.constancia.toFixed(1)}%</td>
+            <td class="p-2 border-b text-center font-bold">${s.constancia === null ? 'N/E' : s.constancia.toFixed(1) + '%'}</td>
             <td class="p-2 border-b text-center"><i class="fas fa-fire text-orange-400 mr-0.5"></i>${s.rachaMax}</td>
             <td class="p-2 border-b text-center font-bold text-blue-600">${s.invitacionesCount}</td>
             <td class="p-2 border-b">${premiosHtml}</td>
@@ -481,8 +507,7 @@ function renderNextGenTable(periodoSabs, opSabs) {
 
     let sortedSabs = [];
     if (!periodoSabs && typeof currentPeriod !== 'undefined' && currentPeriod) {
-        const curDate = new Date();
-        const todayLocal = `${curDate.getFullYear()}-${String(curDate.getMonth() + 1).padStart(2, '0')}-${String(curDate.getDate()).padStart(2, '0')}`;
+        const todayLocal = typeof getFireGenTodayISO === 'function' ? getFireGenTodayISO() : new Date().toISOString().split('T')[0];
         const start = currentPeriod.fechaInicio;
         const end = currentPeriod.cerrado ? (currentPeriod.fechaFin || currentPeriod.fechaCierre || todayLocal) : (currentPeriod.fechaFin || todayLocal);
         periodoSabs = getSaturdaysBetween(start, end);
@@ -493,8 +518,8 @@ function renderNextGenTable(periodoSabs, opSabs) {
     const mobileSelector = document.getElementById('nextGenMonthSelectorMobile');
     
     if (monthSelector && !monthSelector.value) {
-        const d = new Date();
-        const curM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const todayStr = typeof getFireGenTodayISO === 'function' ? getFireGenTodayISO() : new Date().toISOString().split('T')[0];
+        const curM = todayStr.substring(0, 7);
         monthSelector.value = curM;
         if (mobileSelector) mobileSelector.value = curM;
     }
