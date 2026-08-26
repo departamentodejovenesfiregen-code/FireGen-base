@@ -33,7 +33,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"
         integrity="sha384-e6cc9LaIG7xZ3XD5B+jtr1NhTWPQGQdRCh6xiZ+ZFUtWCpg4ycv3Sh+SkZoopvUY"
         crossorigin="anonymous"></script>
-    <link href="css/styles.css?v=B3.275" rel="stylesheet">
+    <link href="css/styles.css?v=B3.277" rel="stylesheet">
 </head>
 
 <body class="p-2 md:p-8" style="display:none;" id="appBody">
@@ -995,32 +995,32 @@
     <section id="view-records" class="hidden" style="position:fixed;inset:0;z-index:200;background:#fff;overflow-y:auto;">
         <div class="w-full min-h-screen">
             <!-- ENCABEZADO -->
-            <div class="bg-white border-b px-5 md:px-8 py-5 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between shadow-sm sticky top-0 z-10">
+            <div class="records-header bg-white border-b px-5 md:px-8 py-5 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between shadow-sm sticky top-0 z-10">
                 <div>
                     <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2">
                         <i class="fas fa-trophy text-yellow-500"></i> Récord y Reconocimientos
                     </h2>
                     <p class="text-sm text-slate-500 mt-1">Reconocimiento al esfuerzo y fidelidad del ministerio</p>
                 </div>
-                <button onclick="closeAttendanceRecords()" class="flex items-center gap-2 text-sm bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-xl font-bold transition-colors shadow-sm">
-                    <i class="fas fa-arrow-left"></i> Volver a Asistencia
+                <button onclick="closeAttendanceRecords()" class="records-btn-back flex items-center gap-2 text-sm bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-xl font-bold transition-colors shadow-sm">
+                    <i class="fas fa-arrow-left"></i> <span class="records-back-full">Volver a Asistencia</span><span class="records-back-short">Volver</span>
                 </button>
             </div>
 
             <!-- BARRA INTERNA DE NAVEGACIÓN -->
-            <div class="bg-white border-b px-5 md:px-8 flex items-end gap-6 overflow-x-auto">
+            <div class="records-section-tabs bg-white border-b px-5 md:px-8 flex items-end gap-6">
                 <button id="recordsSubtab-periodo" onclick="switchRecordsSection('periodo')" class="px-2 py-4 text-sm font-bold border-b-2 border-orange-500 text-orange-600 whitespace-nowrap transition-colors"><i class="fas fa-medal mr-1"></i> Récord del Período</button>
                 <button id="recordsSubtab-nextgen" onclick="switchRecordsSection('nextgen')" class="px-2 py-4 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap transition-colors"><i class="fas fa-user-astronaut mr-1"></i> Asistencia NextGen</button>
                 <button id="recordsSubtab-invitaciones" onclick="switchRecordsSection('invitaciones')" class="px-2 py-4 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap transition-colors"><i class="fas fa-handshake mr-1"></i> Invitaciones</button>
             </div>
 
-            <div class="max-w-screen-xl mx-auto p-5 md:p-8 space-y-6">
+            <div class="records-main-content max-w-screen-xl mx-auto p-5 md:p-8 space-y-6">
             
             <!-- ─── SECCIÓN 1: RÉCORD DEL PERÍODO ─── -->
             <div id="recordsSectionPeriodo">
                 <div class="card p-5 md:p-7">
-                <div class="flex items-center gap-2 mb-5 pb-3 border-b">
-                    <div class="w-8 h-8 rounded-lg bg-yellow-100 flex items-center justify-center">
+                <div class="records-section-header flex items-center gap-2 mb-5 pb-3 border-b">
+                    <div class="w-8 h-8 rounded-lg bg-yellow-100 flex items-center justify-center flex-shrink-0">
                         <i class="fas fa-medal text-yellow-600"></i>
                     </div>
                     <h3 class="text-lg font-black text-slate-800 uppercase tracking-tight">1. Récord del Período</h3>
@@ -1097,8 +1097,8 @@
                             </select>
                         </div>
                     </div>
-                    <div class="overflow-x-auto pb-4">
-                        <table class="w-full text-left text-xs min-w-[800px] whitespace-nowrap">
+                    <div class="records-table-scroll">
+                        <table class="w-full text-left text-xs min-w-[700px] whitespace-nowrap">
                             <thead class="text-slate-400 uppercase text-[10px] font-bold">
                                 <tr>
                                     <th class="p-2 border-b">Persona</th>
@@ -1122,21 +1122,21 @@
         <!-- ─── SECCIÓN 2: ASISTENCIA NOMINAL NEXTGEN ─── -->
         <div id="recordsSectionNextGen" class="hidden">
                 <div class="card p-5 md:p-7">
-                <div class="flex items-center gap-2 mb-5 pb-3 border-b">
-                    <div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                <div class="records-section-header flex items-center flex-wrap gap-2 mb-5 pb-3 border-b">
+                    <div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
                         <i class="fas fa-user-astronaut text-purple-600"></i>
                     </div>
                     <h3 class="text-lg font-black text-slate-800 uppercase tracking-tight">2. Asistencia Nominal NextGen</h3>
                     <input type="month" id="nextGenMonthSelector" onchange="renderNextGenTable()" class="ml-2 bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-purple-500 hidden sm:block">
                     <button onclick="openNextGenModal()" class="ml-auto bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2 rounded-xl font-bold text-xs shadow transition-colors flex items-center gap-1">
-                        <i class="fas fa-plus"></i> <span class="hidden sm:inline">Agregar Adolescente</span>
+                        <i class="fas fa-plus"></i> <span class="hidden sm:inline">Agregar Adolescente</span><span class="sm:hidden"><i class="fas fa-user-plus"></i></span>
                     </button>
                 </div>
                 <!-- Mobile selector -->
                 <div class="mb-4 sm:hidden">
                     <input type="month" id="nextGenMonthSelectorMobile" onchange="document.getElementById('nextGenMonthSelector').value = this.value; renderNextGenTable()" class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-purple-500">
                 </div>
-                <div class="overflow-x-auto">
+                <div class="records-nextgen-scroll">
                     <table class="w-full text-left text-xs min-w-[600px]">
                         <thead id="nextGenTableHead" class="text-slate-400 uppercase text-[10px] font-bold"></thead>
                         <tbody class="divide-y divide-slate-100" id="nextGenTableBody"></tbody>
@@ -1152,16 +1152,16 @@
             <!-- ─── SECCIÓN 3: REGISTRO DE INVITACIONES ─── -->
             <div id="recordsSectionInvitaciones" class="hidden">
                 <div class="card p-5 md:p-7">
-                <div class="flex items-center gap-2 mb-5 pb-3 border-b">
-                    <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                <div class="records-section-header flex items-center flex-wrap gap-2 mb-5 pb-3 border-b">
+                    <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
                         <i class="fas fa-handshake text-blue-500"></i>
                     </div>
                     <h3 class="text-lg font-black text-slate-800 uppercase tracking-tight">3. Registro de Invitaciones</h3>
-                    <button onclick="openInvitacionModal()" class="ml-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold text-xs shadow transition-colors flex items-center gap-1">
-                        <i class="fas fa-plus"></i> Registrar Invitación
+                    <button onclick="openInvitacionModal()" class="ml-auto bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-xl font-bold text-xs shadow transition-colors flex items-center gap-1">
+                        <i class="fas fa-plus"></i> <span class="hidden sm:inline">Registrar Invitación</span><span class="sm:hidden">Invitación</span>
                     </button>
                 </div>
-                <div class="overflow-x-auto pb-4">
+                <div class="records-invitaciones-scroll">
                     <table class="w-full text-left text-xs min-w-[600px] whitespace-nowrap">
                         <thead class="text-slate-400 uppercase text-[10px] font-bold">
                             <tr>
@@ -1745,7 +1745,7 @@
     <script src="js/user-management.js?v=B3.275"></script>
     <script src="js/admin-config.js?v=B3.275"></script>
     <script src="js/records.js?v=B3.276"></script>
-    <script src="js/app.js?v=B3.276"></script>
+    <script src="js/app.js?v=B3.277"></script>
 <!-- Contenedor de impresión controlada — solo visible durante window.print() -->
 <div id="monthlyReportPrint" style="display:none;"></div>
 </body>

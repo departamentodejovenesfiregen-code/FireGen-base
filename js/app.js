@@ -54,6 +54,7 @@ function openAttendanceRecords() {
         vr.classList.remove('hidden');
         vr.style.display = 'block';
     }
+    document.body.classList.add('firegen-records-open');
     if (typeof initRecords === 'function') initRecords();
     switchRecordsSection('periodo');
 }
@@ -68,6 +69,7 @@ function closeAttendanceRecords() {
     document.getElementById('view-attendance')?.classList.remove('hidden');
     document.getElementById('main-header')?.classList.remove('hidden');
     document.getElementById('bottomNav')?.classList.remove('hidden');
+    document.body.classList.remove('firegen-records-open');
     if (typeof renderAttendance === 'function') renderAttendance();
 }
 window.closeAttendanceRecords = closeAttendanceRecords;
