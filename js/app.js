@@ -203,6 +203,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (typeof syncServiceCounter === 'function') syncServiceCounter();
                 if (typeof syncAlejadosCounter === 'function') syncAlejadosCounter();
                 if (typeof loadRescueAlerts === 'function') loadRescueAlerts(cp);
+                if (typeof populateLideresSelect === 'function') {
+                    populateLideresSelect();
+                }
             });
         }
         

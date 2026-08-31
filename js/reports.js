@@ -34,6 +34,7 @@ function syncReport(periodo) {
         reportRef.off('value', reportCallback);
     }
     activeReportPeriod = periodo;
+    populateLideresSelect();
     clearReportFields();
 
     reportRef = db.ref('informes/' + periodo);
@@ -59,6 +60,14 @@ function syncReport(periodo) {
                 const fData = (d.fechas && d.fechas[satDate]) ? d.fechas[satDate] : d['sem' + (i + 1)];
                 if (!fData) return;
 
+                const dirigeSelect = row.querySelector('.rep-dirige');
+                if (fData.dirigeId) {
+                    dirigeSelect.dataset.savedId = fData.dirigeId;
+                    dirigeSelect.value = fData.dirigeId;
+                } else {
+                    dirigeSelect.dataset.savedId = '';
+                    dirigeSelect.value = '';
+                }
                 row.querySelector('.rep-tema').value = fData.tema || '';
                 row.querySelector('.rep-predicador').value = fData.predicador || '';
                 row.querySelector('.rep-cita').value = fData.citaBiblica || '';
@@ -107,6 +116,9 @@ function clearReportFields() {
     document.getElementById('repSecretario').value = '';
     document.getElementById('repSerie').value = '';
     document.querySelectorAll('.row-report-data').forEach(r => {
+        const dirigeSelect = r.querySelector('.rep-dirige');
+        dirigeSelect.value = '';
+        delete dirigeSelect.dataset.savedId;
         r.querySelector('.rep-tema').value = '';
         r.querySelector('.rep-predicador').value = '';
         r.querySelector('.rep-cita').value = '';
@@ -118,6 +130,32 @@ function clearReportFields() {
         document.getElementById(id).value = 0;
     });
     updateMonthlyStats();
+}
+
+/**
+ * populateLideresSelect — Llena los campos select de Dirige con los líderes registrados.
+ */
+function populateLideresSelect() {
+    const selects = document.querySelectorAll('.rep-dirige');
+    if (!selects.length) return;
+    
+    // Filtro para líderes
+    const lideres = (typeof members !== 'undefined' ? members : []).filter(m => 
+        m.estadoEspiritual === 'Líder' || m.estadoEspiritual === 'Lider'
+    ).sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+    
+    let optionsHtml = '<option value="">Seleccionar líder…</option>';
+    if (lideres.length === 0) {
+        optionsHtml = '<option value="">No hay líderes registrados.</option>';
+    } else {
+        optionsHtml += lideres.map(l => `<option value="${l.firebaseId}">${escHtml(l.nombre)}</option>`).join('');
+    }
+    
+    selects.forEach(select => {
+        const currentVal = select.dataset.savedId || select.value;
+        select.innerHTML = optionsHtml;
+        if (currentVal) select.value = currentVal;
+    });
 }
 
 function saveReportField(field, val) {
@@ -139,6 +177,10 @@ function saveReportRow(idx) {
     if (!p || !satDate) return;
     const row = document.querySelectorAll('.row-report-data')[idx];
 
+    const dirigeSelect = row.querySelector('.rep-dirige');
+    const dirigeId = dirigeSelect ? dirigeSelect.value : '';
+    const dirigeNombreSnapshot = dirigeId && dirigeSelect.selectedIndex >= 0 ? dirigeSelect.options[dirigeSelect.selectedIndex].text : '';
+    
     const tema = row.querySelector('.rep-tema').value;
     const predicador = row.querySelector('.rep-predicador').value;
     const citaBiblica = row.querySelector('.rep-cita').value;
@@ -147,13 +189,16 @@ function saveReportRow(idx) {
     const observaciones = row.querySelector('.rep-observaciones').value;
 
     const updates = {};
+    updates[`fechas/${satDate}/dirigeId`] = dirigeId;
+    updates[`fechas/${satDate}/dirigeNombreSnapshot`] = dirigeNombreSnapshot;
     updates[`fechas/${satDate}/tema`] = tema;
     updates[`fechas/${satDate}/predicador`] = predicador;
     updates[`fechas/${satDate}/citaBiblica`] = citaBiblica;
     updates[`fechas/${satDate}/asist`] = asist;
     updates[`fechas/${satDate}/nuevos`] = nuevos;
     updates[`fechas/${satDate}/observaciones`] = observaciones;
-
+    updates[`sem${idx + 1}/dirigeId`] = dirigeId;
+    updates[`sem${idx + 1}/dirigeNombreSnapshot`] = dirigeNombreSnapshot;
     updates[`sem${idx + 1}/tema`] = tema;
     updates[`sem${idx + 1}/predicador`] = predicador;
     updates[`sem${idx + 1}/citaBiblica`] = citaBiblica;
@@ -282,6 +327,7 @@ function bindReportInputs() {
         }
     });
     document.querySelectorAll('.row-report-data').forEach((row, i) => {
+        row.querySelector('.rep-dirige').addEventListener('change', () => saveReportRowDebounced(i));
         row.querySelector('.rep-tema').addEventListener('input', () => saveReportRowDebounced(i));
         row.querySelector('.rep-predicador').addEventListener('input', () => saveReportRowDebounced(i));
         row.querySelector('.rep-cita').addEventListener('input', () => saveReportRowDebounced(i));
@@ -330,17 +376,19 @@ function exportMonthlyReport() {
     let csv = `INFORME MENSUAL FIREGEN - ${per}\n`;
     csv += `Serie: ${q(serie)}\n`;
     csv += `Secretario: ${q(secretario)}\n\n`;
-    csv += `S\u00e1bado,Tema Predicado,Predicador,Cita B\u00edblica,Asistencia,Nuevos,Observaciones\n`;
+    csv += `S\u00e1bado,Dirige,Tema Predicado,Predicador,Cita B\u00edblica,Asistencia,Nuevos,Observaciones\n`;
 
     document.querySelectorAll('.row-report-data').forEach((row, i) => {
         if (!saturdays[i]) return;
+        const dirigeSelect = row.querySelector('.rep-dirige');
+        const dirige = q(dirigeSelect && dirigeSelect.value ? dirigeSelect.options[dirigeSelect.selectedIndex].text : '');
         const tema = q(row.querySelector('.rep-tema').value);
         const pred = q(row.querySelector('.rep-predicador').value);
         const cita = q(row.querySelector('.rep-cita').value);
         const asist = row.querySelector('.rep-asist').value || 0;
         const nuevos = row.querySelector('.rep-nuevos').value || 0;
         const obs = q(row.querySelector('.rep-observaciones').value);
-        csv += `${getSaturdayLabel(saturdays[i])},${tema},${pred},${cita},${asist},${nuevos},${obs}\n`;
+        csv += `${getSaturdayLabel(saturdays[i])},${dirige},${tema},${pred},${cita},${asist},${nuevos},${obs}\n`;
     });
 
     csv += `\nMETRICAS CLAVE\n`;
@@ -389,6 +437,8 @@ async function generateMonthlyReportPDF() {
     document.querySelectorAll('.row-report-data').forEach((row, i) => {
         if (!saturdays[i] || row.style.display === 'none') return;
         const label = getSaturdayLabel(saturdays[i]);
+        const dirigeSelect = row.querySelector('.rep-dirige');
+        const dirige = escHtml(dirigeSelect && dirigeSelect.value ? dirigeSelect.options[dirigeSelect.selectedIndex].text : '\u2014');
         const tema = escHtml(row.querySelector('.rep-tema').value || '\u2014');
         const pred = escHtml(row.querySelector('.rep-predicador').value || '\u2014');
         const cita = escHtml(row.querySelector('.rep-cita').value || '\u2014');
@@ -397,6 +447,7 @@ async function generateMonthlyReportPDF() {
         const obs = escHtml(row.querySelector('.rep-observaciones').value || '');
         rowsHtml += `<tr>
             <td style="padding:10px 12px;border:1px solid #e2e8f0;font-weight:bold;white-space:nowrap;font-size:12px">${label}</td>
+            <td style="padding:10px 12px;border:1px solid #e2e8f0;font-size:12px;word-wrap:break-word">${dirige}</td>
             <td style="padding:10px 12px;border:1px solid #e2e8f0;font-size:12px;word-wrap:break-word">${tema}</td>
             <td style="padding:10px 12px;border:1px solid #e2e8f0;font-size:12px;word-wrap:break-word">${pred}</td>
             <td style="padding:10px 12px;border:1px solid #e2e8f0;font-size:12px;word-wrap:break-word">${cita}</td>
@@ -446,12 +497,13 @@ async function generateMonthlyReportPDF() {
                 <table style="width:100%;border-collapse:collapse;margin-bottom:40px;">
                     <thead><tr>
                         <th style="${thStyle};width:8%">S\u00e1bado</th>
-                        <th style="${thStyle};width:22%">Tema Predicado</th>
-                        <th style="${thStyle};width:15%">Predicador</th>
-                        <th style="${thStyle};width:15%">Cita B\u00edblica</th>
-                        <th style="${thStyle};width:8%">Asist.</th>
-                        <th style="${thStyle};width:8%">Nuevos</th>
-                        <th style="${thStyle};width:24%">Observaciones</th>
+                        <th style="${thStyle};width:12%">Dirige</th>
+                        <th style="${thStyle};width:18%">Tema Predicado</th>
+                        <th style="${thStyle};width:13%">Predicador</th>
+                        <th style="${thStyle};width:13%">Cita B\u00edblica</th>
+                        <th style="${thStyle};width:7%">Asist.</th>
+                        <th style="${thStyle};width:7%">Nuevos</th>
+                        <th style="${thStyle};width:22%">Observaciones</th>
                     </tr></thead>
                     <tbody>${rowsHtml}</tbody>
                 </table>
