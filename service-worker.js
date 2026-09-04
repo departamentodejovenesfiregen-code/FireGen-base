@@ -19,7 +19,7 @@
  */
 
 /** Cambiar en CADA publicación junto con ?v= en HTML y js/version.js */
-var BUILD_VERSION = 'B3.276';
+var BUILD_VERSION = 'B3.278';
 var CACHE_NAME = 'firegen-' + BUILD_VERSION;
 var OFFLINE_URL = 'offline.html';
 var V = BUILD_VERSION;
@@ -30,24 +30,32 @@ var PRECACHE_URLS = [
   'login.html',
   OFFLINE_URL,
   'css/styles.css?v=' + V,
-  'js/version.js?v=' + V,
-  'js/pwa.js?v=' + V,
-  'js/firebase-config.js?v=' + V,
-  'js/config.js?v=' + V,
-  'js/utils.js?v=' + V,
-  'js/charts.js?v=' + V,
-  'js/members.js?v=' + V,
-  'js/attendance.js?v=' + V,
-  'js/records.js?v=' + V,
-  'js/reports.js?v=' + V,
-  'js/strategy.js?v=' + V,
-  'js/auth.js?v=' + V,
-  'js/plan-rescate-core.js?v=' + V,
-  'js/plan-rescate-ui.js?v=' + V,
-  'js/coordinacion.js?v=' + V,
-  'js/admin-config.js?v=' + V,
-  'js/user-management.js?v=' + V,
-  'js/app.js?v=B3.276'
+  'js/core/version.js?v=' + V,
+  'js/core/pwa.js?v=' + V,
+  'js/firebase/firebase-config.js?v=' + V,
+  'js/core/config.js?v=' + V,
+  'js/core/utils.js?v=' + V,
+  'js/estrategias/charts.js?v=' + V,
+  'js/maestro/members.js?v=' + V,
+  'js/maestro/attendance.js?v=' + V,
+  'js/maestro/records.js?v=' + V,
+  'js/informes/reports.js?v=' + V,
+  'js/estrategias/strategy.js?v=' + V,
+  'js/admin/auth.js?v=' + V,
+  'js/maestro/plan-rescate-core.js?v=' + V,
+  'js/maestro/plan-rescate-ui.js?v=' + V,
+  'js/coordinacion/coordinacion.js?v=' + V,
+  'js/admin/admin-config.js?v=' + V,
+  'js/admin/user-management.js?v=' + V,
+  'js/tesoreria/tesoreria-accesos.js?v=' + V,
+  'js/firebase/firebase-tesoreria-config.js?v=' + V,
+  'js/tesoreria/tesoreria.js?v=' + V,
+  'js/tesoreria/tesoreria-caja.js?v=' + V,
+  'js/tesoreria/tesoreria-actividades.js?v=' + V,
+  'js/tesoreria/tesoreria-checklist.js?v=' + V,
+  'js/tesoreria/tesoreria-inventario.js?v=' + V,
+  'js/tesoreria/tesoreria-informes.js?v=' + V,
+  'js/core/app.js?v=' + V
 ];
 
 function isExternal(url) {

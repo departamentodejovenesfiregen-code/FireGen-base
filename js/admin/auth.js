@@ -86,7 +86,8 @@ const PERMISSIONS = {
         eliminarMiembros: true,
         configuracion: true,
         administracion: true,
-        cerrarAnio: true
+        cerrarAnio: true,
+        tesoreria: true
     },
     coordinador: {
         baseMaestro: true,
@@ -102,7 +103,8 @@ const PERMISSIONS = {
         eliminarMiembros: true,
         configuracion: false,
         administracion: false,
-        cerrarAnio: true
+        cerrarAnio: true,
+        tesoreria: false
     },
     vicecoordinador: {
         baseMaestro: true,
@@ -118,7 +120,8 @@ const PERMISSIONS = {
         eliminarMiembros: true,
         configuracion: false,
         administracion: false,
-        cerrarAnio: false
+        cerrarAnio: false,
+        tesoreria: false
     },
     secretario: {
         baseMaestro: true,
@@ -134,7 +137,8 @@ const PERMISSIONS = {
         eliminarMiembros: false,
         configuracion: false,
         administracion: false,
-        cerrarAnio: true
+        cerrarAnio: true,
+        tesoreria: false
     },
     tesorero: {
         baseMaestro: true,
@@ -150,7 +154,8 @@ const PERMISSIONS = {
         eliminarMiembros: false,
         configuracion: false,
         administracion: false,
-        cerrarAnio: false
+        cerrarAnio: false,
+        tesoreria: true
     },
     vocal: {
         baseMaestro: true,
@@ -166,7 +171,8 @@ const PERMISSIONS = {
         eliminarMiembros: false,
         configuracion: false,
         administracion: false,
-        cerrarAnio: false
+        cerrarAnio: false,
+        tesoreria: false
     },
     pendiente: {
         baseMaestro: false,
@@ -182,7 +188,8 @@ const PERMISSIONS = {
         eliminarMiembros: false,
         configuracion: false,
         administracion: false,
-        cerrarAnio: false
+        cerrarAnio: false,
+        tesoreria: false
     }
 };
 
@@ -301,6 +308,12 @@ function initAuth(onAuthenticated) {
  */
 function logout() {
     if (!confirm('¿Cerrar sesión en FireGen?')) return;
+    
+    // Si existe la instancia de tesorería, cerrarla primero
+    if (typeof treasuryAuth !== 'undefined') {
+        treasuryAuth.signOut().catch(err => console.warn('Error cerrando tesorería:', err));
+    }
+    
     auth.signOut()
         .then(() => {
             window.location.replace('login.html');
@@ -335,6 +348,18 @@ function applyRolePermissions(rol) {
     if (bnReport) {
         const verReport = hasPermission('verInformeMensual', r);
         bnReport.style.display = verReport ? '' : 'none';
+    }
+
+    // ── Tab Tesorería: solo roles con permiso tesoreria ───────────────
+    const tabTreasury = document.getElementById('tab-treasury');
+    if (tabTreasury) {
+        const verTreasury = hasPermission('tesoreria', r);
+        tabTreasury.style.display = verTreasury ? '' : 'none';
+    }
+    const bnTreasury = document.getElementById('bn-treasury');
+    if (bnTreasury) {
+        const verTreasury = hasPermission('tesoreria', r);
+        bnTreasury.style.display = verTreasury ? '' : 'none';
     }
 
     // ── Solo mostrar los botones flotantes si estamos en la pestaña de Estrategias ──

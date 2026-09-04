@@ -1,5 +1,5 @@
 /**
- * FireGen V3.0 — js/firebase-config.js
+ * FireGen — js/firebase-config.js
  * ─────────────────────────────────────────────────────────────
  * CONFIGURACIÓN CENTRALIZADA DE FIREBASE
  *

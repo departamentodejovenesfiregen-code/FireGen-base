@@ -1,0 +1,73 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    
+    "configuracion": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    
+    "usuarios": {
+      ".read": "auth != null",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      },
+      ".write": "auth != null"
+    },
+    
+    "caja": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$movId": {
+        ".validate": "newData.hasChildren(['tipo', 'monto', 'fecha', 'periodo'])"
+      }
+    },
+    
+    "periodos": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$periodo": {
+        ".validate": "newData.hasChild('estado')"
+      }
+    },
+    
+    "campanas": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    
+    "actividades": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$actId": {
+        ".validate": "newData.hasChildren(['nombre', 'periodo'])"
+      }
+    },
+    
+    "checklist": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    
+    "inventario": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    
+    "informes": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    
+    "auditoria": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$entryId": {
+        ".write": "auth != null && !data.exists()",
+        ".validate": "newData.hasChildren(['usuarioUid', 'fecha', 'accion'])"
+      }
+    }
+  }
+}

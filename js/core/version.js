@@ -10,6 +10,6 @@
  * 3. Reemplaza TODOS los ?v=... en index.html y login.html
  * 4. Despliega
  *
- * Etapa 4 — Build B3.275
+ * Etapa 4 — Build B3.278
  */
-var APP_VERSION = 'B3.275';
+var APP_VERSION = 'B3.278';

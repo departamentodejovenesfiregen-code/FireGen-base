@@ -3,7 +3,7 @@
 const AppConfig = {
     // Valores por defecto
     defaults: {
-        appName: "FireGen V3.0",
+        appName: "FireGen",
         ministryName: "Jóvenes FireGen",
         churchName: "La Casa de Dios - 2da Iglesia Cuadrangular",
         adminEmail: "departamentodejovenesfiregen@gmail.com",
