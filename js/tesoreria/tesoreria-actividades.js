@@ -1,1040 +1,909 @@
-/**
- * FireGen — js/tesoreria-actividades.js
- * MÓDULO DE CAMPAÑAS, ACTIVIDADES Y CHECKLIST
- */
 
-let campanasListener = null;
-let actividadesListener = null;
-let campanasCaja = [];
-let actividadesCaja = [];
+// tesoreria-actividades.js
+let actsListener = null;
+let currentActividades = {};
 
 function renderTesoreriaActividades() {
     const container = document.getElementById('treasurySubContent');
     if (!container) return;
     
     container.innerHTML = `
-        <div class="mb-8 flex justify-between items-end border-b-[3px] border-slate-900 pb-2">
-            <h2 class="text-xl font-bold text-slate-900 uppercase">Campañas y Actividades</h2>
-            ${canEditTreasury() ? `
-            <button onclick="abrirModalNuevaCampana()" class="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 text-sm font-bold shadow-sm print:hidden">
-                + Nueva Campaña
-            </button>
-            ` : ''}
-        </div>
-        
-        <div id="tCampanasList" class="space-y-12">
-            <div class="p-8 text-center text-slate-500 italic"><i class="fas fa-circle-notch fa-spin mr-1"></i> Cargando campañas...</div>
-        </div>
-
-        <!-- MODAL: NUEVA CAMPAÑA -->
-        <div id="tCampanaModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[300]">
-            <div class="bg-white max-w-md w-full p-8 shadow-2xl border-t-4 border-slate-900">
-                <h3 class="text-xl font-bold text-slate-900 mb-6 flex justify-between items-center uppercase tracking-wide">
-                    <span>Crear Campaña</span>
-                    <button type="button" onclick="cerrarModalNuevaCampana()" class="text-slate-400 hover:text-red-600"><i class="fas fa-times text-lg"></i></button>
-                </h3>
-                <form id="tNuevaCampanaForm" class="space-y-5" onsubmit="guardarNuevaCampana(event)">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre de la Campaña / Semana</label>
-                        <input type="text" id="tCampNombre" required placeholder="Ej: Semana de actividad - Agosto 2026" class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm uppercase focus:border-slate-900 focus:outline-none focus:ring-0">
-                    </div>
-                    <div class="pt-4">
-                        <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 uppercase tracking-wide transition-colors">Crear Campaña</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- MODAL: NUEVA ACTIVIDAD -->
-        <div id="tActividadModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[300]">
-            <div class="bg-white max-w-md w-full p-8 shadow-2xl border-t-4 border-blue-900">
-                <h3 class="text-xl font-bold text-slate-900 mb-6 flex justify-between items-center uppercase tracking-wide">
-                    <span>Crear Actividad</span>
-                    <button type="button" onclick="cerrarModalNuevaActividad()" class="text-slate-400 hover:text-red-600"><i class="fas fa-times text-lg"></i></button>
-                </h3>
-                <form id="tNuevaActividadForm" class="space-y-5" onsubmit="guardarNuevaActividad(event)">
-                    <input type="hidden" id="tActCampanaId">
-                    
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Modo de Creación</label>
-                        <select id="tActModo" onchange="toggleModoCreacionAct()" class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm uppercase focus:border-blue-900 focus:outline-none focus:ring-0">
-                            <option value="NUEVA">Crear desde cero</option>
-                            <option value="COPIAR">Usar actividad anterior (Histórica)</option>
-                        </select>
-                    </div>
-                    
-                    <div id="tActBoxCopiar" class="hidden">
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Seleccionar Actividad Base</label>
-                        <select id="tActBaseHist" class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm uppercase focus:border-blue-900 focus:outline-none focus:ring-0">
-                            <option value="">Cargando historial...</option>
-                        </select>
-                        <p class="text-[10px] text-slate-500 mt-1">Solo se copiará el nombre, precio, checklist e ingredientes base sugeridos.</p>
-                    </div>
-
-                    <div id="tActBoxNueva">
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre de la actividad</label>
-                        <input type="text" id="tActNombre" placeholder="Ej: VENTA DE CORVICHES" class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm uppercase focus:border-blue-900 focus:outline-none focus:ring-0">
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Precio Unitario ($)</label>
-                            <input type="number" step="0.01" min="0" id="tActPrecio" class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm focus:border-blue-900 focus:outline-none focus:ring-0">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Fecha Programada</label>
-                            <input type="date" id="tActFecha" required class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm focus:border-blue-900 focus:outline-none focus:ring-0">
-                        </div>
-                    </div>
-                    <div class="pt-4">
-                        <button type="submit" class="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-3 uppercase tracking-wide transition-colors">Crear</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- MODAL: AGREGAR GASTO / INGREDIENTE (CONTROL GASTO) -->
-        <div id="tGastoModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[350] overflow-y-auto">
-            <div class="bg-white max-w-lg w-full p-8 shadow-2xl border-t-4 border-blue-900 my-8">
-                <h3 class="text-xl font-bold text-slate-900 mb-6 flex justify-between items-center uppercase tracking-wide">
-                    <span>Registro Control de Gasto</span>
-                    <button type="button" onclick="cerrarModalGasto()" class="text-slate-400 hover:text-red-600"><i class="fas fa-times text-lg"></i></button>
-                </h3>
-                <form id="tNuevoGastoForm" class="space-y-4" onsubmit="guardarGastoActividad(event)">
-                    <input type="hidden" id="tGastoActividadId">
-                    
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Origen del Insumo</label>
-                        <select id="tGastoOrigen" required onchange="toggleGastoOrigen()" class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm font-medium focus:border-blue-900 focus:outline-none focus:ring-0">
-                            <option value="COMPRAR">Comprar (Genera Consumo)</option>
-                            <option value="INVENTARIO">Tomar del Inventario (Sin Egreso)</option>
-                        </select>
-                        <p id="tGastoInventarioAviso" class="hidden text-xs text-orange-600 mt-1 font-bold"><i class="fas fa-info-circle"></i> Este material se tomará del inventario y no generará egreso de caja.</p>
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Categoría</label>
-                            <select id="tGastoCat" required class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm font-medium focus:border-blue-900 focus:outline-none focus:ring-0">
-                                <option value="Materia Prima">Materia Prima</option>
-                                <option value="Empaque">Empaque / Desechables</option>
-                                <option value="Logística">Logística / Transporte</option>
-                                <option value="Otros">Otros</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Descripción / Insumo</label>
-                            <input type="text" id="tGastoDesc" required class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm focus:border-blue-900 focus:outline-none focus:ring-0">
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-3 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Cantidad</label>
-                            <input type="number" step="0.01" min="0.01" id="tGastoCant" required oninput="calcularTotalGasto()" class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm focus:border-blue-900 focus:outline-none focus:ring-0">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Unidad</label>
-                            <input type="text" id="tGastoUnidad" placeholder="kg, lb, und..." required class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm focus:border-blue-900 focus:outline-none focus:ring-0">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">P. Unitario ($)</label>
-                            <input type="number" step="0.01" min="0" id="tGastoPUnit" required oninput="calcularTotalGasto()" class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm focus:border-blue-900 focus:outline-none focus:ring-0">
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1 text-blue-900">Total a Pagar ($)</label>
-                        <input type="number" id="tGastoTotal" readonly class="w-full bg-blue-50 border border-blue-300 p-2.5 text-sm font-bold focus:outline-none cursor-not-allowed">
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Proveedor / Lugar</label>
-                            <input type="text" id="tGastoProv" class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm focus:border-blue-900 focus:outline-none focus:ring-0">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Fecha de Compra</label>
-                            <input type="date" id="tGastoFecha" class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm focus:border-blue-900 focus:outline-none focus:ring-0">
-                        </div>
-                    </div>
-                    
-                    <div class="pt-4">
-                        <button type="submit" class="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-3 uppercase tracking-wide transition-colors">Guardar en Consumo</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- MODAL: ACTUALIZAR PLATOS -->
-        <div id="tCobrosModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[350]">
-            <div class="bg-white max-w-md w-full p-8 shadow-2xl border-t-4 border-blue-900">
-                <h3 class="text-xl font-bold text-slate-900 mb-6 flex justify-between items-center uppercase tracking-wide">
-                    <span>Actualizar Platos</span>
-                    <button type="button" onclick="cerrarModalCobros()" class="text-slate-400 hover:text-red-600"><i class="fas fa-times text-lg"></i></button>
-                </h3>
-                <form id="tCobrosForm" class="space-y-4" onsubmit="guardarCobrosActividad(event)">
-                    <input type="hidden" id="tCobrosActId">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Platos Preparados</label>
-                            <input type="number" min="0" id="tCobrosPrep" required class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm focus:border-blue-900 focus:outline-none focus:ring-0">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Platos Vendidos</label>
-                            <input type="number" min="0" id="tCobrosVend" required class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm focus:border-blue-900 focus:outline-none focus:ring-0">
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1 text-blue-700">Cobrados (Efectivo)</label>
-                            <input type="number" min="0" id="tCobrosCob" required oninput="calcularPlatosPendientes()" class="w-full bg-blue-50 border border-blue-300 p-2.5 text-sm font-bold focus:border-blue-900 focus:outline-none focus:ring-0">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1 text-orange-600">Pendientes de Cobro</label>
-                            <input type="number" id="tCobrosPend" readonly class="w-full bg-orange-50 border border-orange-300 p-2.5 text-sm font-bold cursor-not-allowed">
-                        </div>
-                    </div>
-                    <p class="text-[10px] text-slate-500 mt-1">El ingreso se calculará como: Cobrados × Precio Unitario.</p>
-                    <div class="pt-4">
-                        <button type="submit" class="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-3 uppercase tracking-wide transition-colors">Guardar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-        
-        <!-- MODAL: REGISTRAR DEUDA PENDIENTE -->
-        <div id="tDeudaModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[350]">
-            <div class="bg-white max-w-md w-full p-8 shadow-2xl border-t-4 border-orange-500">
-                <h3 class="text-xl font-bold text-slate-900 mb-6 flex justify-between items-center uppercase tracking-wide">
-                    <span>Registrar Cuenta por Cobrar</span>
-                    <button type="button" onclick="cerrarModalDeuda()" class="text-slate-400 hover:text-red-600"><i class="fas fa-times text-lg"></i></button>
-                </h3>
-                <form id="tDeudaForm" class="space-y-4" onsubmit="guardarDeuda(event)">
-                    <input type="hidden" id="tDeudaActId">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Hermano/a</label>
-                        <input type="text" id="tDeudaNombre" required class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm focus:border-blue-900 focus:outline-none focus:ring-0">
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Cant. Platos</label>
-                            <input type="number" min="1" id="tDeudaCant" required class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm focus:border-blue-900 focus:outline-none focus:ring-0">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Precio Unit.</label>
-                            <input type="number" step="0.01" id="tDeudaPrecio" required class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm focus:border-blue-900 focus:outline-none focus:ring-0">
-                        </div>
-                    </div>
-                    <div class="pt-4">
-                        <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 uppercase tracking-wide transition-colors">Guardar Cuenta por Cobrar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- MODAL: CHECKLIST (HERRAMIENTA SECUNDARIA) -->
-        <div id="tChecklistModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[400]">
-            <div class="bg-white max-w-2xl w-full p-8 shadow-2xl border-t-4 border-slate-800 overflow-y-auto max-h-[90vh]">
-                <h3 class="text-xl font-bold text-slate-900 mb-6 flex justify-between items-center uppercase tracking-wide">
-                    <span>Checklist de Preparación</span>
-                    <button type="button" onclick="cerrarModalChecklistSec()" class="text-slate-400 hover:text-red-600"><i class="fas fa-times text-lg"></i></button>
-                </h3>
-                
-                <input type="hidden" id="tChkSecActId">
-
-                <div class="mb-6 flex gap-2 border-b border-slate-200 pb-4">
-                    <button type="button" onclick="mostrarFormNuevoItemChecklist()" class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 border border-slate-300 flex-1">
-                        + Añadir Tarea / Item
-                    </button>
-                    <button type="button" onclick="mostrarFormCompraImprevista()" class="text-xs font-bold bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-2 border border-blue-300 flex-1">
-                        + Compra Imprevista Rápida
-                    </button>
+        <div id="tActividadesView">
+            <div class="mb-6 flex justify-between items-end">
+                <div>
+                    <h2 class="text-2xl font-black text-slate-800"><i class="fas fa-store text-blue-900 mr-2"></i> Actividades (Campaña)</h2>
+                    <p class="text-sm text-slate-500">Gestión de actividades económicas del período.</p>
                 </div>
-                
-                <div id="tChkNuevoItemFormContainer" class="hidden mb-6 bg-slate-50 p-4 border border-slate-200">
-                    <form onsubmit="guardarItemChecklistSec(event)" class="space-y-4">
-                        <h4 class="font-bold text-xs uppercase text-slate-500 mb-2">Añadir a Checklist</h4>
-                        <div class="grid grid-cols-2 gap-4">
+                <button onclick="abrirModalNuevaActividad()" class="bg-blue-900 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors text-sm">
+                    <i class="fas fa-plus"></i> Nueva Actividad
+                </button>
+            </div>
+            <div id="tActividadesList" class="space-y-6">
+                <div class="text-center py-10 text-slate-400 italic">Cargando actividades...</div>
+            </div>
+        </div>
+        
+        <!-- Modal Nueva Actividad -->
+        <div id="tActividadModal" class="fixed inset-0 bg-slate-900/60 z-[300] hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+                <div class="bg-blue-900 px-6 py-4 flex justify-between items-center text-white shrink-0">
+                    <h3 class="font-bold text-lg"><i class="fas fa-plus-circle mr-2"></i> Crear Actividad</h3>
+                    <button onclick="cerrarModalNuevaActividad()" class="text-white/70 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+                </div>
+                <div class="p-6 overflow-y-auto grow">
+                    <div class="mb-6 flex gap-2">
+                        <button id="btnModoNueva" onclick="toggleModoCreacionAct('nueva')" class="flex-1 py-2 font-bold text-sm rounded-lg border-2 border-blue-900 bg-blue-900 text-white transition-colors">Crear desde cero</button>
+                        <button id="btnModoPlantilla" onclick="toggleModoCreacionAct('plantilla')" class="flex-1 py-2 font-bold text-sm rounded-lg border-2 border-slate-300 text-slate-600 hover:border-blue-900 transition-colors">Usar plantilla</button>
+                    </div>
+                    
+                    <form id="formNuevaActividad" onsubmit="guardarNuevaActividad(event)">
+                        <input type="hidden" id="modoCreacionAct" value="nueva">
+                        
+                        <div id="panelCreacionNueva" class="space-y-4">
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-700 uppercase mb-1">Acción</label>
-                                <select id="tChkSecAccion" required class="w-full bg-white border border-slate-300 p-2 text-sm focus:border-slate-800">
-                                    <option value="COMPRAR">Comprar (Generará Gasto)</option>
-                                    <option value="INVENTARIO">Tomar de Inventario</option>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre de la Actividad</label>
+                                <input type="text" id="tActNombre" required placeholder="Ej. Venta de Corviches" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Fecha Programada</label>
+                                <input type="date" id="tActFecha" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Precio Referencial ($)</label>
+                                <input type="number" id="tActPrecio" step="0.01" min="0" required placeholder="Ej. 2.50" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Responsable</label>
+                                <input type="text" id="tActResponsable" placeholder="Opcional" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                            </div>
+                        </div>
+                        
+                        <div id="panelCreacionPlantilla" class="space-y-4 hidden">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Seleccionar Actividad Anterior</label>
+                                <select id="tActPlantillaSelect" onchange="mostrarResumenPlantilla()" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                                    <option value="">-- Seleccionar --</option>
+                                </select>
+                            </div>
+                            <div id="plantillaResumen" class="bg-blue-50 border border-blue-100 p-4 rounded-lg hidden text-sm text-slate-700">
+                            </div>
+                            <div class="bg-yellow-50 text-yellow-700 p-3 rounded-lg text-xs font-bold border border-yellow-200 mt-2">
+                                <i class="fas fa-info-circle"></i> Se copiará nombre, precio e ingredientes. Los datos financieros, ingresos y egresos NO se copiarán.
+                            </div>
+                            <div class="mt-4">
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nueva Fecha Programada</label>
+                                <input type="date" id="tActPlantillaFecha" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 flex justify-end gap-2 shrink-0">
+                            <button type="button" onclick="cerrarModalNuevaActividad()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-300">Cancelar</button>
+                            <button type="submit" id="btnGuardarAct" class="px-4 py-2 bg-blue-900 text-white font-bold rounded-lg hover:bg-blue-800">Crear Actividad</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal Control Gasto (Ingrediente) -->
+        <div id="tGastoModal" class="fixed inset-0 bg-slate-900/60 z-[300] hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+                <div class="bg-slate-800 px-6 py-4 flex justify-between items-center text-white shrink-0">
+                    <h3 id="tGastoModalTitle" class="font-bold text-lg"><i class="fas fa-shopping-basket mr-2"></i> Añadir Ingrediente/Material</h3>
+                    <button onclick="cerrarModalGasto()" class="text-white/70 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+                </div>
+                <div class="p-6 overflow-y-auto grow">
+                    <form id="formGastoActividad" onsubmit="guardarGastoActividad(event)">
+                        <input type="hidden" id="tGastoActId">
+                        <input type="hidden" id="tGastoId">
+                        <input type="hidden" id="tGastoImprevisto" value="false">
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Origen del Material</label>
+                                <select id="tGastoOrigen" required onchange="toggleGastoOrigen()" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm">
+                                    <option value="comprar">Comprar (Añadir a Checklist)</option>
+                                    <option value="inventario">Tomar del Inventario</option>
+                                </select>
+                            </div>
+                            
+                            <div id="panelGastoInventario" class="hidden">
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Artículo de Inventario</label>
+                                <select id="tGastoInventarioId" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm">
+                                    <option value="">-- Seleccionar --</option>
+                                </select>
+                                <p class="text-[10px] text-blue-600 mt-1 font-bold"><i class="fas fa-info-circle"></i> Este material no generará egreso de caja.</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Categoría</label>
+                                <select id="tGastoCategoria" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm">
+                                    <option value="Ingrediente">Ingrediente</option>
+                                    <option value="Empaque">Empaque / Desechable</option>
+                                    <option value="Movilización">Movilización</option>
+                                    <option value="Servicio">Servicio</option>
+                                    <option value="Otro">Otro</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-700 uppercase mb-1">Categoría</label>
-                                <input type="text" id="tChkSecCat" required placeholder="Ej: Verduras" class="w-full bg-white border border-slate-300 p-2 text-sm">
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Descripción</label>
+                                <input type="text" id="tGastoDesc" required placeholder="Ej. Plátano Verde" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Cantidad</label>
+                                    <input type="number" id="tGastoCant" step="0.01" min="0.01" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm" oninput="calcularTotalGasto()">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Unidad</label>
+                                    <select id="tGastoUnidad" required onchange="toggleUnidadOtra()" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm">
+                                        <option value="kg">kg</option>
+                                        <option value="lb">lb</option>
+                                        <option value="unidad">unidad</option>
+                                        <option value="docena">docena</option>
+                                        <option value="paquete">paquete</option>
+                                        <option value="funda">funda</option>
+                                        <option value="racimo">racimo</option>
+                                        <option value="litro">litro</option>
+                                        <option value="Otra">Otra...</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="panelUnidadOtra" class="hidden">
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Especificar Unidad</label>
+                                <input type="text" id="tGastoUnidadOtra" placeholder="Ej. Gaveta" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3" id="panelPreciosGasto">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">P. Unitario ($)</label>
+                                    <input type="number" id="tGastoPrecio" step="0.01" min="0" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm" oninput="calcularTotalGasto()">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Total Estimado ($)</label>
+                                    <input type="text" id="tGastoTotal" readonly class="w-full bg-slate-200 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm font-bold cursor-not-allowed">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Proveedor (Opcional)</label>
+                                    <input type="text" id="tGastoProv" placeholder="Ej. Mercado X" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Ubicación (Opcional)</label>
+                                    <input type="text" id="tGastoUbic" placeholder="Ej. Puesto 12" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Observación</label>
+                                <input type="text" id="tGastoObs" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm">
                             </div>
                         </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-700 uppercase mb-1">Descripción y Cantidad</label>
-                            <input type="text" id="tChkSecDesc" required placeholder="Ej: 2 Libras de Cebolla" class="w-full bg-white border border-slate-300 p-2 text-sm">
-                        </div>
-                        <div class="text-right">
-                            <button type="submit" class="bg-slate-800 text-white text-xs font-bold px-4 py-2 uppercase">Guardar Item</button>
+                        <div class="mt-6 flex justify-end gap-2 shrink-0">
+                            <button type="button" onclick="cerrarModalGasto()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-300">Cancelar</button>
+                            <button type="submit" id="btnGuardarGasto" class="px-4 py-2 bg-slate-800 text-white font-bold rounded-lg hover:bg-slate-700">Guardar</button>
                         </div>
                     </form>
                 </div>
-                
-                <div id="tChkImprevistoFormContainer" class="hidden mb-6 bg-blue-50 p-4 border border-blue-200">
-                    <form onsubmit="guardarCompraImprevistaSec(event)" class="space-y-4">
-                        <h4 class="font-bold text-xs uppercase text-blue-800 mb-2">Compra Imprevista (Se añade directo a Consumo)</h4>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="col-span-2">
-                                <label class="block text-[10px] font-bold text-slate-700 uppercase mb-1">Descripción</label>
-                                <input type="text" id="tImpDesc" required placeholder="Ej: Aceite (Faltó)" class="w-full bg-white border border-slate-300 p-2 text-sm">
+            </div>
+        </div>
+        
+        <!-- Modal Producción -->
+        <div id="tProdModal" class="fixed inset-0 bg-slate-900/60 z-[300] hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
+                <div class="bg-orange-500 px-6 py-4 flex justify-between items-center text-white shrink-0">
+                    <h3 class="font-bold text-lg"><i class="fas fa-utensils mr-2"></i> Producción</h3>
+                    <button onclick="cerrarModalProd()" class="text-white/70 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+                </div>
+                <div class="p-6">
+                    <form id="formProduccion" onsubmit="guardarProduccion(event)">
+                        <input type="hidden" id="tProdActId">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Platos Preparados (Total)</label>
+                                <input type="number" id="tProdPrep" min="0" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-lg font-bold text-center">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-700 uppercase mb-1">Cantidad</label>
-                                <input type="number" step="0.01" min="0.01" id="tImpCant" required value="1" oninput="calcularTotalImprevisto()" class="w-full bg-white border border-slate-300 p-2 text-sm">
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Platos Vendidos</label>
+                                <input type="number" id="tProdVend" min="0" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-lg font-bold text-center" oninput="calcularPlatosPendientes()">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-700 uppercase mb-1">Precio Unitario</label>
-                                <input type="number" step="0.01" min="0.01" id="tImpPrecio" required oninput="calcularTotalImprevisto()" class="w-full bg-white border border-slate-300 p-2 text-sm">
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Platos Cobrados (Efectivo real)</label>
+                                <input type="number" id="tProdCobrados" min="0" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-lg font-bold text-center" oninput="calcularPlatosPendientes()">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">No Vendidos</label>
+                                    <input type="number" id="tProdNoVend" readonly class="w-full bg-slate-200 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 font-bold text-center cursor-not-allowed">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Pendientes de Cobro</label>
+                                    <input type="number" id="tProdPend" readonly class="w-full bg-orange-100 border border-orange-200 text-orange-800 rounded-lg px-3 py-2 font-bold text-center cursor-not-allowed">
+                                </div>
                             </div>
                         </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-700 uppercase mb-1">Total a Agregar</label>
-                            <input type="text" id="tImpTotal" readonly class="w-full bg-blue-100 border border-blue-300 p-2 text-sm font-bold">
-                        </div>
-                        <div class="text-right">
-                            <button type="submit" class="bg-blue-800 text-white text-xs font-bold px-4 py-2 uppercase">Agregar a Consumo PENDIENTE</button>
+                        <div class="mt-6 flex justify-end gap-2">
+                            <button type="button" onclick="cerrarModalProd()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-300">Cancelar</button>
+                            <button type="submit" class="px-4 py-2 bg-orange-500 text-white font-bold rounded-lg hover:bg-orange-600">Guardar</button>
                         </div>
                     </form>
                 </div>
-
-                <div id="tChecklistItemsList" class="space-y-2">
-                    <!-- Lista de items del checklist de esta actividad -->
-                </div>
             </div>
         </div>
-
-        <!-- MODAL: MARCAR COMPRADO (Checklist -> Consumo) -->
-        <div id="tCompradoSecModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[500] overflow-y-auto">
-            <div class="bg-white max-w-sm w-full p-6 shadow-2xl border-t-4 border-green-600">
-                <h3 class="text-lg font-bold text-slate-900 mb-2 uppercase tracking-wide">Completar Tarea</h3>
-                <p class="text-sm text-slate-500 mb-4" id="tCompradoSecDescLbl"></p>
-                
-                <form id="tCompradoSecForm" class="space-y-4" onsubmit="confirmarCompradoSec(event)">
-                    <input type="hidden" id="tCompradoSecId">
-                    
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Proveedor / Ubicación (Opcional)</label>
-                        <input type="text" id="tCompradoSecProv" class="w-full bg-slate-50 border border-slate-300 p-2 text-sm">
-                    </div>
-                    
-                    <div id="tCompradoSecCostoBox">
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1 text-green-700">Costo Total Pagado ($)</label>
-                        <input type="number" step="0.01" min="0" id="tCompradoSecCosto" class="w-full bg-green-50 border border-green-300 p-2 text-sm font-bold">
-                    </div>
-                    
-                    <p class="text-[10px] text-slate-500 mt-2">Esta acción pasará el costo directamente al Consumo Pendiente de la actividad.</p>
-                    
-                    <div class="pt-2 flex gap-2">
-                        <button type="button" onclick="document.getElementById('tCompradoSecModal').classList.add('hidden')" class="flex-1 bg-slate-200 text-slate-800 font-bold py-2 text-xs uppercase">Cancelar</button>
-                        <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 text-xs uppercase">Confirmar Compra</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
     `;
     
-    iniciarListenerCampanas();
+    iniciarListenerActividades();
 }
 
-function iniciarListenerCampanas() {
-    if (!treasuryDb) return;
+function iniciarListenerActividades() {
+    if (!treasuryDb || !treasuryCurrentPeriod) return;
+    if (actsListener) treasuryDb.ref('actividades').orderByChild('periodo').equalTo(treasuryCurrentPeriod).off('value', actsListener);
     
-    if (campanasListener) treasuryDb.ref('campanas').off('value', campanasListener);
-    if (actividadesListener) treasuryDb.ref('actividades').off('value', actividadesListener);
-    
-    campanasListener = treasuryDb.ref('campanas').orderByChild('periodo').equalTo(treasuryCurrentPeriod).on('value', snap => {
-        const data = snap.val() || {};
-        campanasCaja = Object.entries(data).map(([id, val]) => ({ id, ...val }));
-        campanasCaja.sort((a,b) => new Date(a.fechaCreacion) - new Date(b.fechaCreacion));
-        
-        actividadesListener = treasuryDb.ref('actividades').orderByChild('periodo').equalTo(treasuryCurrentPeriod).on('value', snapAct => {
-            const actData = snapAct.val() || {};
-            actividadesCaja = Object.entries(actData).map(([id, val]) => ({ id, ...val }));
-            actualizarUICampanas();
-        });
+    actsListener = treasuryDb.ref('actividades').orderByChild('periodo').equalTo(treasuryCurrentPeriod).on('value', snap => {
+        const d = snap.val();
+        currentActividades = {};
+        if (d) {
+            Object.keys(d).forEach(k => {
+                currentActividades[k] = { id: k, ...d[k] };
+            });
+        }
+        actualizarUIActividades();
     });
 }
 
-function actualizarUICampanas() {
-    const list = document.getElementById('tCampanasList');
+function actualizarUIActividades() {
+    const list = document.getElementById('tActividadesList');
+    
+    // Checklist ahora se renderiza como pestaña independiente (tesoreria-checklist.js)
+    
     if (!list) return;
     
-    if (campanasCaja.length === 0) {
-        list.innerHTML = '<div class="p-8 text-center text-slate-500 italic">No hay campañas/semanas registradas en este período.</div>';
+    const acts = Object.values(currentActividades).sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    
+    if (acts.length === 0) {
+        list.innerHTML = `<div class="bg-blue-50 text-blue-800 p-6 rounded-xl border border-blue-200 text-center"><i class="fas fa-store-slash text-3xl mb-3 opacity-50 block"></i> No hay actividades registradas en este período.</div>`;
         return;
     }
     
-    list.innerHTML = campanasCaja.map(campana => {
-        const actsDeCampana = actividadesCaja.filter(a => a.campanaId === campana.id);
-        actsDeCampana.sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
-        
-        const htmlActividades = actsDeCampana.length > 0 
-            ? actsDeCampana.map(act => generarHtmlActividad(act)).join('')
-            : '<div class="p-4 text-center text-slate-500 text-sm">No hay actividades en esta campaña.</div>';
-            
-        return `
-        <div class="mb-12 border-4 border-slate-900 bg-white">
-            <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
-                <h3 class="font-black uppercase tracking-widest text-lg">${escHtml(campana.nombre)}</h3>
-                ${canEditTreasury() ? `
-                <button onclick="abrirModalNuevaActividad('${campana.id}')" class="bg-white text-slate-900 text-xs font-bold px-3 py-1 uppercase shadow-sm">
-                    + Agregar Día de Actividad
-                </button>
-                ` : ''}
-            </div>
-            <div class="p-4 bg-slate-50 space-y-8">
-                ${htmlActividades}
-            </div>
-        </div>
-        `;
-    }).join('');
+    let html = '';
+    acts.forEach(act => {
+        html += generarHtmlActividad(act);
+    });
+    list.innerHTML = html;
 }
 
 function generarHtmlActividad(act) {
-    const gastosArr = act.gastos ? Object.entries(act.gastos).map(([id, g]) => ({id, ...g})) : [];
-    let totalGasto = 0;
+    const cerrada = act.estado === 'CERRADA';
+    const consumida = act.consumoConfirmado === true;
     
-    const gastosHtml = gastosArr.map(g => {
-        const esInventario = g.origen === 'INVENTARIO';
-        if (!esInventario) totalGasto += parseFloat(g.total || 0);
-        
-        return `
-            <tr>
-                <td class="border border-slate-900 p-2 text-xs text-center">
-                    ${esInventario ? '<span class="bg-orange-100 text-orange-800 px-1 py-0.5 rounded font-bold uppercase">Inv.</span>' : '<span class="bg-blue-100 text-blue-800 px-1 py-0.5 rounded font-bold uppercase">Compra</span>'}
-                </td>
-                <td class="border border-slate-900 p-2 text-xs">${escHtml(g.descripcion)}</td>
-                <td class="border border-slate-900 p-2 text-xs text-center">${g.cantidad} ${g.unidad}</td>
-                <td class="border border-slate-900 p-2 text-xs text-right">${esInventario ? '-' : '$'+Number(g.precioUnitario).toFixed(2)}</td>
-                <td class="border border-slate-900 p-2 text-xs text-right font-bold">${esInventario ? '$0.00' : '$'+Number(g.total).toFixed(2)}</td>
-                ${!act.cerrada && canEditTreasury() ? `<td class="border border-slate-900 p-1 text-center print:hidden"><button onclick="eliminarGasto('${act.id}', '${g.id}')" class="text-red-600 hover:text-red-800 text-[10px] font-bold"><i class="fas fa-times"></i></button></td>` : (!act.cerrada ? '<td class="border border-slate-900 print:hidden"></td>' : '')}
-            </tr>
-        `;
-    }).join('');
+    // Preparados, Vendidos, Cobrados
+    const pPrep = act.platosPreparados || 0;
+    const pVend = act.platosVendidos || 0;
+    const pCob = act.platosCobrados || 0;
+    const precio = parseFloat(act.precio) || 0;
     
-    const deudasArr = act.deudas ? Object.entries(act.deudas).map(([id, d]) => ({id, ...d})) : [];
+    // Inversión: Solo suma gastos confirmados en checklist
+    let inversionReal = 0;
+    let consumoPendiente = 0;
+    const gastosArr = act.gastos ? Object.entries(act.gastos).map(([k,v]) => ({id:k, ...v})) : [];
     
-    const deudasHtml = deudasArr.length > 0 ? `
-        <div class="mt-4 border border-orange-500 bg-orange-50 p-3 page-break-inside-avoid">
-            <h4 class="font-bold text-orange-800 text-xs uppercase mb-2">Pendientes de Cobro</h4>
-            <table class="w-full text-xs text-left">
-                ${deudasArr.map(d => {
-                    return `<tr class="border-b border-orange-200">
-                        <td class="py-1 text-slate-800">${d.nombre} (${d.cantidad} pl)</td>
-                        <td class="py-1 text-slate-800 font-bold">$${(d.cantidad * d.precio).toFixed(2)}</td>
-                        <td class="py-1 text-right">
-                            ${d.pagado ? '<span class="text-green-600 font-bold text-[10px] uppercase">PAGADO</span>' : (canEditTreasury() ? `<button onclick="marcarDeudaPagada('${act.id}', '${d.id}')" class="bg-green-600 text-white px-2 py-0.5 text-[10px] uppercase font-bold rounded">Marcar Pago</button>` : '<span class="text-orange-600 font-bold text-[10px] uppercase">PENDIENTE</span>')}
-                        </td>
-                    </tr>`;
-                }).join('')}
-            </table>
-        </div>
-    ` : '';
-
-    const estadoLabel = act.cerrada 
-        ? '<span class="text-slate-900 border border-slate-900 px-2 py-1 bg-white font-bold text-[10px] uppercase"><i class="fas fa-lock"></i> CERRADA</span>' 
-        : '<span class="text-orange-600 border border-orange-600 px-2 py-1 bg-white font-bold text-[10px] uppercase flex items-center gap-1"><i class="fas fa-exclamation-triangle"></i> PENDIENTE</span>';
+    let htmlGastos = '';
     
-    const colspanDesc = act.cerrada ? 4 : 4; 
-    
-    const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    const fechaObj = new Date(act.fecha + 'T12:00:00');
-    const diaStr = dias[fechaObj.getDay()];
-
-    const ingreso = (act.cobrados || 0) * act.precio;
-    const inversion = totalGasto;
-    const ganancia = ingreso - inversion;
-    let rentabilidad = 0;
-    if (inversion > 0) {
-        rentabilidad = (ganancia / inversion) * 100;
+    if (gastosArr.length === 0) {
+        htmlGastos = `<div class="text-xs text-slate-400 italic py-2">No hay ingredientes registrados.</div>`;
+    } else {
+        htmlGastos = `<table class="w-full text-xs text-left border-collapse">
+            <thead>
+                <tr class="border-b border-slate-200 text-slate-500">
+                    <th class="py-2">Item</th>
+                    <th class="py-2">Cant</th>
+                    <th class="py-2">Origen</th>
+                    <th class="py-2">Subtotal</th>
+                    <th class="py-2 text-center">Estado</th>
+                    ${!cerrada && !consumida ? '<th class="py-2 text-right">Acción</th>' : ''}
+                </tr>
+            </thead>
+            <tbody>`;
+        gastosArr.forEach(g => {
+            const sub = (parseFloat(g.cantidad)*parseFloat(g.precio)).toFixed(2);
+            if (g.origen === 'comprar') {
+                if (g.comprado) {
+                    inversionReal += parseFloat(sub); // Confirmado via checklist
+                } else {
+                    consumoPendiente += parseFloat(sub);
+                }
+            }
+            
+            const badge = g.origen === 'inventario' 
+                ? `<span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-[9px] font-bold">INVENTARIO</span>`
+                : g.comprado 
+                    ? `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[9px] font-bold"><i class="fas fa-check"></i> COMPRADO</span>`
+                    : `<span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-[9px] font-bold">PENDIENTE</span>`;
+                    
+            htmlGastos += `<tr class="border-b border-slate-100">
+                <td class="py-2 font-medium text-slate-800">${escHtml(g.descripcion)}</td>
+                <td class="py-2">${g.cantidad} ${g.unidad}</td>
+                <td class="py-2">${g.origen === 'inventario' ? 'Inventario' : 'Compra'}</td>
+                <td class="py-2 font-bold text-slate-700">$${g.origen === 'inventario' ? '0.00' : sub}</td>
+                <td class="py-2 text-center">${badge}</td>
+                ${!cerrada && !consumida ? `
+                <td class="py-2 text-right">
+                    ${!g.comprado ? `
+                    <button onclick="editarGasto('${act.id}', '${g.id}')" class="text-blue-500 hover:text-blue-700 mr-2"><i class="fas fa-edit"></i></button>
+                    <button onclick="eliminarGasto('${act.id}', '${g.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                    ` : '<span class="text-slate-300 text-[10px]">Cerrado</span>'}
+                </td>` : ''}
+            </tr>`;
+        });
+        htmlGastos += `</tbody></table>`;
     }
     
+    // Rentabilidad Productiva (Potencial)
+    const valPotencial = pPrep * precio;
+    const ganPotencial = valPotencial - inversionReal;
+    const rentProd = inversionReal > 0 ? ((ganPotencial / inversionReal) * 100).toFixed(1) : 0;
+    
+    // Rentabilidad Real (Efectivo)
+    const valReal = pCob * precio;
+    const ganReal = valReal - inversionReal;
+    const rentReal = inversionReal > 0 ? ((ganReal / inversionReal) * 100).toFixed(1) : 0;
+    
+    const ingresoCobradoConfirmado = valReal; // Se asume ingreso=cobrados. Deudas se gestionan aparte.
+    
+    const fechaFormat = formatDateShort(act.fecha);
+    const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const diaNombre = act.fecha ? dias[new Date(act.fecha+'T12:00:00').getDay()] : '';
+    
     return `
-    <div class="mb-4 bg-white border border-slate-300 shadow-sm page-break-inside-avoid">
-        <div class="bg-[#faeadd] border-b border-slate-300 p-2 flex justify-between items-center">
-            <h4 class="font-bold text-slate-900 uppercase text-sm">${diaStr}, ${formatDateShort(act.fecha)} - ${escHtml(act.nombre)}</h4>
-            ${estadoLabel}
+    <div class="bg-white border ${cerrada ? 'border-slate-200 opacity-80' : 'border-blue-200'} rounded-xl shadow-sm overflow-hidden flex flex-col">
+        <div class="${cerrada ? 'bg-slate-100' : 'bg-blue-50'} px-5 py-3 border-b ${cerrada ? 'border-slate-200' : 'border-blue-100'} flex justify-between items-center flex-wrap gap-2">
+            <div>
+                <h4 class="font-black text-slate-800 text-lg uppercase">${escHtml(act.nombre)}</h4>
+                <div class="text-xs text-slate-500 font-bold"><i class="far fa-calendar-alt"></i> ${diaNombre}, ${fechaFormat} | Resp: ${escHtml(act.responsable || 'N/A')}</div>
+            </div>
+            <div class="flex gap-2">
+                ${!cerrada ? `
+                    ${(canEditTreasury() && act.estado !== 'CERRADA' && !act.consumoConfirmado) ? `
+                        <button onclick="abrirModalGastoNuevo('${act.id}')" class="bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold px-3 py-1.5 rounded text-xs transition-colors"><i class="fas fa-plus"></i> Añadir Ingred/Mat</button>
+                    ` : ''}
+                ` : `<span class="bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold"><i class="fas fa-lock"></i> CERRADA</span>`}
+            </div>
         </div>
         
-        <div class="p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs border-b border-slate-200">
-            <div class="bg-slate-50 p-2 border border-slate-200 text-center">
-                <div class="text-slate-500 uppercase font-bold mb-1">Producción</div>
-                <div>Prep: ${act.preparados || 0} | Vend: ${act.vendidos || 0}</div>
+        <div class="p-5 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 space-y-4">
+                <div id="checklistContenedor-${act.id}"></div>
+                <div>
+                    <h5 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Control de Gastos</h5>
+                    ${htmlGastos}
+                </div>
+                ${consumoPendiente > 0 && !consumida ? `
+                <div class="bg-yellow-50 text-yellow-800 p-3 rounded-lg text-xs font-bold border border-yellow-200 flex justify-between items-center">
+                    <span>Consumo pendiente de compra: $${consumoPendiente.toFixed(2)}</span>
+                </div>
+                ` : ''}
+                ${!consumida && inversionReal > 0 && canEditTreasury() ? `
+                <div class="mt-4">
+                    <button onclick="confirmarConsumoActividad('${act.id}', ${inversionReal}, ${ingresoCobradoConfirmado})" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded-lg text-sm transition-colors shadow">
+                        <i class="fas fa-check-double mr-1"></i> Confirmar Consumo (Afectar Caja)
+                    </button>
+                    <p class="text-[10px] text-center text-slate-500 mt-1">Confirmar restará la inversión de la Caja oficial.</p>
+                </div>
+                ` : consumida ? `
+                <div class="bg-green-50 text-green-700 p-3 rounded-lg text-xs font-bold border border-green-200 text-center">
+                    <i class="fas fa-check-circle"></i> Consumo confirmado y registrado en Caja.
+                </div>
+                ` : ''}
             </div>
-            <div class="bg-blue-50 p-2 border border-blue-200 text-center">
-                <div class="text-blue-800 uppercase font-bold mb-1">Cobrados ($)</div>
-                <div class="font-black text-blue-900 text-sm">$${ingreso.toFixed(2)}</div>
-                <div class="text-[10px] text-slate-500">${act.cobrados || 0} platos a $${Number(act.precio).toFixed(2)}</div>
-            </div>
-            <div class="bg-red-50 p-2 border border-red-200 text-center">
-                <div class="text-red-800 uppercase font-bold mb-1">Inversión</div>
-                <div class="font-black text-red-900 text-sm">$${inversion.toFixed(2)}</div>
-            </div>
-            <div class="bg-green-50 p-2 border border-green-200 text-center">
-                <div class="text-green-800 uppercase font-bold mb-1">Rentabilidad</div>
-                <div class="font-black text-green-900 text-sm">$${ganancia.toFixed(2)}</div>
-                ${inversion > 0 ? `<div class="text-[10px] text-green-700 font-bold">${rentabilidad.toFixed(1)}%</div>` : ''}
-            </div>
-        </div>
-
-        <div class="p-3">
-            <h5 class="text-xs font-bold text-slate-900 uppercase mb-2">Control de Gastos / Consumo Pendiente</h5>
-            <table class="w-full text-center border-collapse border border-slate-300 mb-2">
-                <thead>
-                    <tr class="bg-slate-100">
-                        <th class="border border-slate-300 p-1 text-slate-800 font-semibold text-[10px] uppercase">Origen</th>
-                        <th class="border border-slate-300 p-1 text-slate-800 font-semibold text-[10px] uppercase">Descripción</th>
-                        <th class="border border-slate-300 p-1 text-slate-800 font-semibold text-[10px] uppercase">Cant.</th>
-                        <th class="border border-slate-300 p-1 text-slate-800 font-semibold text-[10px] uppercase">P. Unit</th>
-                        <th class="border border-slate-300 p-1 text-slate-800 font-semibold text-[10px] uppercase">Total</th>
-                        ${!act.cerrada ? '<th class="border border-slate-300 p-1 print:hidden"></th>' : ''}
-                    </tr>
-                </thead>
-                <tbody>
-                    ${gastosArr.length > 0 ? gastosHtml : `<tr><td colspan="${!act.cerrada ? 6 : 5}" class="border border-slate-300 p-2 text-slate-500 italic text-xs">No hay consumo registrado</td></tr>`}
-                </tbody>
-            </table>
             
-            ${deudasHtml}
-        </div>
-        
-        <!-- Botonera -->
-        <div class="bg-slate-50 p-2 border-t border-slate-300 flex flex-wrap gap-2 print:hidden items-center">
-            ${!act.cerrada && canEditTreasury() ? `
-            <button onclick="abrirModalGasto('${act.id}')" class="text-[10px] font-bold bg-white hover:bg-slate-100 text-slate-700 px-3 py-1.5 border border-slate-300 shadow-sm uppercase">
-                <i class="fas fa-plus mr-1"></i> Control Gasto
-            </button>
-            <button onclick="abrirModalChecklistSec('${act.id}')" class="text-[10px] font-bold bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-1.5 border border-yellow-300 shadow-sm uppercase">
-                <i class="fas fa-tasks mr-1"></i> Checklist
-            </button>
-            <button onclick="abrirModalCobros('${act.id}', ${act.preparados||0}, ${act.vendidos||0}, ${act.cobrados||0})" class="text-[10px] font-bold bg-white hover:bg-slate-100 text-slate-700 px-3 py-1.5 border border-slate-300 shadow-sm uppercase">
-                <i class="fas fa-utensils mr-1"></i> Actualizar Platos
-            </button>
-            <button onclick="abrirModalDeuda('${act.id}', ${act.precio})" class="text-[10px] font-bold bg-orange-100 hover:bg-orange-200 text-orange-800 px-3 py-1.5 border border-orange-300 shadow-sm uppercase">
-                <i class="fas fa-hand-holding-usd mr-1"></i> Pendientes de Cobro
-            </button>
-            
-            <div class="flex-grow"></div>
-            
-            <button onclick="cerrarActividad('${act.id}', ${totalGasto}, ${ingreso})" class="text-[10px] font-bold bg-blue-900 hover:bg-blue-800 text-white px-3 py-1.5 uppercase shadow-sm">
-                Cerrar Consumo
-            </button>
-            ` : ''}
+            <div class="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+                    <h5 class="text-xs font-bold text-slate-600 uppercase tracking-wider">Producción & Ingresos</h5>
+                    ${!cerrada && canEditTreasury() ? `<button onclick="abrirModalProd('${act.id}')" class="text-blue-600 hover:text-blue-800 text-xs font-bold"><i class="fas fa-edit"></i> Editar</button>` : ''}
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                    <div class="text-slate-500">Precio/u:</div><div class="font-bold text-right text-slate-800">$${precio.toFixed(2)}</div>
+                    <div class="text-slate-500">Preparados:</div><div class="font-bold text-right text-slate-800">${pPrep}</div>
+                    <div class="text-slate-500">Vendidos:</div><div class="font-bold text-right text-slate-800">${pVend}</div>
+                    <div class="text-slate-500">Cobrados:</div><div class="font-bold text-right text-green-600">${pCob}</div>
+                    <div class="text-slate-500">No Vendidos:</div><div class="font-bold text-right text-slate-800">${pPrep - pVend}</div>
+                    <div class="text-slate-500">Pendientes (Cobro):</div><div class="font-bold text-right text-orange-500">${pVend - pCob}</div>
+                </div>
+                <div class="border-t border-slate-200 pt-2 grid grid-cols-2 gap-2 text-sm">
+                    <div class="text-slate-500 font-bold">Inversión (Gasto):</div><div class="font-bold text-right text-red-600">$${inversionReal.toFixed(2)}</div>
+                    <div class="text-slate-500 font-bold">Ingreso Real:</div><div class="font-bold text-right text-green-600">$${ingresoCobradoConfirmado.toFixed(2)}</div>
+                    <div class="text-slate-800 font-black">GANANCIA REAL:</div><div class="font-black text-right ${ganReal >= 0 ? 'text-green-600' : 'text-red-600'}">$${ganReal.toFixed(2)}</div>
+                </div>
+                
+                <div class="mt-4 pt-4 border-t border-slate-200">
+                    <h5 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Análisis de Rentabilidad</h5>
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-slate-600">Productiva (Potencial)</span>
+                            <span class="text-xs font-bold ${rentProd >= 0 ? 'text-green-600' : 'text-red-600'}">${inversionReal > 0 ? rentProd+'%' : '-'}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-slate-600">Real (Efectivo)</span>
+                            <span class="text-xs font-bold ${rentReal >= 0 ? 'text-green-600' : 'text-red-600'}">${inversionReal > 0 ? rentReal+'%' : '-'}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                ${!cerrada && consumida && canEditTreasury() ? `
+                <div class="mt-4">
+                    <button onclick="cerrarActividad('${act.id}', ${inversionReal}, ${ingresoCobradoConfirmado})" class="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-2 rounded-lg text-sm transition-colors shadow">
+                        <i class="fas fa-lock mr-1"></i> Cerrar Actividad
+                    </button>
+                    <p class="text-[10px] text-center text-slate-500 mt-1">Bloquea edición e inyecta ingreso a Caja.</p>
+                </div>
+                ` : ''}
+            </div>
         </div>
     </div>
     `;
 }
 
-// -----------------------------------------------------
-// CAMPAÑAS
-// -----------------------------------------------------
-
-function abrirModalNuevaCampana() {
-    document.getElementById('tNuevaCampanaForm').reset();
-    document.getElementById('tCampanaModal').classList.remove('hidden');
-}
-function cerrarModalNuevaCampana() { document.getElementById('tCampanaModal').classList.add('hidden'); }
-
-async function guardarNuevaCampana(e) {
-    e.preventDefault();
-    if (!treasuryDb) return;
-    const data = {
-        periodo: treasuryCurrentPeriod,
-        nombre: document.getElementById('tCampNombre').value.trim(),
-        fechaCreacion: new Date().toISOString()
-    };
-    try {
-        await treasuryDb.ref('campanas').push(data);
-        cerrarModalNuevaCampana();
-    } catch(err) { alert(err.message); }
-}
-
-// -----------------------------------------------------
-// ACTIVIDADES
-// -----------------------------------------------------
-
-async function abrirModalNuevaActividad(campanaId) {
-    document.getElementById('tNuevaActividadForm').reset();
-    document.getElementById('tActCampanaId').value = campanaId;
-    document.getElementById('tActFecha').value = new Date().toISOString().split('T')[0];
-    
-    // Cargar historial
-    const snap = await treasuryDb.ref('actividades').once('value');
-    const all = snap.val() || {};
-    const arr = Object.entries(all).map(([id, val]) => ({id, ...val})).sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
-    
-    const sel = document.getElementById('tActBaseHist');
-    sel.innerHTML = '<option value="">Seleccione una actividad histórica</option>' + arr.map(a => `<option value="${a.id}">${a.periodo} - ${a.nombre}</option>`).join('');
-    
-    toggleModoCreacionAct();
+// RESTO DE FUNCIONES DE ACTIVIDAD...
+async function abrirModalNuevaActividad() {
     document.getElementById('tActividadModal').classList.remove('hidden');
-}
-
-function toggleModoCreacionAct() {
-    const modo = document.getElementById('tActModo').value;
-    if (modo === 'COPIAR') {
-        document.getElementById('tActBoxCopiar').classList.remove('hidden');
-        document.getElementById('tActBoxNueva').classList.add('hidden');
-        document.getElementById('tActBaseHist').setAttribute('required', 'true');
-        document.getElementById('tActNombre').removeAttribute('required');
-    } else {
-        document.getElementById('tActBoxCopiar').classList.add('hidden');
-        document.getElementById('tActBoxNueva').classList.remove('hidden');
-        document.getElementById('tActBaseHist').removeAttribute('required');
-        document.getElementById('tActNombre').setAttribute('required', 'true');
+    document.getElementById('formNuevaActividad').reset();
+    document.getElementById('tActFecha').value = new Date().toISOString().split('T')[0];
+    toggleModoCreacionAct('nueva');
+    
+    // Cargar historial para plantilla
+    const snap = await treasuryDb.ref('actividades').once('value');
+    const d = snap.val();
+    const sel = document.getElementById('tActPlantillaSelect');
+    sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+    if (d) {
+        const sorted = Object.values(d).sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+        sorted.forEach(a => {
+            sel.innerHTML += `<option value="${a.id}">${a.fecha} | ${escHtml(a.nombre)}</option>`;
+        });
     }
 }
 
-function cerrarModalNuevaActividad() { document.getElementById('tActividadModal').classList.add('hidden'); }
+function cerrarModalNuevaActividad() {
+    document.getElementById('tActividadModal').classList.add('hidden');
+}
+
+function toggleModoCreacionAct(modo) {
+    document.getElementById('modoCreacionAct').value = modo;
+    if (modo === 'nueva') {
+        document.getElementById('panelCreacionNueva').classList.remove('hidden');
+        document.getElementById('panelCreacionPlantilla').classList.add('hidden');
+        document.getElementById('btnModoNueva').className = "flex-1 py-2 font-bold text-sm rounded-lg border-2 border-blue-900 bg-blue-900 text-white transition-colors";
+        document.getElementById('btnModoPlantilla').className = "flex-1 py-2 font-bold text-sm rounded-lg border-2 border-slate-300 text-slate-600 hover:border-blue-900 transition-colors";
+    } else {
+        document.getElementById('panelCreacionNueva').classList.add('hidden');
+        document.getElementById('panelCreacionPlantilla').classList.remove('hidden');
+        document.getElementById('btnModoNueva').className = "flex-1 py-2 font-bold text-sm rounded-lg border-2 border-slate-300 text-slate-600 hover:border-blue-900 transition-colors";
+        document.getElementById('btnModoPlantilla').className = "flex-1 py-2 font-bold text-sm rounded-lg border-2 border-blue-900 bg-blue-900 text-white transition-colors";
+    }
+}
+
+async function mostrarResumenPlantilla() {
+    const id = document.getElementById('tActPlantillaSelect').value;
+    const res = document.getElementById('plantillaResumen');
+    if(!id) { res.classList.add('hidden'); return; }
+    
+    const snap = await treasuryDb.ref('actividades/'+id).once('value');
+    const act = snap.val();
+    if(!act) return;
+    
+    // Cálculo resumen
+    const pPrep = act.platosPreparados||0;
+    const pCob = act.platosCobrados||0;
+    const precio = act.precio||0;
+    let inv = 0;
+    if(act.gastos) Object.values(act.gastos).forEach(g => { if(g.comprado) inv += g.cantidad*g.precio; });
+    const ing = pCob * precio;
+    const gan = ing - inv;
+    const rp = inv>0 ? (((pPrep*precio)-inv)/inv*100).toFixed(0) : 0;
+    const rr = inv>0 ? ((gan)/inv*100).toFixed(0) : 0;
+    
+    res.innerHTML = `
+        <div class="font-bold mb-2 uppercase border-b border-blue-200 pb-1">${escHtml(act.nombre)}</div>
+        <div class="grid grid-cols-2 gap-x-4 gap-y-1">
+            <div>Producción: <b>${pPrep}</b></div>
+            <div>Cobrados: <b>${pCob}</b></div>
+            <div>Inversión: <b>$${inv.toFixed(2)}</b></div>
+            <div>Ingreso: <b>$${ing.toFixed(2)}</b></div>
+            <div class="col-span-2 border-t border-blue-200 mt-1 pt-1 text-xs">
+                Ganancia real: <b>$${gan.toFixed(2)}</b> | Rent. Real: <b>${rr}%</b> | Rent. Prod: <b>${rp}%</b>
+            </div>
+        </div>
+    `;
+    res.classList.remove('hidden');
+    // Guardar temporalmente los datos para copiarlos
+    window.tempPlantilla = act;
+}
 
 async function guardarNuevaActividad(e) {
     e.preventDefault();
-    if (!treasuryDb) return;
     
-    const campanaId = document.getElementById('tActCampanaId').value;
-    const modo = document.getElementById('tActModo').value;
-    
-    let nombre = '';
-    let precio = parseFloat(document.getElementById('tActPrecio').value) || 0;
-    let checklistHist = null;
-    
-    if (modo === 'COPIAR') {
-        const histId = document.getElementById('tActBaseHist').value;
-        const snap = await treasuryDb.ref('actividades/' + histId).once('value');
-        const d = snap.val();
-        if (!d) return alert('No se pudo leer la actividad base.');
-        nombre = d.nombre;
-        if(document.getElementById('tActPrecio').value === '') precio = d.precio; // Mantiene el sugerido
-        if(d.checklist) checklistHist = d.checklist; // Copiamos el checklist (solo la estructura, lo limpiamos luego)
-    } else {
-        nombre = document.getElementById('tActNombre').value.trim();
+    // Verificar período abierto
+    const pSnap = await treasuryDb.ref(`periodos/${treasuryCurrentPeriod}`).once('value');
+    if (!pSnap.exists() || pSnap.val().estado !== 'ABIERTO') {
+        alert("El período actual no está abierto. No se pueden crear actividades.");
+        return;
     }
-
-    const data = {
-        campanaId: campanaId,
+    
+    const modo = document.getElementById('modoCreacionAct').value;
+    const ref = treasuryDb.ref('actividades').push();
+    
+    let obj = {
+        id: ref.key,
         periodo: treasuryCurrentPeriod,
-        nombre: nombre,
-        precio: precio,
-        fecha: document.getElementById('tActFecha').value,
-        preparados: 0,
-        vendidos: 0,
-        cobrados: 0,
-        pendientes: 0,
-        cerrada: false,
-        creadoPor: treasuryUser ? treasuryUser.email : 'desc'
+        estado: 'ABIERTA',
+        consumoConfirmado: false,
+        platosPreparados: 0,
+        platosVendidos: 0,
+        platosCobrados: 0,
+        creadoPor: treasuryUser.email,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
     };
     
-    // Si copiamos checklist, limpiamos los estados de "comprado"
-    if (checklistHist) {
-        data.checklist = {};
-        Object.entries(checklistHist).forEach(([key, val]) => {
-            data.checklist[key] = {
-                accion: val.accion,
-                categoria: val.categoria,
-                descripcion: val.descripcion,
-                comprado: false
-            };
-        });
+    if (modo === 'nueva') {
+        obj.nombre = document.getElementById('tActNombre').value;
+        obj.fecha = document.getElementById('tActFecha').value;
+        obj.precio = parseFloat(document.getElementById('tActPrecio').value);
+        obj.responsable = document.getElementById('tActResponsable').value;
+    } else {
+        if(!window.tempPlantilla) return alert('Seleccione una plantilla válida.');
+        obj.nombre = window.tempPlantilla.nombre;
+        obj.precio = window.tempPlantilla.precio;
+        obj.responsable = window.tempPlantilla.responsable;
+        obj.fecha = document.getElementById('tActPlantillaFecha').value || new Date().toISOString().split('T')[0];
+        
+        // Copiar ingredientes NO FINANCIEROS
+        if(window.tempPlantilla.gastos) {
+            obj.gastos = {};
+            Object.entries(window.tempPlantilla.gastos).forEach(([k,g]) => {
+                const newGastoId = treasuryDb.ref().push().key;
+                obj.gastos[newGastoId] = {
+                    id: newGastoId,
+                    categoria: g.categoria,
+                    descripcion: g.descripcion,
+                    cantidad: g.cantidad,
+                    unidad: g.unidad,
+                    precio: g.precio,
+                    origen: g.origen,
+                    inventarioItemId: g.inventarioItemId || null,
+                    proveedor: g.proveedor || '',
+                    ubicacion: g.ubicacion || '',
+                    observacion: g.observacion || '',
+                    comprado: false // REINICIADO
+                };
+            });
+        }
     }
     
-    try {
-        await treasuryDb.ref('actividades').push(data);
-        cerrarModalNuevaActividad();
-    } catch(err) { alert(err.message); }
+    await ref.set(obj);
+    cerrarModalNuevaActividad();
 }
 
-// -----------------------------------------------------
-// GASTOS (CONSUMO)
-// -----------------------------------------------------
+// Modal Produccion
+function abrirModalProd(actId) {
+    const act = currentActividades[actId];
+    if(!act) return;
+    document.getElementById('tProdActId').value = actId;
+    document.getElementById('tProdPrep').value = act.platosPreparados || 0;
+    document.getElementById('tProdVend').value = act.platosVendidos || 0;
+    document.getElementById('tProdCobrados').value = act.platosCobrados || 0;
+    calcularPlatosPendientes();
+    document.getElementById('tProdModal').classList.remove('hidden');
+}
+function cerrarModalProd() { document.getElementById('tProdModal').classList.add('hidden'); }
+function calcularPlatosPendientes() {
+    const p = parseInt(document.getElementById('tProdPrep').value)||0;
+    const v = parseInt(document.getElementById('tProdVend').value)||0;
+    const c = parseInt(document.getElementById('tProdCobrados').value)||0;
+    
+    document.getElementById('tProdNoVend').value = Math.max(0, p - v);
+    document.getElementById('tProdPend').value = Math.max(0, v - c);
+}
+async function guardarProduccion(e) {
+    e.preventDefault();
+    const actId = document.getElementById('tProdActId').value;
+    const prep = parseInt(document.getElementById('tProdPrep').value)||0;
+    const vend = parseInt(document.getElementById('tProdVend').value)||0;
+    const cobr = parseInt(document.getElementById('tProdCobrados').value)||0;
+    
+    if (vend > prep) {
+        alert("Los platos vendidos no pueden ser mayores a los preparados.");
+        return;
+    }
+    if (cobr > vend) {
+        alert("Los platos cobrados no pueden ser mayores a los vendidos.");
+        return;
+    }
+    
+    await treasuryDb.ref(`actividades/${actId}`).update({
+        platosPreparados: prep,
+        platosVendidos: vend,
+        platosCobrados: cobr
+    });
+    cerrarModalProd();
+}
 
-function abrirModalGasto(actId) {
-    document.getElementById('tNuevoGastoForm').reset();
-    document.getElementById('tGastoActividadId').value = actId;
-    document.getElementById('tGastoOrigen').value = 'COMPRAR';
+// Gastos
+function abrirModalGastoNuevo(actId) {
+    document.getElementById('formGastoActividad').reset();
+    document.getElementById('tGastoActId').value = actId;
+    document.getElementById('tGastoId').value = '';
+    document.getElementById('tGastoImprevisto').value = 'false';
+    document.getElementById('tGastoModalTitle').innerHTML = '<i class="fas fa-shopping-basket mr-2"></i> Añadir Ingrediente/Material';
     toggleGastoOrigen();
-    document.getElementById('tGastoFecha').value = new Date().toISOString().split('T')[0];
     document.getElementById('tGastoModal').classList.remove('hidden');
 }
 function cerrarModalGasto() { document.getElementById('tGastoModal').classList.add('hidden'); }
-
 function toggleGastoOrigen() {
-    const origen = document.getElementById('tGastoOrigen').value;
-    const aviso = document.getElementById('tGastoInventarioAviso');
-    const total = document.getElementById('tGastoTotal');
-    const pUnit = document.getElementById('tGastoPUnit');
-    
-    if (origen === 'INVENTARIO') {
-        aviso.classList.remove('hidden');
-        pUnit.value = 0;
-        total.value = 0;
-        pUnit.readOnly = true;
+    const o = document.getElementById('tGastoOrigen').value;
+    if(o === 'inventario') {
+        document.getElementById('panelGastoInventario').classList.remove('hidden');
+        document.getElementById('panelPreciosGasto').classList.add('hidden');
+        document.getElementById('tGastoPrecio').value = '0';
+        document.getElementById('tGastoPrecio').removeAttribute('required');
+        cargarInventarioGastoSelect();
     } else {
-        aviso.classList.add('hidden');
-        pUnit.readOnly = false;
-        calcularTotalGasto();
+        document.getElementById('panelGastoInventario').classList.add('hidden');
+        document.getElementById('panelPreciosGasto').classList.remove('hidden');
+        document.getElementById('tGastoPrecio').setAttribute('required', 'true');
     }
 }
-
+function toggleUnidadOtra() {
+    const u = document.getElementById('tGastoUnidad').value;
+    if(u==='Otra') document.getElementById('panelUnidadOtra').classList.remove('hidden');
+    else document.getElementById('panelUnidadOtra').classList.add('hidden');
+}
 function calcularTotalGasto() {
-    if (document.getElementById('tGastoOrigen').value === 'INVENTARIO') {
-        document.getElementById('tGastoTotal').value = 0;
-        return;
-    }
-    const c = parseFloat(document.getElementById('tGastoCant').value) || 0;
-    const p = parseFloat(document.getElementById('tGastoPUnit').value) || 0;
-    document.getElementById('tGastoTotal').value = (c * p).toFixed(2);
+    const c = parseFloat(document.getElementById('tGastoCant').value)||0;
+    const p = parseFloat(document.getElementById('tGastoPrecio').value)||0;
+    document.getElementById('tGastoTotal').value = (c*p).toFixed(2);
 }
-
+async function cargarInventarioGastoSelect() {
+    const sel = document.getElementById('tGastoInventarioId');
+    sel.innerHTML = '<option value="">-- Cargando --</option>';
+    const snap = await treasuryDb.ref('inventario').once('value');
+    const d = snap.val();
+    sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+    if(d) {
+        Object.entries(d).forEach(([k,v]) => {
+            if(v.estado === 'ACTIVO') sel.innerHTML += `<option value="${k}">${escHtml(v.descripcion)} (Disp: ${v.cantidad})</option>`;
+        });
+    }
+}
 async function guardarGastoActividad(e) {
     e.preventDefault();
-    const actId = document.getElementById('tGastoActividadId').value;
-    const data = {
+    const actId = document.getElementById('tGastoActId').value;
+    const gId = document.getElementById('tGastoId').value;
+    const ref = gId ? treasuryDb.ref(`actividades/${actId}/gastos/${gId}`) : treasuryDb.ref(`actividades/${actId}/gastos`).push();
+    
+    let uni = document.getElementById('tGastoUnidad').value;
+    if(uni === 'Otra') uni = document.getElementById('tGastoUnidadOtra').value || 'Otra';
+    
+    const obj = {
+        id: ref.key,
         origen: document.getElementById('tGastoOrigen').value,
-        categoria: document.getElementById('tGastoCat').value,
+        inventarioItemId: document.getElementById('tGastoInventarioId').value || null,
+        categoria: document.getElementById('tGastoCategoria').value,
         descripcion: document.getElementById('tGastoDesc').value,
         cantidad: parseFloat(document.getElementById('tGastoCant').value),
-        unidad: document.getElementById('tGastoUnidad').value,
-        precioUnitario: parseFloat(document.getElementById('tGastoPUnit').value) || 0,
-        total: parseFloat(document.getElementById('tGastoTotal').value) || 0,
-        proveedor: document.getElementById('tGastoProv').value.trim(),
-        fechaCompra: document.getElementById('tGastoFecha').value
+        unidad: uni,
+        precio: parseFloat(document.getElementById('tGastoPrecio').value) || 0,
+        proveedor: document.getElementById('tGastoProv').value,
+        ubicacion: document.getElementById('tGastoUbic').value,
+        observacion: document.getElementById('tGastoObs').value,
     };
-    try {
-        await treasuryDb.ref(`actividades/${actId}/gastos`).push(data);
-        cerrarModalGasto();
-    } catch(err) { alert(err.message); }
+    
+    if(!gId) {
+        obj.comprado = false; // Checklist inicial
+        obj.imprevisto = document.getElementById('tGastoImprevisto').value === 'true';
+        if(obj.imprevisto) obj.comprado = true; // Si es imprevisto en checklist, ya se asume comprado.
+    }
+    
+    await ref.update(obj);
+    cerrarModalGasto();
+}
+
+function editarGasto(actId, gastoId) {
+    const act = currentActividades[actId];
+    const g = act.gastos[gastoId];
+    if(!g) return;
+    document.getElementById('formGastoActividad').reset();
+    document.getElementById('tGastoActId').value = actId;
+    document.getElementById('tGastoId').value = gastoId;
+    document.getElementById('tGastoOrigen').value = g.origen;
+    toggleGastoOrigen();
+    document.getElementById('tGastoInventarioId').value = g.inventarioItemId || '';
+    document.getElementById('tGastoCategoria').value = g.categoria;
+    document.getElementById('tGastoDesc').value = g.descripcion;
+    document.getElementById('tGastoCant').value = g.cantidad;
+    
+    const uOpt = Array.from(document.getElementById('tGastoUnidad').options).map(o=>o.value);
+    if(uOpt.includes(g.unidad)) {
+        document.getElementById('tGastoUnidad').value = g.unidad;
+        toggleUnidadOtra();
+    } else {
+        document.getElementById('tGastoUnidad').value = 'Otra';
+        toggleUnidadOtra();
+        document.getElementById('tGastoUnidadOtra').value = g.unidad;
+    }
+    
+    document.getElementById('tGastoPrecio').value = g.precio;
+    document.getElementById('tGastoProv').value = g.proveedor || '';
+    document.getElementById('tGastoUbic').value = g.ubicacion || '';
+    document.getElementById('tGastoObs').value = g.observacion || '';
+    calcularTotalGasto();
+    
+    document.getElementById('tGastoModalTitle').innerHTML = '<i class="fas fa-edit mr-2"></i> Editar Ingrediente/Material';
+    document.getElementById('tGastoModal').classList.remove('hidden');
 }
 
 async function eliminarGasto(actId, gastoId) {
-    if(!confirm('¿Eliminar insumo del consumo?')) return;
-    try { await treasuryDb.ref(`actividades/${actId}/gastos/${gastoId}`).remove(); } catch(e) {}
+    const act = currentActividades[actId];
+    if (!act || act.consumoConfirmado || act.estado === 'CERRADA') {
+        alert('No se puede modificar una actividad cerrada o con consumo confirmado.');
+        return;
+    }
+    const g = act.gastos ? act.gastos[gastoId] : null;
+    if (g && g.comprado) {
+        alert('No se puede eliminar un material que ya fue marcado como comprado.');
+        return;
+    }
+    if(confirm('¿Eliminar este material?')) {
+        await treasuryDb.ref(`actividades/${actId}/gastos/${gastoId}`).remove();
+        await registrarAuditoriaTesoreria(
+            'ELIMINACIÓN GASTO',
+            'Actividades',
+            `Gasto "${g ? g.descripcion : gastoId}" eliminado de actividad ${act.nombre}`,
+            actId
+        );
+    }
 }
 
-// -----------------------------------------------------
-// PLATOS Y DEUDAS
-// -----------------------------------------------------
-function abrirModalCobros(actId, p, v, c) {
-    document.getElementById('tCobrosActId').value = actId;
-    document.getElementById('tCobrosPrep').value = p;
-    document.getElementById('tCobrosVend').value = v;
-    document.getElementById('tCobrosCob').value = c;
-    calcularPlatosPendientes();
-    document.getElementById('tCobrosModal').classList.remove('hidden');
-}
-function cerrarModalCobros() { document.getElementById('tCobrosModal').classList.add('hidden'); }
-
-function calcularPlatosPendientes() {
-    const v = parseInt(document.getElementById('tCobrosVend').value) || 0;
-    const c = parseInt(document.getElementById('tCobrosCob').value) || 0;
-    let pend = v - c;
-    if(pend < 0) pend = 0;
-    document.getElementById('tCobrosPend').value = pend;
-}
-
-async function guardarCobrosActividad(e) {
-    e.preventDefault();
-    const actId = document.getElementById('tCobrosActId').value;
-    const p = parseInt(document.getElementById('tCobrosPrep').value);
-    const v = parseInt(document.getElementById('tCobrosVend').value);
-    const c = parseInt(document.getElementById('tCobrosCob').value);
-    const pend = parseInt(document.getElementById('tCobrosPend').value);
+async function confirmarConsumoActividad(actId, gastoConfirmadoTotal, ingresoCobradoConfirmado) {
+    const act = currentActividades[actId];
+    if(act.consumoConfirmado) {
+        alert('Este consumo ya fue confirmado previamente.');
+        return;
+    }
     
-    try {
-        await treasuryDb.ref(`actividades/${actId}`).update({ preparados: p, vendidos: v, cobrados: c, pendientes: pend });
-        cerrarModalCobros();
-    } catch(err) { alert(err.message); }
-}
-
-function abrirModalDeuda(actId, precio) {
-    document.getElementById('tDeudaForm').reset();
-    document.getElementById('tDeudaActId').value = actId;
-    document.getElementById('tDeudaPrecio').value = precio;
-    document.getElementById('tDeudaModal').classList.remove('hidden');
-}
-function cerrarModalDeuda() { document.getElementById('tDeudaModal').classList.add('hidden'); }
-
-async function guardarDeuda(e) {
-    e.preventDefault();
-    const actId = document.getElementById('tDeudaActId').value;
-    const data = {
-        nombre: document.getElementById('tDeudaNombre').value.trim(),
-        cantidad: parseInt(document.getElementById('tDeudaCant').value),
-        precio: parseFloat(document.getElementById('tDeudaPrecio').value),
-        pagado: false,
-        fecha: new Date().toISOString()
-    };
-    try {
-        await treasuryDb.ref(`actividades/${actId}/deudas`).push(data);
-        cerrarModalDeuda();
-    } catch(err) { alert(err.message); }
-}
-
-async function marcarDeudaPagada(actId, deudaId) {
-    if(!confirm('¿Marcar cuenta como pagada e ingresar el dinero a la CAJA DEL MES ACTUAL?')) return;
-    try {
-        const snap = await treasuryDb.ref(`actividades/${actId}/deudas/${deudaId}`).once('value');
-        const d = snap.val();
-        if(!d) return;
-        
-        const total = d.cantidad * d.precio;
-        
-        // 1. Marcar pagado
-        await treasuryDb.ref(`actividades/${actId}/deudas/${deudaId}`).update({
-            pagado: true,
-            pagadoEn: new Date().toISOString(),
-            pagadoEnPeriodo: treasuryCurrentPeriod
-        });
-        
-        // 2. Sumar a los "cobrados" original
-        const actSnap = await treasuryDb.ref(`actividades/${actId}`).once('value');
-        const actVal = actSnap.val();
-        const cobradosActual = actVal.cobrados || 0;
-        let pendientesActual = actVal.pendientes || 0;
-        
-        pendientesActual = pendientesActual - d.cantidad;
-        if(pendientesActual < 0) pendientesActual = 0;
-        
-        await treasuryDb.ref(`actividades/${actId}`).update({
-            cobrados: cobradosActual + d.cantidad,
-            pendientes: pendientesActual
-        });
-        
-        // 3. Ingreso en caja del periodo actual
-        await treasuryDb.ref('caja').push({
-            periodo: treasuryCurrentPeriod,
-            tipo: 'ingreso',
-            categoria: 'Venta Actividad',
-            descripcion: `Cobro pendiente de: ${d.nombre}`,
-            monto: total,
-            fecha: new Date().toISOString().split('T')[0],
-            creadoPor: treasuryUser.email,
-            cerrado: false
-        });
-        
-        alert('Pago registrado. Se ha generado un ingreso en la caja del periodo actual.');
-    } catch(e) { alert(e.message); }
-}
-
-// -----------------------------------------------------
-// CIERRE DE ACTIVIDAD
-// -----------------------------------------------------
-async function cerrarActividad(actId, gastoTotal, ingresoTotal) {
-    if(!confirm('¿Cerrar actividad definitivamente? \\n\\nSe creará UN SOLO EGRESO por $'+gastoTotal+' y UN SOLO INGRESO por $'+ingresoTotal+' en la caja de este mes. \\nEsta acción no se puede deshacer.')) return;
-    
-    try {
-        const act = actividadesCaja.find(a => a.id === actId);
-        
-        if (gastoTotal > 0) {
-            await treasuryDb.ref('caja').push({
-                periodo: treasuryCurrentPeriod,
-                tipo: 'egreso',
-                categoria: 'Consumo Caja',
-                descripcion: `Gastos de actividad: ${act.nombre}`,
-                monto: gastoTotal,
-                fecha: act.fecha,
-                creadoPor: treasuryUser.email,
-                cerrado: true
-            });
+    // FASE 7: Bloqueo si hay compras pendientes
+    if (act.gastos) {
+        const pendingPurchases = Object.values(act.gastos).filter(g => g.origen === 'compra' && !g.comprado);
+        if (pendingPurchases.length > 0) {
+            alert('NO SE PUEDE CONFIRMAR CONSUMO.\nHay compras planificadas que aún no han sido marcadas como compradas en el Checklist.');
+            return;
         }
+    }
+    
+    if(!confirm(`¿CONFIRMAR CONSUMO FINANCIERO?\n\nAl confirmar, se descontarán $${gastoConfirmadoTotal} de la CAJA OFICIAL como un Movimiento de Egreso. Si hay materiales de inventario, se descontarán de las existencias. Esta acción NO se puede deshacer y no permite duplicados.`)) return;
+    
+    try {
+        // Transaccionar sobre el inventario primero (si hay)
+        if (act.gastos) {
+            for (let gId in act.gastos) {
+                const g = act.gastos[gId];
+                if (g.origen === 'inventario' && g.inventarioItemId) {
+                    const txResult = await treasuryDb.ref(`inventario/${g.inventarioItemId}/cantidad`).transaction(currentQty => {
+                        if (currentQty === null) return; // Abort
+                        const finalQty = currentQty - parseFloat(g.cantidad);
+                        if (finalQty < 0) return; // Abort
+                        return finalQty;
+                    });
+                    if (!txResult.committed) {
+                        alert(`RECHAZADO: Stock insuficiente para el inventario de ${g.descripcion}.`);
+                        return; // Falla la confirmación de la actividad entera
+                    }
+                }
+            }
+        }
+        
+        // Crear movimiento confirmado en caja (idempotente)
+        const movKey = `consumo_${actId}`;
+        const updates = {};
+        
+        if (gastoConfirmadoTotal > 0) {
+            updates[`movimientos/${treasuryCurrentPeriod}/${movKey}`] = {
+                id: movKey,
+                tipo: 'EGRESO',
+                categoria: 'Gastos de Actividad',
+                descripcion: `Inversión: ${act.nombre}`,
+                monto: gastoConfirmadoTotal,
+                estado: 'CONFIRMADO',
+                referenciaId: actId,
+                origen: 'actividad',
+                periodo: treasuryCurrentPeriod,
+                fecha: new Date().toISOString(),
+                usuario: treasuryUser.email,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+        }
+        
+        updates[`actividades/${actId}/consumoConfirmado`] = true;
+        
+        await treasuryDb.ref().update(updates);
+        
+        // Registrar auditoría
+        await registrarAuditoriaTesoreria(
+            'CONFIRMACIÓN EGRESO E INVENTARIO', 
+            'Actividades', 
+            `Inversión confirmada para actividad: ${act.nombre} por $${gastoConfirmadoTotal}`, 
+            movKey
+        );
+        
+        alert('Consumo confirmado. Caja e Inventario actualizados.');
+    } catch (e) {
+        console.error("Error confirming consumos:", e);
+        alert('Error al procesar el consumo.');
+    }
+}
+
+async function cerrarActividad(actId, gastoTotal, ingresoTotal) {
+    if(!confirm(`¿CERRAR ACTIVIDAD DEFINITIVAMENTE?\n\nAl cerrar, se ingresarán $${ingresoTotal} a la CAJA OFICIAL como Ingreso confirmado. Ya no se podrá editar la actividad.`)) return;
+    
+    const act = currentActividades[actId];
+    if(act.estado === 'CERRADA') return;
+    
+    try {
+        const movKey = `ingreso_${actId}`;
+        const updates = {};
         
         if (ingresoTotal > 0) {
-            await treasuryDb.ref('caja').push({
-                periodo: treasuryCurrentPeriod,
-                tipo: 'ingreso',
-                categoria: 'Venta Actividad',
-                descripcion: `Ingreso por actividad: ${act.nombre}`,
+            updates[`movimientos/${treasuryCurrentPeriod}/${movKey}`] = {
+                id: movKey,
+                tipo: 'INGRESO',
+                categoria: 'Ingreso de Actividad',
+                descripcion: `Ingreso: ${act.nombre}`,
                 monto: ingresoTotal,
-                fecha: act.fecha,
-                creadoPor: treasuryUser.email,
-                cerrado: true
-            });
+                estado: 'CONFIRMADO',
+                referenciaId: actId,
+                origen: 'actividad',
+                periodo: treasuryCurrentPeriod,
+                fecha: new Date().toISOString(),
+                usuario: treasuryUser.email,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
         }
         
-        await treasuryDb.ref(`actividades/${actId}`).update({
-            cerrada: true,
-            cerradaPor: treasuryUser.email,
-            cerradaEn: new Date().toISOString()
-        });
+        updates[`actividades/${actId}/estado`] = 'CERRADA';
         
-        alert('Actividad cerrada. Totales transferidos a la Caja Oficial.');
-    } catch(err) { alert(err.message); }
-}
-
-// -----------------------------------------------------
-// CHECKLIST ESPECÍFICA DE LA ACTIVIDAD
-// -----------------------------------------------------
-
-function abrirModalChecklistSec(actId) {
-    document.getElementById('tChkSecActId').value = actId;
-    document.getElementById('tChkNuevoItemFormContainer').classList.add('hidden');
-    document.getElementById('tChkImprevistoFormContainer').classList.add('hidden');
-    renderizarChecklistActividad(actId);
-    document.getElementById('tChecklistModal').classList.remove('hidden');
-}
-
-function cerrarModalChecklistSec() {
-    document.getElementById('tChecklistModal').classList.add('hidden');
-}
-
-function mostrarFormNuevoItemChecklist() {
-    document.getElementById('tChkImprevistoFormContainer').classList.add('hidden');
-    document.getElementById('tChkNuevoItemFormContainer').classList.toggle('hidden');
-}
-
-function mostrarFormCompraImprevista() {
-    document.getElementById('tChkNuevoItemFormContainer').classList.add('hidden');
-    document.getElementById('tChkImprevistoFormContainer').classList.toggle('hidden');
-}
-
-async function guardarItemChecklistSec(e) {
-    e.preventDefault();
-    const actId = document.getElementById('tChkSecActId').value;
-    const data = {
-        accion: document.getElementById('tChkSecAccion').value,
-        categoria: document.getElementById('tChkSecCat').value,
-        descripcion: document.getElementById('tChkSecDesc').value,
-        comprado: false
-    };
-    try {
-        await treasuryDb.ref(`actividades/${actId}/checklist`).push(data);
-        document.getElementById('tChkNuevoItemFormContainer').classList.add('hidden');
-        renderizarChecklistActividad(actId);
-    } catch(e) { alert(e.message); }
-}
-
-function renderizarChecklistActividad(actId) {
-    const act = actividadesCaja.find(a => a.id === actId);
-    const container = document.getElementById('tChecklistItemsList');
-    if (!act || !act.checklist) {
-        container.innerHTML = '<div class="p-4 text-center text-slate-500 text-sm">El checklist está vacío.</div>';
-        return;
+        await treasuryDb.ref().update(updates);
+        
+        // Registrar auditoría
+        await registrarAuditoriaTesoreria(
+            'CIERRE ACTIVIDAD / INGRESO', 
+            'Actividades', 
+            `Actividad cerrada: ${act.nombre}. Ingreso registrado: $${ingresoTotal}`, 
+            movKey
+        );
+        
+        alert('Actividad cerrada. Ingreso registrado en Caja.');
+    } catch (e) {
+        console.error("Error cerrando actividad:", e);
+        alert('Error al cerrar actividad.');
     }
-    
-    const itemsArr = Object.entries(act.checklist).map(([id, val]) => ({id, ...val}));
-    
-    container.innerHTML = itemsArr.map(item => {
-        const icon = item.comprado ? '<i class="fas fa-check-square text-green-600"></i>' : '<i class="far fa-square text-slate-400"></i>';
-        const st = item.comprado ? 'line-through text-slate-500 bg-slate-50' : 'text-slate-800 bg-white';
-        const lbl = item.accion === 'INVENTARIO' ? '<span class="text-[10px] bg-orange-100 text-orange-800 px-1 font-bold">INV</span>' : '<span class="text-[10px] bg-blue-100 text-blue-800 px-1 font-bold">COMP</span>';
-        
-        return `
-        <div class="flex items-center gap-3 p-2 border-b border-slate-200 ${st}">
-            <button onclick="intentarCompletarChecklist('${actId}', '${item.id}', ${item.comprado}, '${item.accion}', '${item.categoria}', '${item.descripcion}')" class="text-xl">${icon}</button>
-            <div class="flex-1 text-sm">${lbl} [${escHtml(item.categoria)}] ${escHtml(item.descripcion)}</div>
-            ${!item.comprado && canEditTreasury() ? `<button onclick="eliminarChecklistAct('${actId}', '${item.id}')" class="text-red-500"><i class="fas fa-trash"></i></button>` : ''}
-        </div>
-        `;
-    }).join('');
 }
 
-function intentarCompletarChecklist(actId, itemId, estaComprado, accion, cat, desc) {
-    if (estaComprado) {
-        alert('Este elemento ya fue comprado y su gasto registrado en el consumo. Para deshacerlo, elimina el elemento en el Control de Gastos manualmente.');
-        return;
-    }
-    
-    document.getElementById('tCompradoSecId').value = itemId;
-    document.getElementById('tCompradoSecDescLbl').textContent = desc;
-    
-    if (accion === 'INVENTARIO') {
-        document.getElementById('tCompradoSecCostoBox').classList.add('hidden');
-        document.getElementById('tCompradoSecCosto').removeAttribute('required');
-        document.getElementById('tCompradoSecCosto').value = 0;
-    } else {
-        document.getElementById('tCompradoSecCostoBox').classList.remove('hidden');
-        document.getElementById('tCompradoSecCosto').setAttribute('required', 'true');
-        document.getElementById('tCompradoSecCosto').value = '';
-    }
-    
-    document.getElementById('tCompradoSecModal').classList.remove('hidden');
-}
-
-async function confirmarCompradoSec(e) {
-    e.preventDefault();
-    const actId = document.getElementById('tChkSecActId').value;
-    const itemId = document.getElementById('tCompradoSecId').value;
-    
-    // Buscar los datos del item
-    const act = actividadesCaja.find(a => a.id === actId);
-    const item = act.checklist[itemId];
-    
-    const prov = document.getElementById('tCompradoSecProv').value.trim();
-    const costo = parseFloat(document.getElementById('tCompradoSecCosto').value) || 0;
-    
-    try {
-        // 1. Agregar a Control de Gastos (Consumo) de la actividad
-        const gasto = {
-            origen: item.accion,
-            categoria: item.categoria,
-            descripcion: `[Chk] ${item.descripcion}`,
-            cantidad: 1,
-            unidad: 'Variado',
-            precioUnitario: costo,
-            total: costo,
-            proveedor: prov,
-            fechaCompra: new Date().toISOString().split('T')[0]
-        };
-        await treasuryDb.ref(`actividades/${actId}/gastos`).push(gasto);
-        
-        // 2. Marcar como completado en el checklist
-        await treasuryDb.ref(`actividades/${actId}/checklist/${itemId}`).update({ comprado: true });
-        
-        document.getElementById('tCompradoSecModal').classList.add('hidden');
-        renderizarChecklistActividad(actId);
-    } catch(err) { alert(err.message); }
-}
-
-async function eliminarChecklistAct(actId, itemId) {
-    if(!confirm('¿Eliminar tarea del checklist?')) return;
-    try { 
-        await treasuryDb.ref(`actividades/${actId}/checklist/${itemId}`).remove();
-        renderizarChecklistActividad(actId);
-    } catch(e) {}
-}
-
-// -----------------------------------------------------
-// COMPRA IMPREVISTA (DIRECTO A CONSUMO)
-// -----------------------------------------------------
-
-function calcularTotalImprevisto() {
-    const c = parseFloat(document.getElementById('tImpCant').value) || 0;
-    const p = parseFloat(document.getElementById('tImpPrecio').value) || 0;
-    document.getElementById('tImpTotal').value = (c * p).toFixed(2);
-}
-
-async function guardarCompraImprevistaSec(e) {
-    e.preventDefault();
-    const actId = document.getElementById('tChkSecActId').value;
-    const cant = parseFloat(document.getElementById('tImpCant').value) || 1;
-    const precio = parseFloat(document.getElementById('tImpPrecio').value) || 0;
-    const total = cant * precio;
-    const desc = document.getElementById('tImpDesc').value;
-    
-    try {
-        const gasto = {
-            origen: 'COMPRAR',
-            categoria: 'Otros',
-            descripcion: `[Imprevisto] ${desc}`,
-            cantidad: cant,
-            unidad: 'Variado',
-            precioUnitario: precio,
-            total: total,
-            proveedor: '',
-            fechaCompra: new Date().toISOString().split('T')[0]
-        };
-        await treasuryDb.ref(`actividades/${actId}/gastos`).push(gasto);
-        
-        document.getElementById('tChkImprevistoFormContainer').classList.add('hidden');
-        alert('Imprevisto agregado directamente al consumo de la actividad.');
-    } catch(err) { alert(err.message); }
-}
-
+// === EXPORTS GLOBALES (inline HTML onclick/onsubmit) ===
+window.abrirModalNuevaActividad = abrirModalNuevaActividad;
+window.cerrarModalNuevaActividad = cerrarModalNuevaActividad;
+window.toggleModoCreacionAct = toggleModoCreacionAct;
+window.mostrarResumenPlantilla = mostrarResumenPlantilla;
+window.guardarNuevaActividad = guardarNuevaActividad;
+window.abrirModalProd = abrirModalProd;
+window.cerrarModalProd = cerrarModalProd;
+window.calcularPlatosPendientes = calcularPlatosPendientes;
+window.guardarProduccion = guardarProduccion;
+window.abrirModalGastoNuevo = abrirModalGastoNuevo;
+window.cerrarModalGasto = cerrarModalGasto;
+window.toggleGastoOrigen = toggleGastoOrigen;
+window.toggleUnidadOtra = toggleUnidadOtra;
+window.calcularTotalGasto = calcularTotalGasto;
+window.guardarGastoActividad = guardarGastoActividad;
+window.editarGasto = editarGasto;
+window.eliminarGasto = eliminarGasto;
+window.confirmarConsumoActividad = confirmarConsumoActividad;
+window.cerrarActividad = cerrarActividad;
+window.renderTesoreriaActividades = renderTesoreriaActividades;

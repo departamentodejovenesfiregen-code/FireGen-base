@@ -52,9 +52,10 @@ var PRECACHE_URLS = [
   'js/tesoreria/tesoreria.js?v=' + V,
   'js/tesoreria/tesoreria-caja.js?v=' + V,
   'js/tesoreria/tesoreria-actividades.js?v=' + V,
-  'js/tesoreria/tesoreria-checklist.js?v=' + V,
   'js/tesoreria/tesoreria-inventario.js?v=' + V,
   'js/tesoreria/tesoreria-informes.js?v=' + V,
+  'js/tesoreria/tesoreria-checklist.js?v=' + V,
+  'js/tesoreria/tesoreria-cobros.js?v=' + V,
   'js/core/app.js?v=' + V
 ];
 

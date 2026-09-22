@@ -1,100 +1,75 @@
-/**
- * FireGen — js/tesoreria-inventario.js
- * MÓDULO DE INVENTARIO (TESORERÍA)
- */
 
-let inventarioListener = null;
-let itemsInventario = [];
+// tesoreria-inventario.js
+let invListener = null;
+let currentInventario = {};
 
 function renderTesoreriaInventario() {
     const container = document.getElementById('treasurySubContent');
     if (!container) return;
     
     container.innerHTML = `
-        <div class="mb-8 flex justify-between items-end border-b-[3px] border-slate-900 pb-2">
-            <h2 class="text-xl font-bold text-slate-900 uppercase">5. Inventario de Materiales</h2>
-            ${canEditTreasury() ? `
-            <button onclick="abrirModalInventario()" class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 text-sm font-bold shadow-sm print:hidden">
-                + Añadir Artículo
+        <div class="mb-6 flex justify-between items-end">
+            <div>
+                <h2 class="text-2xl font-black text-slate-800"><i class="fas fa-boxes text-purple-700 mr-2"></i> Inventario</h2>
+                <p class="text-sm text-slate-500">Bienes y materiales de la tesorería.</p>
+            </div>
+            <button onclick="abrirModalNuevoInventario()" class="bg-purple-700 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors text-sm">
+                <i class="fas fa-plus"></i> Añadir Artículo
             </button>
-            ` : ''}
         </div>
         
-        <div class="mb-10">
-            <div class="bg-[#faeadd] border-2 border-slate-900 border-b-0 p-3 text-center">
-                <h3 class="font-bold text-slate-900 uppercase tracking-widest text-sm">Existencias Actuales</h3>
-            </div>
-            
-            <table class="w-full text-left border-collapse border-2 border-slate-900">
-                <thead>
-                    <tr class="bg-[#faeadd]">
-                        <th class="border border-slate-900 p-2 text-slate-800 font-semibold text-sm w-1/4">Categoría</th>
-                        <th class="border border-slate-900 p-2 text-slate-800 font-semibold text-sm w-1/2">Artículo / Descripción</th>
-                        <th class="border border-slate-900 p-2 text-slate-800 font-semibold text-sm w-16 text-center">Cant.</th>
-                        ${canEditTreasury() ? '<th class="border border-slate-900 p-2 text-slate-800 font-semibold text-sm w-24 text-center print:hidden">Acción</th>' : ''}
-                    </tr>
-                </thead>
-                <tbody id="tInventarioBody" class="bg-white">
-                    <tr><td colspan="4" class="p-8 text-center text-slate-500 italic">Cargando inventario...</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- MODAL: NUEVO/EDITAR ITEM INVENTARIO -->
-        <div id="tInventarioModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[300]">
-            <div class="bg-white max-w-md w-full p-8 shadow-2xl border-t-4 border-blue-900">
-                <h3 class="text-xl font-bold text-slate-900 mb-6 flex justify-between items-center uppercase tracking-wide">
-                    <span id="tInvModalTitle">Añadir Artículo</span>
-                    <button type="button" onclick="cerrarModalInventario()" class="text-slate-400 hover:text-red-600"><i class="fas fa-times text-lg"></i></button>
-                </h3>
-                <form id="tInventarioForm" class="space-y-4" onsubmit="guardarItemInventario(event)">
-                    <input type="hidden" id="tInvId">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Categoría</label>
-                        <select id="tInvCat" required class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm focus:border-blue-900">
-                            <option value="Equipos">Equipos / Herramientas</option>
-                            <option value="Desechables">Desechables / Empaques</option>
-                            <option value="Ingredientes">Ingredientes no perecibles</option>
-                            <option value="Limpieza">Limpieza</option>
-                            <option value="Otros">Otros</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Artículo</label>
-                        <input type="text" id="tInvDesc" required placeholder="Ej: Vasos plásticos 8oz" class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm focus:border-blue-900">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Cantidad Inicial / Actual</label>
-                        <input type="number" id="tInvCant" required min="0" class="w-full bg-slate-50 border border-slate-300 p-2.5 text-sm focus:border-blue-900">
-                    </div>
-                    <div class="pt-4">
-                        <button type="submit" class="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-3 uppercase tracking-wide">Guardar</button>
-                    </div>
-                </form>
-            </div>
+        <div id="tInventarioList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="col-span-full text-center py-10 text-slate-400 italic">Cargando inventario...</div>
         </div>
         
-        <!-- MODAL: ACTUALIZAR STOCK -->
-        <div id="tStockModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[300]">
-            <div class="bg-white max-w-sm w-full p-8 shadow-2xl border-t-4 border-orange-500">
-                <h3 class="text-xl font-bold text-slate-900 mb-6 flex justify-between items-center uppercase tracking-wide">
-                    <span>Actualizar Stock</span>
-                    <button type="button" onclick="cerrarModalStock()" class="text-slate-400 hover:text-red-600"><i class="fas fa-times text-lg"></i></button>
-                </h3>
-                <form id="tStockForm" class="space-y-4" onsubmit="guardarStock(event)">
-                    <input type="hidden" id="tStockId">
-                    <div class="text-center mb-4">
-                        <p class="text-xs text-slate-500 font-bold uppercase mb-1">Stock Actual</p>
-                        <p class="text-4xl font-black text-slate-900" id="tStockActualVal">0</p>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nuevo Stock Físico</label>
-                        <input type="number" id="tStockNuevo" required min="0" class="w-full bg-slate-50 border border-slate-300 p-2.5 text-xl font-bold text-center text-blue-900 focus:border-blue-900">
-                    </div>
-                    <div class="pt-4">
-                        <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 uppercase tracking-wide">Actualizar</button>
-                    </div>
-                </form>
+        <!-- Modal Artículo Inventario -->
+        <div id="tInvModal" class="fixed inset-0 bg-slate-900/60 z-[300] hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
+                <div class="bg-purple-700 px-6 py-4 flex justify-between items-center text-white shrink-0">
+                    <h3 id="tInvModalTitle" class="font-bold text-lg"><i class="fas fa-box-open mr-2"></i> Artículo</h3>
+                    <button onclick="cerrarModalInv()" class="text-white/70 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+                </div>
+                <div class="p-6">
+                    <form onsubmit="guardarInventario(event)">
+                        <input type="hidden" id="tInvId">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Descripción</label>
+                                <input type="text" id="tInvDesc" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Cantidad</label>
+                                    <input type="number" id="tInvCant" step="0.01" min="0" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Unidad</label>
+                                    <select id="tInvUnidad" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm">
+                                        <option value="unidad">unidad</option>
+                                        <option value="kg">kg</option>
+                                        <option value="lb">lb</option>
+                                        <option value="paquete">paquete</option>
+                                        <option value="caja">caja</option>
+                                        <option value="litro">litro</option>
+                                        <option value="Otro">Otro</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Estado</label>
+                                <select id="tInvEstado" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm">
+                                    <option value="ACTIVO">Activo</option>
+                                    <option value="AGOTADO">Agotado</option>
+                                    <option value="DE BAJA">De baja / Dañado</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mt-6 flex justify-end gap-2">
+                            <button type="button" onclick="cerrarModalInv()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-300">Cancelar</button>
+                            <button type="submit" class="px-4 py-2 bg-purple-700 text-white font-bold rounded-lg hover:bg-purple-800">Guardar</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     `;
@@ -104,128 +79,102 @@ function renderTesoreriaInventario() {
 
 function iniciarListenerInventario() {
     if (!treasuryDb) return;
+    if (invListener) treasuryDb.ref('inventario').off('value', invListener);
     
-    if (inventarioListener) treasuryDb.ref('inventario').off('value', inventarioListener);
-    
-    inventarioListener = treasuryDb.ref('inventario').on('value', snap => {
-        const data = snap.val() || {};
-        itemsInventario = Object.entries(data).map(([id, val]) => ({ id, ...val }));
+    invListener = treasuryDb.ref('inventario').on('value', snap => {
+        currentInventario = snap.val() || {};
         actualizarUIInventario();
     });
 }
 
 function actualizarUIInventario() {
-    const tbody = document.getElementById('tInventarioBody');
-    if (!tbody) return;
+    const list = document.getElementById('tInventarioList');
+    if (!list) return;
     
-    if (itemsInventario.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-500 italic">El inventario está vacío.</td></tr>';
+    const items = Object.values(currentInventario);
+    
+    if (items.length === 0) {
+        list.innerHTML = `<div class="col-span-full bg-purple-50 text-purple-800 p-6 rounded-xl border border-purple-200 text-center"><i class="fas fa-box-open text-3xl mb-3 opacity-50 block"></i> El inventario está vacío.</div>`;
         return;
     }
     
-    // Agrupar por categoría
-    const grupos = {};
-    itemsInventario.forEach(i => {
-        if (!grupos[i.categoria]) grupos[i.categoria] = [];
-        grupos[i.categoria].push(i);
+    let html = '';
+    items.forEach(i => {
+        let eBadge = '';
+        if(i.estado==='ACTIVO') eBadge = '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[9px] font-bold">ACTIVO</span>';
+        else if(i.estado==='AGOTADO') eBadge = '<span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-[9px] font-bold">AGOTADO</span>';
+        else eBadge = '<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-bold">DE BAJA</span>';
+        
+        html += `
+        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between">
+            <div>
+                <div class="flex justify-between items-start mb-2">
+                    <h4 class="font-black text-slate-800 text-sm leading-tight pr-2">${escHtml(i.descripcion)}</h4>
+                    ${eBadge}
+                </div>
+                <div class="text-3xl font-black text-purple-700 my-3 text-center">
+                    ${i.cantidad} <span class="text-sm text-purple-400 font-bold">${i.unidad}</span>
+                </div>
+            </div>
+            <div class="pt-3 border-t border-slate-100 mt-2 flex justify-between items-center">
+                <div class="text-[9px] text-slate-400 font-bold">Ult. act: ${formatDateShort(i.fechaActualizacion)}</div>
+                ${canEditTreasury() ? `<button onclick="editarInventario('${i.id}')" class="text-blue-600 hover:text-blue-800 text-xs font-bold"><i class="fas fa-edit"></i> Editar</button>` : ''}
+            </div>
+        </div>
+        `;
+    });
+    list.innerHTML = html;
+}
+
+window.abrirModalNuevoInventario = function() {
+    document.getElementById('tInvModal').classList.remove('hidden');
+    document.querySelector('#tInvModal form').reset();
+    document.getElementById('tInvId').value = '';
+    document.getElementById('tInvModalTitle').innerHTML = '<i class="fas fa-plus mr-2"></i> Nuevo Artículo';
+}
+
+window.cerrarModalInv = function() {
+    document.getElementById('tInvModal').classList.add('hidden');
+}
+
+window.guardarInventario = async function(e) {
+    e.preventDefault();
+    const id = document.getElementById('tInvId').value;
+    const isNew = !id;
+    const ref = id ? treasuryDb.ref(`inventario/${id}`) : treasuryDb.ref('inventario').push();
+    
+    const qty = parseFloat(document.getElementById('tInvCant').value);
+    const desc = document.getElementById('tInvDesc').value;
+    
+    await ref.update({
+        id: ref.key,
+        descripcion: desc,
+        cantidad: qty,
+        unidad: document.getElementById('tInvUnidad').value,
+        estado: document.getElementById('tInvEstado').value,
+        fechaActualizacion: new Date().toISOString(),
+        usuario: treasuryUser.email
     });
     
-    let html = '';
+    // FASE 19: Historial de inventario consistente
+    await registrarAuditoriaTesoreria(
+        isNew ? 'NUEVO INVENTARIO' : 'AJUSTE MANUAL INVENTARIO', 
+        'Inventario', 
+        `Artículo: ${desc} ajustado a ${qty}.`, 
+        ref.key
+    );
     
-    for (const [cat, items] of Object.entries(grupos)) {
-        html += `
-            <tr class="bg-slate-100">
-                <td colspan="${canEditTreasury() ? 4 : 3}" class="border border-slate-900 p-2 text-xs font-bold uppercase text-slate-600 bg-slate-200">${cat}</td>
-            </tr>
-        `;
-        
-        items.forEach(item => {
-            const lowStock = parseInt(item.cantidad) <= 5;
-            const cantClass = lowStock ? 'text-red-600 font-black' : 'font-bold text-slate-900';
-            
-            html += `
-                <tr class="bg-white hover:bg-slate-50 transition-colors">
-                    <td class="border border-slate-900 p-2 text-sm text-slate-500">${item.categoria}</td>
-                    <td class="border border-slate-900 p-2 text-sm font-medium text-slate-800">${escHtml(item.descripcion)}</td>
-                    <td class="border border-slate-900 p-2 text-center ${cantClass} text-lg">${item.cantidad}</td>
-                    ${canEditTreasury() ? `<td class="border border-slate-900 p-2 text-center print:hidden">
-                        <button onclick="abrirModalStock('${item.id}', ${item.cantidad})" class="text-blue-600 hover:text-blue-800 font-bold text-xs mx-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded">STOCK</button>
-                        <button onclick="eliminarItemInventario('${item.id}')" class="text-red-500 hover:text-red-700 font-bold text-xs mx-1"><i class="fas fa-trash"></i></button>
-                    </td>` : ''}
-                </tr>
-            `;
-        });
-    }
-    
-    tbody.innerHTML = html;
+    cerrarModalInv();
 }
 
-function abrirModalInventario() {
-    document.getElementById('tInventarioForm').reset();
-    document.getElementById('tInvId').value = '';
-    document.getElementById('tInvModalTitle').textContent = 'Añadir Artículo';
-    document.getElementById('tInventarioModal').classList.remove('hidden');
-}
-
-function cerrarModalInventario() { document.getElementById('tInventarioModal').classList.add('hidden'); }
-
-async function guardarItemInventario(e) {
-    e.preventDefault();
-    if (!treasuryDb) return;
-    
-    const id = document.getElementById('tInvId').value;
-    const data = {
-        categoria: document.getElementById('tInvCat').value,
-        descripcion: document.getElementById('tInvDesc').value.trim(),
-        cantidad: parseInt(document.getElementById('tInvCant').value),
-        actualizadoEn: new Date().toISOString()
-    };
-    
-    try {
-        if (id) {
-            await treasuryDb.ref('inventario/' + id).update(data);
-        } else {
-            await treasuryDb.ref('inventario').push(data);
-        }
-        cerrarModalInventario();
-    } catch(err) {
-        alert(err.message);
-    }
-}
-
-function abrirModalStock(id, actual) {
-    document.getElementById('tStockId').value = id;
-    document.getElementById('tStockActualVal').textContent = actual;
-    document.getElementById('tStockNuevo').value = actual;
-    document.getElementById('tStockModal').classList.remove('hidden');
-}
-
-function cerrarModalStock() { document.getElementById('tStockModal').classList.add('hidden'); }
-
-async function guardarStock(e) {
-    e.preventDefault();
-    if (!treasuryDb) return;
-    
-    const id = document.getElementById('tStockId').value;
-    const nuevo = parseInt(document.getElementById('tStockNuevo').value);
-    
-    try {
-        await treasuryDb.ref('inventario/' + id).update({
-            cantidad: nuevo,
-            actualizadoEn: new Date().toISOString()
-        });
-        cerrarModalStock();
-    } catch(err) {
-        alert(err.message);
-    }
-}
-
-async function eliminarItemInventario(id) {
-    if(!confirm('¿Eliminar artículo del inventario de forma permanente?')) return;
-    if (!treasuryDb) return;
-    try {
-        await treasuryDb.ref('inventario/' + id).remove();
-    } catch(err) {
-        alert(err.message);
-    }
+window.editarInventario = function(id) {
+    const i = currentInventario[id];
+    if(!i) return;
+    document.getElementById('tInvId').value = id;
+    document.getElementById('tInvDesc').value = i.descripcion;
+    document.getElementById('tInvCant').value = i.cantidad;
+    document.getElementById('tInvUnidad').value = i.unidad;
+    document.getElementById('tInvEstado').value = i.estado;
+    document.getElementById('tInvModalTitle').innerHTML = '<i class="fas fa-edit mr-2"></i> Editar Artículo';
+    document.getElementById('tInvModal').classList.remove('hidden');
 }
