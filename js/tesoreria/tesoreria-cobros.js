@@ -4,89 +4,102 @@ let cobrosListener = null;
 let currentDeudasGlobal = {};
 
 function renderTesoreriaCobros() {
-    const container = document.getElementById('treasurySubContent');
-    if (!container) return;
+    let modal = document.getElementById('tCobrosMainModal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="tCobrosMainModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-[200] overflow-y-auto">
+                <div class="bg-white max-w-4xl w-full p-6 sm:p-8 shadow-2xl rounded-xl border-t-4 border-orange-500 flex flex-col max-h-[90vh]">
+                    <div class="flex justify-between items-start border-b-[3px] border-slate-900 pb-2 mb-6 shrink-0">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 uppercase">Pendientes de Cobro</h2>
+                            <p class="text-xs text-slate-500 font-bold uppercase mt-1">Gestión de deudas e ingresos pendientes</p>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <button onclick="abrirModalNuevaDeuda()" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors text-sm">
+                                <i class="fas fa-plus"></i> Nueva Deuda
+                            </button>
+                            <button onclick="cerrarTesoreriaCobros()" class="text-slate-400 hover:text-slate-800"><i class="fas fa-times text-2xl"></i></button>
+                        </div>
+                    </div>
+                    
+                    <div id="tCobrosList" class="overflow-y-auto grow pr-2 space-y-4">
+                        <div class="p-8 text-center text-slate-500 italic">Cargando deudas...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Nueva Deuda -->
+            <div id="tDeudaModal" class="fixed inset-0 bg-slate-900/60 z-[300] hidden flex items-center justify-center p-4">
+                <div class="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
+                    <div class="bg-orange-500 px-6 py-4 flex justify-between items-center text-white shrink-0">
+                        <h3 class="font-bold text-lg"><i class="fas fa-plus mr-2"></i> Registrar Deuda</h3>
+                        <button onclick="cerrarModalDeuda()" class="text-white/70 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+                    </div>
+                    <div class="p-6">
+                        <form onsubmit="guardarNuevaDeuda(event)">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Deudor (Nombre)</label>
+                                    <input type="text" id="tDeudaNombre" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Concepto / Actividad</label>
+                                    <input type="text" id="tDeudaConcepto" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Monto Original ($)</label>
+                                    <input type="number" id="tDeudaMonto" step="0.01" min="0.01" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm font-bold">
+                                </div>
+                            </div>
+                            <div class="mt-6 flex justify-end gap-2">
+                                <button type="button" onclick="cerrarModalDeuda()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-300">Cancelar</button>
+                                <button type="submit" class="px-4 py-2 bg-orange-500 text-white font-bold rounded-lg hover:bg-orange-600">Guardar Deuda</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Modal Pago Parcial -->
+            <div id="tPagoModal" class="fixed inset-0 bg-slate-900/60 z-[300] hidden flex items-center justify-center p-4">
+                <div class="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
+                    <div class="bg-green-600 px-6 py-4 flex justify-between items-center text-white shrink-0">
+                        <h3 class="font-bold text-lg"><i class="fas fa-money-bill-wave mr-2"></i> Registrar Pago</h3>
+                        <button onclick="cerrarModalPago()" class="text-white/70 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+                    </div>
+                    <div class="p-6">
+                        <form onsubmit="guardarPagoDeuda(event)">
+                            <input type="hidden" id="tPagoDeudaId">
+                            <div class="bg-slate-50 p-3 rounded-lg mb-4 text-sm text-slate-700 border border-slate-200">
+                                Pendiente Actual: <strong id="tPagoPendienteMax" class="text-lg text-orange-600"></strong>
+                            </div>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Monto a Pagar ($)</label>
+                                    <input type="number" id="tPagoMonto" step="0.01" min="0.01" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-lg font-black text-center text-green-700">
+                                </div>
+                                <div class="text-[10px] text-slate-500 text-center font-bold">
+                                    Al confirmar, se creará un Ingreso Confirmado en la CAJA de ${treasuryCurrentPeriod}.
+                                </div>
+                            </div>
+                            <div class="mt-6 flex justify-end gap-2">
+                                <button type="button" onclick="cerrarModalPago()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-300">Cancelar</button>
+                                <button type="submit" class="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700">Confirmar Pago</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `);
+    }
     
-    container.innerHTML = `
-        <div class="mb-6 flex justify-between items-end">
-            <div>
-                <h2 class="text-2xl font-black text-slate-800"><i class="fas fa-hand-holding-usd text-orange-500 mr-2"></i> Pendientes de Cobro</h2>
-                <p class="text-sm text-slate-500">Gestión de deudas e ingresos pendientes inter-mensuales.</p>
-            </div>
-            <button onclick="abrirModalNuevaDeuda()" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors text-sm">
-                <i class="fas fa-plus"></i> Nueva Deuda
-            </button>
-        </div>
-        
-        <div id="tCobrosList" class="space-y-4">
-            <div class="text-center py-10 text-slate-400 italic">Cargando deudas...</div>
-        </div>
-        
-        <!-- Modal Nueva Deuda -->
-        <div id="tDeudaModal" class="fixed inset-0 bg-slate-900/60 z-[300] hidden flex items-center justify-center p-4">
-            <div class="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
-                <div class="bg-orange-500 px-6 py-4 flex justify-between items-center text-white shrink-0">
-                    <h3 class="font-bold text-lg"><i class="fas fa-plus mr-2"></i> Registrar Deuda</h3>
-                    <button onclick="cerrarModalDeuda()" class="text-white/70 hover:text-white"><i class="fas fa-times text-xl"></i></button>
-                </div>
-                <div class="p-6">
-                    <form onsubmit="guardarNuevaDeuda(event)">
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Deudor (Nombre)</label>
-                                <input type="text" id="tDeudaNombre" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Concepto / Actividad</label>
-                                <input type="text" id="tDeudaConcepto" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Monto Original ($)</label>
-                                <input type="number" id="tDeudaMonto" step="0.01" min="0.01" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm font-bold">
-                            </div>
-                        </div>
-                        <div class="mt-6 flex justify-end gap-2">
-                            <button type="button" onclick="cerrarModalDeuda()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-300">Cancelar</button>
-                            <button type="submit" class="px-4 py-2 bg-orange-500 text-white font-bold rounded-lg hover:bg-orange-600">Guardar Deuda</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Modal Pago Parcial -->
-        <div id="tPagoModal" class="fixed inset-0 bg-slate-900/60 z-[300] hidden flex items-center justify-center p-4">
-            <div class="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
-                <div class="bg-green-600 px-6 py-4 flex justify-between items-center text-white shrink-0">
-                    <h3 class="font-bold text-lg"><i class="fas fa-money-bill-wave mr-2"></i> Registrar Pago</h3>
-                    <button onclick="cerrarModalPago()" class="text-white/70 hover:text-white"><i class="fas fa-times text-xl"></i></button>
-                </div>
-                <div class="p-6">
-                    <form onsubmit="guardarPagoDeuda(event)">
-                        <input type="hidden" id="tPagoDeudaId">
-                        <div class="bg-slate-50 p-3 rounded-lg mb-4 text-sm text-slate-700 border border-slate-200">
-                            Pendiente Actual: <strong id="tPagoPendienteMax" class="text-lg text-orange-600"></strong>
-                        </div>
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Monto a Pagar ($)</label>
-                                <input type="number" id="tPagoMonto" step="0.01" min="0.01" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-lg font-black text-center text-green-700">
-                            </div>
-                            <div class="text-[10px] text-slate-500 text-center font-bold">
-                                Al confirmar, se creará un Ingreso Confirmado en la CAJA de ${treasuryCurrentPeriod}.
-                            </div>
-                        </div>
-                        <div class="mt-6 flex justify-end gap-2">
-                            <button type="button" onclick="cerrarModalPago()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-300">Cancelar</button>
-                            <button type="submit" class="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700">Confirmar Pago</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    `;
-    
+    document.getElementById('tCobrosMainModal').classList.remove('hidden');
     iniciarListenerCobros();
+}
+
+window.cerrarTesoreriaCobros = function() {
+    const modal = document.getElementById('tCobrosMainModal');
+    if (modal) modal.classList.add('hidden');
 }
 
 function iniciarListenerCobros() {

@@ -197,8 +197,6 @@ async function renderTreasuryDashboard() {
             <div class="flex flex-wrap gap-4 sm:gap-6 mb-8 print:hidden border-b border-slate-300 pb-3 text-sm">
                 <button onclick="switchTreasurySubTab('caja')" id="tsub-caja" class="tsub-btn font-bold text-slate-500 hover:text-blue-900 uppercase tracking-wider transition-colors pb-1"><i class="fas fa-file-invoice-dollar mr-1"></i> Caja</button>
                 <button onclick="switchTreasurySubTab('actividades')" id="tsub-actividades" class="tsub-btn font-bold text-slate-500 hover:text-blue-900 uppercase tracking-wider transition-colors pb-1"><i class="fas fa-store mr-1"></i> Actividades</button>
-                <button onclick="switchTreasurySubTab('checklist')" id="tsub-checklist" class="tsub-btn font-bold text-slate-500 hover:text-blue-900 uppercase tracking-wider transition-colors pb-1"><i class="fas fa-tasks mr-1"></i> Checklist</button>
-                <button onclick="switchTreasurySubTab('cobros')" id="tsub-cobros" class="tsub-btn font-bold text-slate-500 hover:text-blue-900 uppercase tracking-wider transition-colors pb-1"><i class="fas fa-hand-holding-usd mr-1"></i> Cobros</button>
                 <button onclick="switchTreasurySubTab('inventario')" id="tsub-inventario" class="tsub-btn font-bold text-slate-500 hover:text-blue-900 uppercase tracking-wider transition-colors pb-1"><i class="fas fa-boxes mr-1"></i> Inventario</button>
                 <button onclick="switchTreasurySubTab('informes')" id="tsub-informes" class="tsub-btn font-bold text-slate-500 hover:text-blue-900 uppercase tracking-wider transition-colors pb-1"><i class="fas fa-print mr-1"></i> Informes</button>
             </div>

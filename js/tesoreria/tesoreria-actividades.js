@@ -22,6 +22,18 @@ function renderTesoreriaActividades() {
                 <div class="text-center py-10 text-slate-400 italic">Cargando actividades...</div>
             </div>
         </div>
+
+        <!-- Floating Buttons (Checklist and Cobros) -->
+        <div class="fixed bottom-24 right-6 flex flex-col gap-3 z-50">
+            <button onclick="renderTesoreriaCobros()" class="bg-orange-500 hover:bg-orange-600 text-white shadow-xl shadow-orange-500/30 rounded-full w-14 h-14 flex items-center justify-center transition-transform hover:scale-110 group relative">
+                <i class="fas fa-hand-holding-usd text-xl"></i>
+                <span class="absolute right-full mr-3 bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity">Cobros</span>
+            </button>
+            <button onclick="renderTesoreriaChecklist()" class="bg-blue-900 hover:bg-blue-800 text-white shadow-xl shadow-blue-900/30 rounded-full w-14 h-14 flex items-center justify-center transition-transform hover:scale-110 group relative">
+                <i class="fas fa-tasks text-xl"></i>
+                <span class="absolute right-full mr-3 bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity">Checklist</span>
+            </button>
+        </div>
         
         <!-- Modal Nueva Actividad -->
         <div id="tActividadModal" class="fixed inset-0 bg-slate-900/60 z-[300] hidden flex items-center justify-center p-4">
@@ -364,6 +376,7 @@ function generarHtmlActividad(act) {
                 ${!cerrada ? `
                     ${(canEditTreasury() && act.estado !== 'CERRADA' && !act.consumoConfirmado) ? `
                         <button onclick="abrirModalGastoNuevo('${act.id}')" class="bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold px-3 py-1.5 rounded text-xs transition-colors"><i class="fas fa-plus"></i> Añadir Ingred/Mat</button>
+                        <button onclick="eliminarActividad('${act.id}')" class="bg-red-100 hover:bg-red-200 text-red-800 font-bold px-3 py-1.5 rounded text-xs transition-colors"><i class="fas fa-trash"></i> Eliminar Actividad</button>
                     ` : ''}
                 ` : `<span class="bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold"><i class="fas fa-lock"></i> CERRADA</span>`}
             </div>
@@ -886,6 +899,56 @@ async function cerrarActividad(actId, gastoTotal, ingresoTotal) {
     }
 }
 
+async function eliminarActividad(actId) {
+    if (!canEditTreasury()) {
+        alert("No tienes permisos para eliminar actividades.");
+        return;
+    }
+    
+    const act = currentActividades[actId];
+    if (!act) return;
+    
+    if (act.estado === 'CERRADA' || act.consumoConfirmado) {
+        alert("No se puede eliminar una actividad cerrada o con consumo confirmado.");
+        return;
+    }
+    
+    // Verificar si tiene gastos comprados
+    if (act.gastos) {
+        const tieneCompras = Object.values(act.gastos).some(g => g.comprado);
+        if (tieneCompras) {
+            alert("No se puede eliminar la actividad porque contiene ingredientes que ya han sido marcados como comprados. Primero debes eliminar o deshacer la compra de esos ingredientes.");
+            return;
+        }
+    }
+    
+    // Verificar período abierto
+    const pSnap = await treasuryDb.ref(`periodos/${treasuryCurrentPeriod}`).once('value');
+    if (!pSnap.exists() || pSnap.val().estado !== 'ABIERTO') {
+        alert("El período actual no está abierto. No se pueden eliminar actividades.");
+        return;
+    }
+    
+    if (confirm(`¿Estás seguro de que deseas eliminar permanentemente la actividad "${act.nombre}"?`)) {
+        try {
+            await treasuryDb.ref(`actividades/${actId}`).remove();
+            
+            // Registrar auditoría
+            await registrarAuditoriaTesoreria(
+                'ELIMINACIÓN ACTIVIDAD', 
+                'Actividades', 
+                `Se eliminó la actividad abierta: ${act.nombre}`, 
+                actId
+            );
+            
+            alert("Actividad eliminada correctamente.");
+        } catch (err) {
+            console.error("Error al eliminar la actividad:", err);
+            alert("Error al eliminar la actividad: " + err.message);
+        }
+    }
+}
+
 // === EXPORTS GLOBALES (inline HTML onclick/onsubmit) ===
 window.abrirModalNuevaActividad = abrirModalNuevaActividad;
 window.cerrarModalNuevaActividad = cerrarModalNuevaActividad;
@@ -904,6 +967,7 @@ window.calcularTotalGasto = calcularTotalGasto;
 window.guardarGastoActividad = guardarGastoActividad;
 window.editarGasto = editarGasto;
 window.eliminarGasto = eliminarGasto;
+window.eliminarActividad = eliminarActividad;
 window.confirmarConsumoActividad = confirmarConsumoActividad;
 window.cerrarActividad = cerrarActividad;
 window.renderTesoreriaActividades = renderTesoreriaActividades;
