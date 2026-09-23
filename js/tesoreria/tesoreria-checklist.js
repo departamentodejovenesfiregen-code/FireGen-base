@@ -147,37 +147,36 @@ function iniciarCompraChecklistGlobal(actId, gastoId) {
         document.body.insertAdjacentHTML('beforeend', `
         <!-- MODAL: MARCAR COMPRADO (ACTUALIZA ACTIVIDAD) -->
         <div id="tCompradoModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[350] overflow-y-auto">
-            <div class="bg-white max-w-md w-full p-8 shadow-2xl border-t-4 border-green-600">
-                <h3 class="text-xl font-bold text-slate-900 mb-2 uppercase tracking-wide">Confirmar Compra Real</h3>
-                <p class="text-sm text-slate-500 mb-6 font-bold" id="tCompradoDescLbl"></p>
+            <div class="bg-white max-w-md w-full p-8 shadow-2xl border-t-4 border-green-600 rounded-xl">
+                <h3 class="text-xl font-bold text-slate-900 mb-2 uppercase tracking-wide">Confirmar Compra</h3>
+                <p class="text-sm text-slate-600 mb-4" id="tCompradoDescLbl"></p>
                 
                 <form id="tCompradoForm" class="space-y-4" onsubmit="guardarCompraChecklistGlobal(event)">
                     <input type="hidden" id="tCompradoActId">
                     <input type="hidden" id="tCompradoGastoId">
                     
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1 text-green-700">Precio Unitario Real ($)</label>
-                        <input type="number" step="0.01" min="0" id="tCompradoPrecioU" required class="w-full bg-green-50 border border-green-300 p-2.5 text-sm font-bold focus:border-green-600">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Proveedor / Observación</label>
-                        <input type="text" id="tCompradoProv" class="w-full bg-slate-50 border border-slate-300 p-2 text-sm focus:border-green-600">
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-sm mb-4 text-slate-700">
+                        ¿Confirma que este ítem ya ha sido comprado?
                     </div>
                     
                     <p class="text-xs text-orange-600 bg-orange-50 p-2 border border-orange-200 mt-2 rounded font-bold">
-                        <i class="fas fa-info-circle"></i> Al confirmar, pasará al "Consumo Pendiente" de la actividad correspondiente. No genera egreso de Caja hasta que se confirme el consumo en la actividad.
+                        <i class="fas fa-info-circle"></i> Al confirmar, pasará al "Consumo Pendiente" de la actividad. No genera egreso de Caja hasta que se confirme el consumo en la actividad.
                     </p>
                     
                     <div class="pt-4 flex gap-2">
-                        <button type="button" onclick="cerrarModalCompradoGlobal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 uppercase">Cancelar</button>
-                        <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 uppercase">Confirmar</button>
+                        <button type="button" onclick="cerrarModalCompradoGlobal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 uppercase rounded-lg">Cancelar</button>
+                        <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 uppercase rounded-lg">Confirmar</button>
                     </div>
                 </form>
             </div>
         </div>
         `);
     }
+    
+    document.getElementById('tCompradoActId').value = actId;
+    document.getElementById('tCompradoGastoId').value = gastoId;
+    document.getElementById('tCompradoDescLbl').textContent = `Comprando: ${item.cantidad} ${item.unidad} de ${item.descripcion}`;
+    
     document.getElementById('tCompradoModal').classList.remove('hidden');
 }
 
@@ -190,19 +189,12 @@ async function guardarCompraChecklistGlobal(e) {
     const actId = document.getElementById('tCompradoActId').value;
     const gastoId = document.getElementById('tCompradoGastoId').value;
     
-    const precioU = parseFloat(document.getElementById('tCompradoPrecioU').value) || 0;
-    const prov = document.getElementById('tCompradoProv').value;
-    
     const item = checklistItemsGlobal.find(i => i.actId === actId && i.gastoId === gastoId);
     if (!item) return;
-    
-    const totalReal = item.cantidad * precioU;
     
     try {
         await treasuryDb.ref(`actividades/${actId}/gastos/${gastoId}`).update({
             comprado: true,
-            precio: precioU,
-            proveedor: prov,
             fechaCompra: new Date().toISOString(),
             usuarioCompra: treasuryUser.email
         });

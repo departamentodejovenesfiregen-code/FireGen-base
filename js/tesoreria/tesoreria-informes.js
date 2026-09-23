@@ -46,125 +46,251 @@ async function generarVistaPreviaInforme() {
         document.getElementById('btnCerrarInforme').classList.remove('hidden');
     }
     
-    // Obtener datos
-    const saldoIn = currentCaja ? parseFloat(currentCaja.saldoInicial) || 0 : 0;
+    // Obtener nombre del responsable (desde db principal)
+    let responsableName = treasuryUser.email;
+    try {
+        const snap = await db.ref('usuarios').orderByChild('correo').equalTo(treasuryUser.email).once('value');
+        if (snap.exists()) {
+            const userObj = Object.values(snap.val())[0];
+            if (userObj.nombre) responsableName = userObj.nombre;
+        }
+    } catch(e) {
+        console.warn("No se pudo obtener el nombre real del usuario:", e);
+    }
     
-    // Movimientos (Ofrendas, Diezmos, etc) excluyendo actividades si las podemos separar
+    const saldoIn = currentCaja ? parseFloat(currentCaja.saldoInicial) || 0 : 0;
     const movs = Object.values(currentMovimientos || {}).filter(m => m.estado === 'CONFIRMADO');
     
-    // Actividades
-    const acts = Object.values(currentActividades || {}).filter(a => a.estado === 'CERRADA' || a.consumoConfirmado);
+    // 1. OFRENDAS
+    const ofrendas = movs.filter(m => m.tipo === 'INGRESO' && m.categoria.toLowerCase().includes('ofrenda'));
+    let totalOfrendas = 0;
+    ofrendas.forEach(o => totalOfrendas += parseFloat(o.monto));
+    const diezmoOfrendas = totalOfrendas * 0.10;
+    const ofrendaTotal = totalOfrendas - diezmoOfrendas;
     
+    let htmlOfrendas = '';
+    if (ofrendas.length === 0) {
+        htmlOfrendas = `<tr><td class="p-2 border border-black text-center" colspan="4">No hubo ofrendas en este mes</td></tr>`;
+    } else {
+        ofrendas.forEach((o, index) => {
+            const montoOfrenda = parseFloat(o.monto);
+            htmlOfrendas += `<tr>
+                <td class="p-2 border border-black text-center">${formatDateShort(o.fecha)}</td>
+                <td class="p-2 border border-black text-center">$ ${montoOfrenda.toFixed(2).replace('.', ',')}</td>`;
+            if (index === 0) {
+                htmlOfrendas += `
+                <td class="p-2 border border-black text-center font-bold align-middle" rowspan="${ofrendas.length}">$ ${diezmoOfrendas.toFixed(2).replace('.', ',')}</td>
+                <td class="p-2 border border-black text-center font-bold align-middle" rowspan="${ofrendas.length}">$ ${ofrendaTotal.toFixed(2).replace('.', ',')}</td>
+                </tr>`;
+            } else {
+                htmlOfrendas += `</tr>`;
+            }
+        });
+    }
+    
+    // 2. ACTIVIDADES
+    const acts = Object.values(currentActividadesCaja || {}).filter(a => a.estado === 'CERRADA');
     let htmlActs = '';
-    let totalActEgresos = 0;
-    let totalActIngresos = 0;
+    let stringGananciasSuma = '';
     let totalActGanancias = 0;
     
     if(acts.length === 0) {
-        htmlActs = `<tr><td colspan="4" class="text-center py-2 text-xs italic">Sin actividades.</td></tr>`;
+        htmlActs = `<tr><td colspan="4" class="p-2 border border-black text-center italic">Sin actividades.</td></tr>`;
+        stringGananciasSuma = `$ 0,00`;
     } else {
-        acts.forEach(a => {
-            // Re-calcular inversión de gastos confirmados (comprados)
+        acts.forEach((a, index) => {
             let inv = 0;
             if(a.gastos) {
                 Object.values(a.gastos).forEach(g => {
                     if(g.comprado) inv += parseFloat(g.cantidad) * parseFloat(g.precio);
                 });
             }
-            const ing = (a.platosCobrados||0) * (a.precio||0);
+            const ing = (a.platosCobrados||0) * (parseFloat(a.precio)||0);
             const gan = ing - inv;
-            
-            totalActEgresos += inv;
-            totalActIngresos += ing;
             totalActGanancias += gan;
             
             htmlActs += `
-                <tr class="border-b border-slate-300 text-sm">
-                    <td class="py-1 uppercase">${escHtml(a.nombre)}</td>
-                    <td class="py-1 text-center">$${inv.toFixed(2)}</td>
-                    <td class="py-1 text-center">$${ing.toFixed(2)}</td>
-                    <td class="py-1 text-right font-bold">$${gan.toFixed(2)}</td>
+                <tr>
+                    <td class="p-2 border border-black text-center">${escHtml(a.nombre)}</td>
+                    <td class="p-2 border border-black text-center">$ ${inv.toFixed(2).replace('.', ',')}</td>
+                    <td class="p-2 border border-black text-center">$ ${ing.toFixed(2).replace('.', ',')}</td>
+                    <td class="p-2 border border-black text-center">$ ${gan.toFixed(2).replace('.', ',')}</td>
                 </tr>
             `;
+            
+            stringGananciasSuma += `$ ${gan.toFixed(2).replace('.', ',')}`;
+            if (index < acts.length - 1) stringGananciasSuma += ' + ';
         });
     }
     
-    // Calcular Saldo Final desde movimientos de caja reales (La caja oficial)
-    let totalIng = 0;
-    let totalEgr = 0;
-    movs.forEach(m => {
-        if(m.tipo === 'INGRESO') totalIng += parseFloat(m.monto);
-        else if(m.tipo === 'EGRESO') totalEgr += parseFloat(m.monto);
+    const diezmoGanancias = totalActGanancias * 0.10;
+    const gananciaRestante = totalActGanancias - diezmoGanancias;
+    
+    // 3. DIEZMO TOTAL
+    const diezmoTotal = diezmoGanancias + diezmoOfrendas;
+    
+    // 4. OBSERVACIONES (Egresos manuales)
+    const egresosManuales = movs.filter(m => m.tipo === 'EGRESO' && !m.categoria.toLowerCase().includes('actividad') && !m.categoria.toLowerCase().includes('diezmo'));
+    let htmlObs = '';
+    let totalEgresosReales = 0;
+    if (egresosManuales.length === 0) {
+        htmlObs = `<li>No hay observaciones adicionales de gastos.</li>`;
+    } else {
+        egresosManuales.forEach(e => {
+            const monto = parseFloat(e.monto);
+            totalEgresosReales += monto;
+            htmlObs += `<li>Se realizó un gasto de $${monto.toFixed(2).replace('.', ',')} para ${escHtml(e.descripcion)}.</li>`;
+        });
+    }
+    
+    // 5. NOTA (Pendientes de cobro)
+    let htmlNota = '';
+    let pendientesDeCobroTotal = 0;
+    acts.forEach(a => {
+        const pendientes = (a.platosVendidos||0) - (a.platosCobrados||0);
+        if (pendientes > 0) pendientesDeCobroTotal += pendientes * (parseFloat(a.precio)||0);
     });
-    const saldoFinal = saldoIn + totalIng - totalEgr;
-    const diezmoTotal = (totalIng * 0.10).toFixed(2); // Ejemplo si aplica al ingreso total o de ganancia
-    const diezmoGanancias = (totalActGanancias * 0.10).toFixed(2);
+    if (pendientesDeCobroTotal > 0) {
+        htmlNota = `<strong>7. Nota:</strong> Existe un valor pendiente de cobro de $ ${pendientesDeCobroTotal.toFixed(2).replace('.', ',')} correspondiente a actividades económicas de este mes.`;
+    } else {
+        htmlNota = `<strong>7. Nota:</strong> No existen valores pendientes de cobro este mes.`;
+    }
+    
+    // 6. SALDO FINAL
+    const saldoFinal = saldoIn + gananciaRestante + ofrendaTotal - totalEgresosReales;
+    
+    // Helper formats
+    const mesesNombres = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    let mesActualStr = '';
+    if(treasuryCurrentPeriod) {
+        const p = treasuryCurrentPeriod.split('-');
+        mesActualStr = `${mesesNombres[parseInt(p[1])-1]} ${p[0]}`;
+    }
+    const fd = new Date();
+    const footerDateStr = `${mesesNombres[fd.getMonth()]}, ${fd.getFullYear()}`;
+    
+    // HIDE original padding of container since we want exact pdf layout
+    c.classList.remove('p-12');
+    c.style.padding = '0';
     
     c.innerHTML = `
-        <div class="text-center border-b-[3px] border-black pb-4 mb-6">
-            <h1 class="text-2xl font-black uppercase mb-1">Departamento de Jóvenes</h1>
-            <h2 class="text-xl font-bold uppercase tracking-widest">Informe Financiero</h2>
-        </div>
-        
-        <div class="flex justify-between mb-8 font-bold text-sm">
-            <div>Mes: <span class="border-b border-black font-normal px-2">${treasuryCurrentPeriod}</span></div>
-            <div>Responsable: <span class="border-b border-black font-normal px-2">${escHtml(treasuryUser.email)}</span></div>
-            <div class="text-red-700">${isCerrado ? 'CERRADO Y AUDITADO' : 'VISTA PREVIA (ABIERTO)'}</div>
-        </div>
-        
-        <div class="mb-6 text-sm">
-            <div class="font-bold mb-2">1. SALDO INICIAL: <span class="font-normal">$${saldoIn.toFixed(2)}</span></div>
-        </div>
-        
-        <div class="mb-6">
-            <div class="font-bold mb-2 text-sm">2. REGISTRO DEL MES (Ingresos/Egresos directos)</div>
-            <table class="w-full border border-black text-sm text-left">
-                <thead class="bg-slate-100 border-b border-black">
-                    <tr><th class="p-1 border-r border-black">Fecha</th><th class="p-1 border-r border-black">Detalle</th><th class="p-1 text-right border-r border-black">Ingreso</th><th class="p-1 text-right">Egreso</th></tr>
-                </thead>
-                <tbody>
-                    ${movs.map(m => `<tr>
-                        <td class="p-1 border-r border-b border-black">${formatDateShort(m.fecha)}</td>
-                        <td class="p-1 border-r border-b border-black">${escHtml(m.descripcion)}</td>
-                        <td class="p-1 border-r border-b border-black text-right">${m.tipo==='INGRESO' ? '$'+parseFloat(m.monto).toFixed(2) : ''}</td>
-                        <td class="p-1 border-b border-black text-right">${m.tipo==='EGRESO' ? '$'+parseFloat(m.monto).toFixed(2) : ''}</td>
-                    </tr>`).join('')}
-                    ${movs.length===0?'<tr><td colspan="4" class="p-1 text-center italic border-b border-black">Sin registros.</td></tr>':''}
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="mb-6">
-            <div class="font-bold mb-2 text-sm">3. ACTIVIDADES ECONÓMICAS</div>
-            <table class="w-full border-b-[2px] border-black text-sm text-left">
-                <thead class="border-y-[2px] border-black">
-                    <tr><th class="py-1">Actividad</th><th class="py-1 text-center">Egreso/Gasto</th><th class="py-1 text-center">Ingreso</th><th class="py-1 text-right">Ganancia</th></tr>
-                </thead>
-                <tbody>
-                    ${htmlActs}
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="mb-6 text-sm grid grid-cols-2 gap-4">
-            <div>
-                <div class="mb-1"><strong>4. DIEZMO DE LAS GANANCIAS:</strong> $${diezmoGanancias}</div>
-                <div class="mb-1"><strong>5. GANANCIA RESTANTE:</strong> $${(totalActGanancias - parseFloat(diezmoGanancias)).toFixed(2)}</div>
-                <div class="mb-1"><strong>6. DIEZMO TOTAL:</strong> $${diezmoTotal}</div>
+        <div class="print-container text-black bg-white" style="font-family: Arial, Helvetica, sans-serif; max-width: 800px; margin: auto; padding: 40px; position: relative; color: #111;">
+            
+            <div class="absolute right-10 top-10 w-24">
+                <img src="assets/logo/logo-institucional.png" alt="Logo" class="w-full object-contain">
             </div>
-            <div>
-                <div class="mb-1"><strong>7. OBSERVACIONES:</strong></div>
-                <div class="border-b border-black w-full mb-4 h-4"></div>
-                <div class="mb-1"><strong>8. NOTA / PENDIENTES:</strong></div>
-                <div class="border-b border-black w-full h-4"></div>
+
+            <div class="border-l-[6px] border-blue-900 pl-4 mb-6">
+                <div class="text-sm tracking-widest text-slate-700 uppercase" style="font-size: 0.85rem;">Departamento de Jóvenes</div>
+                <h1 class="font-black uppercase tracking-tighter" style="font-size: 2.2rem; color: #222;">Informe Financiero</h1>
             </div>
-        </div>
-        
-        <div class="text-right mt-12 mb-6">
-            <div class="inline-block text-center border-t-2 border-black pt-2 min-w-[200px]">
-                <div class="font-black text-lg">9. SALDO FINAL</div>
-                <div class="font-black text-2xl">$${saldoFinal.toFixed(2)}</div>
+            
+            <div class="mb-6" style="font-size: 1.1rem;">
+                <div><strong style="font-weight: 800;">Mes:</strong> ${mesActualStr}</div>
+                <div><strong style="font-weight: 800;">Responsable:</strong> ${escHtml(responsableName)} - Tesorería</div>
             </div>
+            
+            <div class="mb-6" style="font-size: 1.1rem;">
+                <h2 class="font-bold mb-2" style="font-weight: 800;">1. Saldo inicial</h2>
+                <ul class="list-disc pl-8">
+                    <li>Saldo del mes anterior: $ ${saldoIn.toFixed(2).replace('.', ',')}</li>
+                </ul>
+            </div>
+            
+            <div class="mb-6" style="font-size: 1.1rem;">
+                <h2 class="font-bold mb-2" style="font-weight: 800;">2. Registro del mes</h2>
+                <table class="w-full border-collapse border-[2px] border-black font-semibold text-center mb-6">
+                    <thead>
+                        <tr>
+                            <th class="p-2 border border-black bg-white">Fecha</th>
+                            <th class="p-2 border border-black bg-white">Ofrenda</th>
+                            <th class="p-2 border border-black bg-white">Diezmo</th>
+                            <th class="p-2 border border-black bg-white">Ofrenda Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${htmlOfrendas}
+                    </tbody>
+                </table>
+
+                <div class="border-[2px] border-black bg-slate-100 text-center font-bold p-1 mb-2">
+                    Actividades económicas
+                </div>
+                
+                <table class="w-full border-collapse border-[2px] border-black font-semibold text-center">
+                    <thead>
+                        <tr>
+                            <th class="p-2 border border-black bg-white">Actividad</th>
+                            <th class="p-2 border border-black bg-white">Egreso/Gasto</th>
+                            <th class="p-2 border border-black bg-white">Ingreso</th>
+                            <th class="p-2 border border-black bg-white">Ganancia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${htmlActs}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mb-6" style="font-size: 1.1rem;">
+                <h2 class="font-bold mb-2" style="font-weight: 800;">3. Diezmo de las ganancias de actividades económicas</h2>
+                <p class="mb-6 pl-4">${stringGananciasSuma} = $ ${totalActGanancias.toFixed(2).replace('.', ',')} % 10 de Diezmo es = <strong style="font-weight: 900;">$ ${diezmoGanancias.toFixed(2).replace('.', ',')}</strong></p>
+
+                <h2 class="font-bold mb-2" style="font-weight: 800;">4. Ganancia/ Ingreso restante de las Actividades</h2>
+                <p class="mb-6 pl-4">$ ${totalActGanancias.toFixed(2).replace('.', ',')} - $ ${diezmoGanancias.toFixed(2).replace('.', ',')} = <strong style="font-weight: 900;">$ ${gananciaRestante.toFixed(2).replace('.', ',')}</strong></p>
+
+                <h2 class="font-bold mb-2" style="font-weight: 800;">5. Diezmo Total del mes</h2>
+                <p class="mb-6 pl-4">$ ${diezmoGanancias.toFixed(2).replace('.', ',')} Actividades + $ ${diezmoOfrendas.toFixed(2).replace('.', ',')} Ofrendas = <strong style="font-weight: 900;">$ ${diezmoTotal.toFixed(2).replace('.', ',')}</strong></p>
+            </div>
+
+            <div class="mb-6" style="font-size: 1.1rem;">
+                <h2 class="font-bold mb-2" style="font-weight: 800;">6. Observaciones</h2>
+                <ul class="list-disc pl-8 mb-6">
+                    ${htmlObs}
+                </ul>
+
+                <p class="mb-6">${htmlNota}</p>
+
+                <h2 class="font-bold mb-2" style="font-weight: 800;">8. Saldo final</h2>
+                <p class="pl-4 mb-8">
+                    Saldo inicial $ ${saldoIn.toFixed(2).replace('.', ',')} + Ganancias/Ingreso de Actividades <br>
+                    $ ${gananciaRestante.toFixed(2).replace('.', ',')} + Ofrendas $ ${ofrendaTotal.toFixed(2).replace('.', ',')} - Egresos $ ${totalEgresosReales.toFixed(2).replace('.', ',')} = $ ${saldoFinal.toFixed(2).replace('.', ',')}
+                </p>
+
+                <div class="font-bold italic my-12" style="font-size: 1.8rem; color: #1e3a8a;">
+                    Saldo disponible – ${mesActualStr} = $ ${saldoFinal.toFixed(2).replace('.', ',')}
+                </div>
+            </div>
+
+            <div class="mt-24">
+                <div class="font-bold text-sm mb-12">Responsables:</div>
+                <div class="grid grid-cols-3 gap-8 text-center text-sm mb-12 font-medium">
+                    <div>
+                        <div class="border-b-[2px] border-black w-full mb-1 h-8"></div>
+                        Coord Hno. Aaron Armijos
+                    </div>
+                    <div>
+                        <div class="border-b-[2px] border-black w-full mb-1 h-8"></div>
+                        Sub Coord Hno. Josue Arevalo
+                    </div>
+                    <div>
+                        <div class="border-b-[2px] border-black w-full mb-1 h-8"></div>
+                        Tesorera Hna. Dayanna Ortiz
+                    </div>
+                </div>
+
+                <div class="font-bold text-sm mb-12 mt-16">Recibido por.</div>
+                <div class="w-[45%] text-center text-sm font-medium">
+                    <div class="border-b-[2px] border-black w-full mb-1 h-8"></div>
+                    Pastor Víctor Cañar
+                </div>
+            </div>
+            
+            <div class="flex justify-between text-xs mt-16 pt-4 border-t-[2px] border-slate-300 text-slate-500 font-bold">
+                <div>${footerDateStr}</div>
+                <div class="uppercase">Departamento de Jóvenes</div>
+            </div>
+
         </div>
     `;
     
@@ -184,14 +310,14 @@ window.cerrarInformeMensualTesoreria = async function() {
     }
     
     // FASE 30: Integridad — verificar actividades
-    const actsAbiertas = Object.values(currentActividades || {}).filter(a => a.estado !== 'CERRADA');
+    const actsAbiertas = Object.values(currentActividadesCaja || {}).filter(a => a.estado !== 'CERRADA');
     if (actsAbiertas.length > 0) {
         const nombres = actsAbiertas.map(a => '• ' + a.nombre).join('\n');
         if(!confirm(`ADVERTENCIA: Hay ${actsAbiertas.length} actividad(es) sin cerrar:\n\n${nombres}\n\nSus ingresos NO serán registrados en la caja si no están cerradas.\n\n¿Deseas cerrar el período de todas formas?`)) return;
     }
     
     // Verificar consumos sin confirmar
-    const actsConConsumoPendiente = Object.values(currentActividades || {}).filter(a => 
+    const actsConConsumoPendiente = Object.values(currentActividadesCaja || {}).filter(a => 
         !a.consumoConfirmado && a.gastos && Object.values(a.gastos).some(g => g.comprado)
     );
     if (actsConConsumoPendiente.length > 0) {

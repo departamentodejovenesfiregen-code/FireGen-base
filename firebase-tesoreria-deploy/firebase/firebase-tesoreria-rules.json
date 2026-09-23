@@ -23,8 +23,8 @@
         ".read": "auth != null",
         ".write": "auth != null && root.child('periodos').child($periodo).child('estado').val() === 'ABIERTO'",
         "$movId": {
-          ".write": "auth != null && root.child('periodos').child($periodo).child('estado').val() === 'ABIERTO' && (!data.exists() || data.child('estado').val() !== 'CONFIRMADO' || (newData.exists() && newData.child('estado').val() === 'CONFIRMADO' && data.child('monto').val() == newData.child('monto').val() && data.child('tipo').val() == newData.child('tipo').val()))",
-          ".validate": "newData.hasChildren(['tipo', 'monto', 'fecha', 'periodo'])"
+          ".write": "auth != null && root.child('periodos').child($periodo).child('estado').val() === 'ABIERTO'",
+          ".validate": "!newData.exists() || newData.hasChildren(['tipo', 'monto', 'fecha', 'periodo'])"
         }
       }
     },
@@ -53,8 +53,8 @@
     "actividades": {
       ".read": "auth != null",
       "$actId": {
-        ".write": "auth != null && (!data.exists() || data.child('estado').val() !== 'CERRADA') && (!newData.exists() || root.child('periodos').child(newData.child('periodo').val()).child('estado').val() === 'ABIERTO')",
-        ".validate": "newData.hasChildren(['nombre', 'periodo']) && (!newData.hasChild('platosVendidos') || newData.child('platosVendidos').val() <= newData.child('platosPreparados').val()) && (!newData.hasChild('platosCobrados') || newData.child('platosCobrados').val() <= newData.child('platosVendidos').val())"
+        ".write": "auth != null && (!newData.exists() || root.child('periodos').child(newData.child('periodo').val()).child('estado').val() === 'ABIERTO')",
+        ".validate": "!newData.exists() || (newData.hasChildren(['nombre', 'periodo']) && (!newData.hasChild('platosVendidos') || newData.child('platosVendidos').val() <= newData.child('platosPreparados').val()) && (!newData.hasChild('platosCobrados') || newData.child('platosCobrados').val() <= newData.child('platosVendidos').val()))"
       }
     },
     

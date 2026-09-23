@@ -190,7 +190,8 @@ function renderTesoreriaActividades() {
                                 <input type="text" id="tGastoObs" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm">
                             </div>
                         </div>
-                        <div class="mt-6 flex justify-end gap-2 shrink-0">
+                        <div class="mt-6 flex justify-end gap-2 shrink-0 items-center">
+                            <button type="button" id="btnEliminarGastoModal" class="hidden text-red-500 hover:text-red-700 p-2 mr-auto" title="Eliminar Ingrediente"><i class="fas fa-trash text-lg"></i></button>
                             <button type="button" onclick="cerrarModalGasto()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-300">Cancelar</button>
                             <button type="submit" id="btnGuardarGasto" class="px-4 py-2 bg-slate-800 text-white font-bold rounded-lg hover:bg-slate-700">Guardar</button>
                         </div>
@@ -339,10 +340,8 @@ function generarHtmlActividad(act) {
                 <td class="py-2 text-center">${badge}</td>
                 ${!cerrada && !consumida ? `
                 <td class="py-2 text-right">
-                    ${!g.comprado ? `
                     <button onclick="editarGasto('${act.id}', '${g.id}')" class="text-blue-500 hover:text-blue-700 mr-2"><i class="fas fa-edit"></i></button>
                     <button onclick="eliminarGasto('${act.id}', '${g.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
-                    ` : '<span class="text-slate-300 text-[10px]">Cerrado</span>'}
                 </td>` : ''}
             </tr>`;
         });
@@ -372,13 +371,16 @@ function generarHtmlActividad(act) {
                 <h4 class="font-black text-slate-800 text-lg uppercase">${escHtml(act.nombre)}</h4>
                 <div class="text-xs text-slate-500 font-bold"><i class="far fa-calendar-alt"></i> ${diaNombre}, ${fechaFormat} | Resp: ${escHtml(act.responsable || 'N/A')}</div>
             </div>
-            <div class="flex gap-2">
+            <div class="flex gap-2 items-center">
                 ${!cerrada ? `
                     ${(canEditTreasury() && act.estado !== 'CERRADA' && !act.consumoConfirmado) ? `
                         <button onclick="abrirModalGastoNuevo('${act.id}')" class="bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold px-3 py-1.5 rounded text-xs transition-colors"><i class="fas fa-plus"></i> Añadir Ingred/Mat</button>
                         <button onclick="eliminarActividad('${act.id}')" class="bg-red-100 hover:bg-red-200 text-red-800 font-bold px-3 py-1.5 rounded text-xs transition-colors"><i class="fas fa-trash"></i> Eliminar Actividad</button>
                     ` : ''}
-                ` : `<span class="bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold"><i class="fas fa-lock"></i> CERRADA</span>`}
+                ` : `
+                    <span class="bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold"><i class="fas fa-lock"></i> CERRADA</span>
+                    ${canEditTreasury() ? `<button onclick="reabrirActividad('${act.id}')" class="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 font-bold px-3 py-1.5 rounded text-xs transition-colors shadow-sm ml-2"><i class="fas fa-unlock"></i> Reabrir</button>` : ''}
+                `}
             </div>
         </div>
         
@@ -397,13 +399,21 @@ function generarHtmlActividad(act) {
                 ${!consumida && inversionReal > 0 && canEditTreasury() ? `
                 <div class="mt-4">
                     <button onclick="confirmarConsumoActividad('${act.id}', ${inversionReal}, ${ingresoCobradoConfirmado})" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded-lg text-sm transition-colors shadow">
-                        <i class="fas fa-check-double mr-1"></i> Confirmar Consumo (Afectar Caja)
+                        <i class="fas fa-check-double mr-1"></i> Confirmar Consumo
                     </button>
-                    <p class="text-[10px] text-center text-slate-500 mt-1">Confirmar restará la inversión de la Caja oficial.</p>
+                    <p class="text-[10px] text-center text-slate-500 mt-1">Confirmará las compras realizadas y descontará inventario.</p>
                 </div>
                 ` : consumida ? `
                 <div class="bg-green-50 text-green-700 p-3 rounded-lg text-xs font-bold border border-green-200 text-center">
-                    <i class="fas fa-check-circle"></i> Consumo confirmado y registrado en Caja.
+                    <i class="fas fa-check-circle mb-1"></i><br>
+                    Consumo confirmado y registrado en Caja.
+                    ${canEditTreasury() ? `
+                    <div class="mt-2">
+                        <button onclick="revertirConsumoActividad('${act.id}')" class="text-xs bg-white text-green-700 hover:bg-green-100 border border-green-300 font-bold py-1 px-3 rounded shadow-sm transition-colors">
+                            <i class="fas fa-undo"></i> Deshacer Confirmación
+                        </button>
+                    </div>
+                    ` : ''}
                 </div>
                 ` : ''}
             </div>
@@ -444,9 +454,9 @@ function generarHtmlActividad(act) {
                 ${!cerrada && consumida && canEditTreasury() ? `
                 <div class="mt-4">
                     <button onclick="cerrarActividad('${act.id}', ${inversionReal}, ${ingresoCobradoConfirmado})" class="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-2 rounded-lg text-sm transition-colors shadow">
-                        <i class="fas fa-lock mr-1"></i> Cerrar Actividad
+                        <i class="fas fa-lock mr-1"></i> Cerrar Actividad (Ganancia: $${ganReal.toFixed(2)})
                     </button>
-                    <p class="text-[10px] text-center text-slate-500 mt-1">Bloquea edición e inyecta ingreso a Caja.</p>
+                    <p class="text-[10px] text-center text-slate-500 mt-1">Registra la ganancia real en Caja y bloquea edición.</p>
                 </div>
                 ` : ''}
             </div>
@@ -646,6 +656,7 @@ function abrirModalGastoNuevo(actId) {
     document.getElementById('tGastoId').value = '';
     document.getElementById('tGastoImprevisto').value = 'false';
     document.getElementById('tGastoModalTitle').innerHTML = '<i class="fas fa-shopping-basket mr-2"></i> Añadir Ingrediente/Material';
+    document.getElementById('btnEliminarGastoModal').classList.add('hidden');
     toggleGastoOrigen();
     document.getElementById('tGastoModal').classList.remove('hidden');
 }
@@ -750,6 +761,12 @@ function editarGasto(actId, gastoId) {
     calcularTotalGasto();
     
     document.getElementById('tGastoModalTitle').innerHTML = '<i class="fas fa-edit mr-2"></i> Editar Ingrediente/Material';
+    const btnEliminar = document.getElementById('btnEliminarGastoModal');
+    btnEliminar.classList.remove('hidden');
+    btnEliminar.onclick = async () => {
+        await eliminarGasto(actId, gastoId);
+        cerrarModalGasto();
+    };
     document.getElementById('tGastoModal').classList.remove('hidden');
 }
 
@@ -760,10 +777,6 @@ async function eliminarGasto(actId, gastoId) {
         return;
     }
     const g = act.gastos ? act.gastos[gastoId] : null;
-    if (g && g.comprado) {
-        alert('No se puede eliminar un material que ya fue marcado como comprado.');
-        return;
-    }
     if(confirm('¿Eliminar este material?')) {
         await treasuryDb.ref(`actividades/${actId}/gastos/${gastoId}`).remove();
         await registrarAuditoriaTesoreria(
@@ -791,7 +804,7 @@ async function confirmarConsumoActividad(actId, gastoConfirmadoTotal, ingresoCob
         }
     }
     
-    if(!confirm(`¿CONFIRMAR CONSUMO FINANCIERO?\n\nAl confirmar, se descontarán $${gastoConfirmadoTotal} de la CAJA OFICIAL como un Movimiento de Egreso. Si hay materiales de inventario, se descontarán de las existencias. Esta acción NO se puede deshacer y no permite duplicados.`)) return;
+    if(!confirm(`¿CONFIRMAR CONSUMO?\n\nAl confirmar, se bloquearán los ingredientes y se descontará del inventario. La ganancia real se registrará en la Caja cuando cierres la actividad.`)) return;
     
     try {
         // Transaccionar sobre el inventario primero (si hay)
@@ -807,23 +820,48 @@ async function confirmarConsumoActividad(actId, gastoConfirmadoTotal, ingresoCob
                     });
                     if (!txResult.committed) {
                         alert(`RECHAZADO: Stock insuficiente para el inventario de ${g.descripcion}.`);
-                        return; // Falla la confirmación de la actividad entera
+                        return;
                     }
                 }
             }
         }
         
-        // Crear movimiento confirmado en caja (idempotente)
-        const movKey = `consumo_${actId}`;
+        // Solo marcar como confirmado, NO crear movimiento de egreso en caja
+        await treasuryDb.ref(`actividades/${actId}/consumoConfirmado`).set(true);
+        
+        // Registrar auditoría
+        await registrarAuditoriaTesoreria(
+            'CONFIRMACIÓN CONSUMO', 
+            'Actividades', 
+            `Consumo confirmado para actividad: ${act.nombre}. Inversión: $${gastoConfirmadoTotal}`, 
+            actId
+        );
+    } catch (e) {
+        console.error("Error confirming consumos:", e);
+        alert('Error al procesar el consumo.');
+    }
+}
+
+async function cerrarActividad(actId, gastoTotal, ingresoTotal) {
+    const act = currentActividades[actId];
+    if(act.estado === 'CERRADA') return;
+    
+    const gananciaReal = ingresoTotal - gastoTotal;
+    
+    if(!confirm(`¿CERRAR ACTIVIDAD DEFINITIVAMENTE?\n\nGanancia Real: $${gananciaReal.toFixed(2)}\n(Ingreso: $${ingresoTotal.toFixed(2)} - Inversión: $${gastoTotal.toFixed(2)})\n\nSe registrará la ganancia en la Caja. Ya no se podrá editar.`)) return;
+    
+    try {
+        const movKey = `ganancia_${actId}`;
         const updates = {};
         
-        if (gastoConfirmadoTotal > 0) {
+        // Registrar un solo movimiento con la GANANCIA REAL
+        if (gananciaReal > 0) {
             updates[`movimientos/${treasuryCurrentPeriod}/${movKey}`] = {
                 id: movKey,
-                tipo: 'EGRESO',
-                categoria: 'Gastos de Actividad',
-                descripcion: `Inversión: ${act.nombre}`,
-                monto: gastoConfirmadoTotal,
+                tipo: 'INGRESO',
+                categoria: 'Ganancia de Actividad',
+                descripcion: `Ganancia: ${act.nombre}`,
+                monto: gananciaReal,
                 estado: 'CONFIRMADO',
                 referenciaId: actId,
                 origen: 'actividad',
@@ -832,44 +870,14 @@ async function confirmarConsumoActividad(actId, gastoConfirmadoTotal, ingresoCob
                 usuario: treasuryUser.email,
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             };
-        }
-        
-        updates[`actividades/${actId}/consumoConfirmado`] = true;
-        
-        await treasuryDb.ref().update(updates);
-        
-        // Registrar auditoría
-        await registrarAuditoriaTesoreria(
-            'CONFIRMACIÓN EGRESO E INVENTARIO', 
-            'Actividades', 
-            `Inversión confirmada para actividad: ${act.nombre} por $${gastoConfirmadoTotal}`, 
-            movKey
-        );
-        
-        alert('Consumo confirmado. Caja e Inventario actualizados.');
-    } catch (e) {
-        console.error("Error confirming consumos:", e);
-        alert('Error al procesar el consumo.');
-    }
-}
-
-async function cerrarActividad(actId, gastoTotal, ingresoTotal) {
-    if(!confirm(`¿CERRAR ACTIVIDAD DEFINITIVAMENTE?\n\nAl cerrar, se ingresarán $${ingresoTotal} a la CAJA OFICIAL como Ingreso confirmado. Ya no se podrá editar la actividad.`)) return;
-    
-    const act = currentActividades[actId];
-    if(act.estado === 'CERRADA') return;
-    
-    try {
-        const movKey = `ingreso_${actId}`;
-        const updates = {};
-        
-        if (ingresoTotal > 0) {
+        } else if (gananciaReal < 0) {
+            // Si hubo pérdida, registrar como egreso
             updates[`movimientos/${treasuryCurrentPeriod}/${movKey}`] = {
                 id: movKey,
-                tipo: 'INGRESO',
-                categoria: 'Ingreso de Actividad',
-                descripcion: `Ingreso: ${act.nombre}`,
-                monto: ingresoTotal,
+                tipo: 'EGRESO',
+                categoria: 'Pérdida de Actividad',
+                descripcion: `Pérdida: ${act.nombre}`,
+                monto: Math.abs(gananciaReal),
                 estado: 'CONFIRMADO',
                 referenciaId: actId,
                 origen: 'actividad',
@@ -886,16 +894,56 @@ async function cerrarActividad(actId, gastoTotal, ingresoTotal) {
         
         // Registrar auditoría
         await registrarAuditoriaTesoreria(
-            'CIERRE ACTIVIDAD / INGRESO', 
+            'CIERRE ACTIVIDAD', 
             'Actividades', 
-            `Actividad cerrada: ${act.nombre}. Ingreso registrado: $${ingresoTotal}`, 
+            `Actividad cerrada: ${act.nombre}. Ganancia real: $${gananciaReal.toFixed(2)}`, 
             movKey
         );
-        
-        alert('Actividad cerrada. Ingreso registrado en Caja.');
     } catch (e) {
         console.error("Error cerrando actividad:", e);
         alert('Error al cerrar actividad.');
+    }
+}
+
+async function reabrirActividad(actId) {
+    if (!canEditTreasury()) return;
+    
+    const act = currentActividades[actId];
+    if (!act || act.estado !== 'CERRADA') return;
+    
+    // Verificar si el mes está abierto
+    const pSnap = await treasuryDb.ref(`periodos/${treasuryCurrentPeriod}`).once('value');
+    if (!pSnap.exists() || pSnap.val().estado !== 'ABIERTO') {
+        alert("El mes actual está cerrado. No se puede reabrir la actividad.");
+        return;
+    }
+    
+    if (confirm(`¿Estás seguro de que deseas reabrir la actividad "${act.nombre}"?\nEsto eliminará el registro de ganancia en la Caja, permitiéndote editar la producción. Si también deseas editar ingredientes, luego deberás dar clic en "Deshacer Confirmación".`)) {
+        try {
+            const updates = {};
+            
+            // Revertir estado de la actividad
+            updates[`actividades/${actId}/estado`] = 'ABIERTA';
+            
+            // Eliminar el movimiento de ganancia
+            updates[`movimientos/${treasuryCurrentPeriod}/ganancia_${actId}`] = null;
+            
+            // Eliminar movimientos legacy por si acaso
+            updates[`movimientos/${treasuryCurrentPeriod}/ingreso_${actId}`] = null;
+            
+            await treasuryDb.ref().update(updates);
+            
+            // Auditoría
+            await registrarAuditoriaTesoreria(
+                'REAPERTURA ACTIVIDAD', 
+                'Actividades', 
+                `Se reabrió la actividad: ${act.nombre}`, 
+                actId
+            );
+        } catch(e) {
+            console.error("Error reabriendo actividad:", e);
+            alert('Error al reabrir: ' + e.message);
+        }
     }
 }
 
@@ -913,14 +961,7 @@ async function eliminarActividad(actId) {
         return;
     }
     
-    // Verificar si tiene gastos comprados
-    if (act.gastos) {
-        const tieneCompras = Object.values(act.gastos).some(g => g.comprado);
-        if (tieneCompras) {
-            alert("No se puede eliminar la actividad porque contiene ingredientes que ya han sido marcados como comprados. Primero debes eliminar o deshacer la compra de esos ingredientes.");
-            return;
-        }
-    }
+    // Eliminamos la restricción de que tenga compras, ya que ahora se pueden editar.
     
     // Verificar período abierto
     const pSnap = await treasuryDb.ref(`periodos/${treasuryCurrentPeriod}`).once('value');
@@ -949,6 +990,56 @@ async function eliminarActividad(actId) {
     }
 }
 
+async function revertirConsumoActividad(actId) {
+    if (!canEditTreasury()) return;
+    
+    const act = currentActividades[actId];
+    if (!act) return;
+    
+    // Verificar si el mes está abierto
+    const pSnap = await treasuryDb.ref(`periodos/${treasuryCurrentPeriod}`).once('value');
+    if (!pSnap.exists() || pSnap.val().estado !== 'ABIERTO') {
+        alert("El mes actual está cerrado. No se puede revertir la actividad.");
+        return;
+    }
+    
+    if (confirm(`¿Estás seguro de que deseas deshacer la confirmación de consumo de la actividad "${act.nombre}"? Esto eliminará el movimiento de ganancia de la Caja y te permitirá seguir editando.`)) {
+        try {
+            const updates = {};
+            
+            // Revertir estado de la actividad
+            updates[`actividades/${actId}/consumoConfirmado`] = false;
+            
+            // Si estaba cerrada, también la reabrimos
+            if (act.estado === 'CERRADA') {
+                updates[`actividades/${actId}/estado`] = 'ABIERTA';
+            }
+            
+            // Eliminar el movimiento de ganancia si la actividad estaba cerrada
+            if (act.estado === 'CERRADA') {
+                updates[`movimientos/${treasuryCurrentPeriod}/ganancia_${actId}`] = null;
+            }
+            
+            // También eliminar movimientos legacy por si existieran
+            updates[`movimientos/${treasuryCurrentPeriod}/consumo_${actId}`] = null;
+            updates[`movimientos/${treasuryCurrentPeriod}/ingreso_${actId}`] = null;
+            
+            await treasuryDb.ref().update(updates);
+            
+            // Auditoría
+            await registrarAuditoriaTesoreria(
+                'REVERSIÓN ACTIVIDAD', 
+                'Actividades', 
+                `Se revirtió la confirmación/cierre de la actividad: ${act.nombre}`, 
+                actId
+            );
+        } catch(e) {
+            console.error("Error revirtiendo consumo:", e);
+            alert('Error al revertir: ' + e.message);
+        }
+    }
+}
+
 // === EXPORTS GLOBALES (inline HTML onclick/onsubmit) ===
 window.abrirModalNuevaActividad = abrirModalNuevaActividad;
 window.cerrarModalNuevaActividad = cerrarModalNuevaActividad;
@@ -969,5 +1060,7 @@ window.editarGasto = editarGasto;
 window.eliminarGasto = eliminarGasto;
 window.eliminarActividad = eliminarActividad;
 window.confirmarConsumoActividad = confirmarConsumoActividad;
+window.revertirConsumoActividad = revertirConsumoActividad;
 window.cerrarActividad = cerrarActividad;
+window.reabrirActividad = reabrirActividad;
 window.renderTesoreriaActividades = renderTesoreriaActividades;
