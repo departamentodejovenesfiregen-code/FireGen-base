@@ -310,7 +310,7 @@ function renderCajaOperativa(container) {
         ` : ''}
         
         <!-- Lista de movimientos confirmados -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 mb-6">
             <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
                 <h3 class="font-black text-slate-800 text-lg uppercase">Movimientos Confirmados</h3>
                 ${canEditTreasury() ? `
@@ -747,17 +747,100 @@ function cerrarModalDetAct() {
     document.getElementById('cajaDetActModal').classList.add('hidden');
 }
 
+// ============== FUNCIONES ADMIN ==============
+
+async function editarSaldoInicialAdmin() {
+    if (!isTreasuryAdmin()) {
+        alert("No tienes permisos para realizar esta acción.");
+        return;
+    }
+    const nuevoSaldo = prompt(`Ingrese el nuevo Saldo Inicial para el período ${treasuryCurrentPeriod}:`, currentCaja.saldoInicial || 0);
+    if (nuevoSaldo === null) return;
+    
+    const saldoNum = parseFloat(nuevoSaldo);
+    if (isNaN(saldoNum) || saldoNum < 0) {
+        alert("Por favor, ingrese un número válido.");
+        return;
+    }
+    
+    try {
+        await treasuryDb.ref('periodos/' + treasuryCurrentPeriod).update({
+            saldoInicial: saldoNum
+        });
+        
+        await registrarAuditoriaTesoreria(
+            'EDICION ADMIN',
+            'Caja',
+            `Saldo inicial del período modificado de ${currentCaja.saldoInicial || 0} a ${saldoNum}.`,
+            treasuryCurrentPeriod
+        );
+        
+        // La UI se actualizará por el listener `cajaListener`
+    } catch(e) {
+        console.error("Error al editar saldo inicial:", e);
+        alert("Ocurrió un error al guardar: " + e.message);
+    }
+}
+
+async function eliminarPeriodoAdmin() {
+    if (!isTreasuryAdmin()) {
+        alert("No tienes permisos para realizar esta acción.");
+        return;
+    }
+    
+    const confirm1 = confirm(`¡ADVERTENCIA DE PELIGRO!\n\nVas a ELIMINAR por completo el mes ${treasuryCurrentPeriod}.\nEsto borrará todos los movimientos registrados.\n¿Estás completamente seguro?`);
+    if (!confirm1) return;
+    
+    const confirm2 = confirm(`¿Estás 100% seguro?\nEsta acción es irreversible.`);
+    if (!confirm2) return;
+    
+    try {
+        // 1. Borrar movimientos
+        await treasuryDb.ref('movimientos/' + treasuryCurrentPeriod).remove();
+        
+        // 2. Desvincular actividades (o borrarlas, aquí las eliminamos si fueron creadas para este periodo)
+        const actsSnap = await treasuryDb.ref('actividades').orderByChild('periodo').equalTo(treasuryCurrentPeriod).once('value');
+        if (actsSnap.exists()) {
+            const updates = {};
+            actsSnap.forEach(child => {
+                updates[child.key] = null;
+            });
+            await treasuryDb.ref('actividades').update(updates);
+        }
+        
+        // 3. Borrar el periodo
+        await treasuryDb.ref('periodos/' + treasuryCurrentPeriod).remove();
+        
+        await registrarAuditoriaTesoreria(
+            'ELIMINACION DE PERIODO',
+            'Admin',
+            `Período ${treasuryCurrentPeriod} eliminado por un administrador.`,
+            treasuryCurrentPeriod
+        );
+        
+        alert(`Período ${treasuryCurrentPeriod} eliminado correctamente.`);
+        // Recargar la app
+        window.location.reload();
+        
+    } catch(e) {
+        console.error("Error eliminando período:", e);
+        alert("Ocurrió un error al eliminar el período: " + e.message);
+    }
+}
+
 // === EXPORTS GLOBALES ===
 window.renderTesoreriaCaja = renderTesoreriaCaja;
 window.abrirModalMovimientoManual = abrirModalMovimientoManual;
 window.abrirEditarMovimiento = abrirEditarMovimiento;
 window.cerrarModalMovManual = cerrarModalMovManual;
-window.actualizarCategoriasMovManual = actualizarCategoriasMovManual;
 window.guardarMovimientoManual = guardarMovimientoManual;
-window.confirmarMovimientoManual = confirmarMovimientoManual;
 window.eliminarMovimientoManual = eliminarMovimientoManual;
+window.confirmarMovimientoManual = confirmarMovimientoManual;
 window.eliminarDesdeModal = eliminarDesdeModal;
+window.actualizarCategoriasMovManual = actualizarCategoriasMovManual;
 window.extraerDiezmo = extraerDiezmo;
 window.revertirDiezmo = revertirDiezmo;
 window.verDetalleActividadesCaja = verDetalleActividadesCaja;
 window.cerrarModalDetAct = cerrarModalDetAct;
+window.editarSaldoInicialAdmin = editarSaldoInicialAdmin;
+window.eliminarPeriodoAdmin = eliminarPeriodoAdmin;

@@ -37,3 +37,27 @@ treasuryAuth = treasuryApp.auth();
 treasuryAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(err => {
     console.warn("[FireGen Treasury] No se pudo configurar persistencia de sesión:", err.message);
 });
+
+/**
+ * Función para asegurar que el usuario tenga acceso anónimo a la base de Tesorería
+ * si no está logueado formalmente como tesorero/admin.
+ */
+function ensureTreasuryAnonymousLogin() {
+    return new Promise((resolve, reject) => {
+        const unsubscribe = treasuryAuth.onAuthStateChanged(user => {
+            unsubscribe();
+            if (user) {
+                // Ya hay un usuario (puede ser formal o anónimo)
+                resolve(user);
+            } else {
+                // No hay sesión, iniciar anónimamente
+                treasuryAuth.signInAnonymously()
+                    .then(cred => resolve(cred.user))
+                    .catch(err => {
+                        console.error("[FireGen Treasury] Error login anónimo:", err);
+                        reject(err);
+                    });
+            }
+        });
+    });
+}

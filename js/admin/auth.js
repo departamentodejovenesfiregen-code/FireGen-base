@@ -362,6 +362,18 @@ function applyRolePermissions(rol) {
         bnTreasury.style.display = verTreasury ? '' : 'none';
     }
 
+    // ── Tab Operaciones: usuarios de firebase autenticados ──────────────
+    const tabOperaciones = document.getElementById('tab-operaciones');
+    if (tabOperaciones) {
+        const verOperaciones = (r !== 'pendiente'); // Todos menos pendiente pueden ver Operaciones
+        tabOperaciones.style.display = verOperaciones ? '' : 'none';
+    }
+    const bnOperaciones = document.getElementById('bn-operaciones');
+    if (bnOperaciones) {
+        const verOperaciones = (r !== 'pendiente');
+        bnOperaciones.style.display = verOperaciones ? '' : 'none';
+    }
+
     // ── Solo mostrar los botones flotantes si estamos en la pestaña de Estrategias ──
     const viewStrategy = document.getElementById('view-strategy');
     const isStrategyView = viewStrategy && !viewStrategy.classList.contains('hidden');

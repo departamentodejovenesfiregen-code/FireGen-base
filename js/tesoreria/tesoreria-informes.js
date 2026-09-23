@@ -70,17 +70,17 @@ async function generarVistaPreviaInforme() {
     
     let htmlOfrendas = '';
     if (ofrendas.length === 0) {
-        htmlOfrendas = `<tr><td class="p-2 border border-black text-center" colspan="4">No hubo ofrendas en este mes</td></tr>`;
+        htmlOfrendas = `<tr><td style="border: 1.5px solid #000; padding: 8px 12px; text-align: center;" colspan="4">No hubo ofrendas en este mes</td></tr>`;
     } else {
         ofrendas.forEach((o, index) => {
             const montoOfrenda = parseFloat(o.monto);
             htmlOfrendas += `<tr>
-                <td class="p-2 border border-black text-center">${formatDateShort(o.fecha)}</td>
-                <td class="p-2 border border-black text-center">$ ${montoOfrenda.toFixed(2).replace('.', ',')}</td>`;
+                <td style="border: 1.5px solid #000; padding: 8px 12px; text-align: center;">${formatDateShort(o.fecha)}</td>
+                <td style="border: 1.5px solid #000; padding: 8px 12px; text-align: center;">$ ${montoOfrenda.toFixed(2).replace('.', ',')}</td>`;
             if (index === 0) {
                 htmlOfrendas += `
-                <td class="p-2 border border-black text-center font-bold align-middle" rowspan="${ofrendas.length}">$ ${diezmoOfrendas.toFixed(2).replace('.', ',')}</td>
-                <td class="p-2 border border-black text-center font-bold align-middle" rowspan="${ofrendas.length}">$ ${ofrendaTotal.toFixed(2).replace('.', ',')}</td>
+                <td style="border: 1.5px solid #000; padding: 8px 12px; text-align: center; font-weight: 700; vertical-align: middle;" rowspan="${ofrendas.length}">$ ${diezmoOfrendas.toFixed(2).replace('.', ',')}</td>
+                <td style="border: 1.5px solid #000; padding: 8px 12px; text-align: center; font-weight: 700; vertical-align: middle;" rowspan="${ofrendas.length}">$ ${ofrendaTotal.toFixed(2).replace('.', ',')}</td>
                 </tr>`;
             } else {
                 htmlOfrendas += `</tr>`;
@@ -95,7 +95,7 @@ async function generarVistaPreviaInforme() {
     let totalActGanancias = 0;
     
     if(acts.length === 0) {
-        htmlActs = `<tr><td colspan="4" class="p-2 border border-black text-center italic">Sin actividades.</td></tr>`;
+        htmlActs = `<tr><td colspan="4" style="border: 1.5px solid #000; padding: 8px 12px; text-align: center; font-style: italic;">Sin actividades.</td></tr>`;
         stringGananciasSuma = `$ 0,00`;
     } else {
         acts.forEach((a, index) => {
@@ -111,10 +111,10 @@ async function generarVistaPreviaInforme() {
             
             htmlActs += `
                 <tr>
-                    <td class="p-2 border border-black text-center">${escHtml(a.nombre)}</td>
-                    <td class="p-2 border border-black text-center">$ ${inv.toFixed(2).replace('.', ',')}</td>
-                    <td class="p-2 border border-black text-center">$ ${ing.toFixed(2).replace('.', ',')}</td>
-                    <td class="p-2 border border-black text-center">$ ${gan.toFixed(2).replace('.', ',')}</td>
+                    <td style="border: 1.5px solid #000; padding: 8px 12px; text-align: center;">${escHtml(a.nombre)}</td>
+                    <td style="border: 1.5px solid #000; padding: 8px 12px; text-align: center;">$${inv.toFixed(2).replace('.', ',')}</td>
+                    <td style="border: 1.5px solid #000; padding: 8px 12px; text-align: center;">$ ${ing.toFixed(2).replace('.', ',')}</td>
+                    <td style="border: 1.5px solid #000; padding: 8px 12px; text-align: center;">$ ${gan.toFixed(2).replace('.', ',')}</td>
                 </tr>
             `;
             
@@ -173,39 +173,52 @@ async function generarVistaPreviaInforme() {
     c.classList.remove('p-12');
     c.style.padding = '0';
     
-    c.innerHTML = `
-        <div class="print-container text-black bg-white" style="font-family: Arial, Helvetica, sans-serif; max-width: 800px; margin: auto; padding: 40px; position: relative; color: #111;">
-            
-            <div class="absolute right-10 top-10 w-24">
-                <img src="assets/logo/logo-institucional.png" alt="Logo" class="w-full object-contain">
-            </div>
+    // Get previous month name for "Saldo del mes anterior (MesAnterior)"
+    let mesAnteriorStr = '';
+    if(treasuryCurrentPeriod) {
+        const p = treasuryCurrentPeriod.split('-');
+        const prevMonthIdx = (parseInt(p[1]) - 2 + 12) % 12;
+        mesAnteriorStr = mesesNombres[prevMonthIdx];
+    }
 
-            <div class="border-l-[6px] border-blue-900 pl-4 mb-6">
-                <div class="text-sm tracking-widest text-slate-700 uppercase" style="font-size: 0.85rem;">Departamento de Jóvenes</div>
-                <h1 class="font-black uppercase tracking-tighter" style="font-size: 2.2rem; color: #222;">Informe Financiero</h1>
+    c.innerHTML = `
+        <div style="font-family: 'Segoe UI', Arial, Helvetica, sans-serif; max-width: 794px; margin: auto; padding: 50px 50px 30px 50px; position: relative; color: #000; background: #fff; line-height: 1.5;">
+            
+            <!-- LOGO TOP RIGHT -->
+            <img src="assets/logo/logo-institucional.png" alt="Logo" style="position: absolute; right: 50px; top: 40px; width: 90px; height: auto;">
+
+            <!-- HEADER -->
+            <div style="border-left: 5px solid #1e3a5f; padding-left: 14px; margin-bottom: 20px;">
+                <div style="font-size: 14px; letter-spacing: 2px; color: #333; margin-bottom: 2px;">DEPARTAMENTO DE JOVENES</div>
+                <div style="font-size: 32px; font-weight: 900; color: #000; letter-spacing: -1px; line-height: 1.1;">INFORME FINANCIERO</div>
             </div>
             
-            <div class="mb-6" style="font-size: 1.1rem;">
+            <!-- MES / RESPONSABLE -->
+            <div style="font-size: 15px; margin-bottom: 16px;">
                 <div><strong style="font-weight: 800;">Mes:</strong> ${mesActualStr}</div>
-                <div><strong style="font-weight: 800;">Responsable:</strong> ${escHtml(responsableName)} - Tesorería</div>
+                <div><strong style="font-weight: 800;">Responsable:</strong> ${escHtml(responsableName)} - Tesorera</div>
             </div>
             
-            <div class="mb-6" style="font-size: 1.1rem;">
-                <h2 class="font-bold mb-2" style="font-weight: 800;">1. Saldo inicial</h2>
-                <ul class="list-disc pl-8">
-                    <li>Saldo del mes anterior: $ ${saldoIn.toFixed(2).replace('.', ',')}</li>
+            <!-- 1. SALDO INICIAL -->
+            <div style="font-size: 15px; margin-bottom: 14px;">
+                <div style="font-weight: 800; margin-bottom: 4px;">1. Saldo inicial</div>
+                <ul style="margin: 0; padding-left: 28px;">
+                    <li>Saldo del mes anterior (${mesAnteriorStr}): $ ${saldoIn.toFixed(2).replace('.', ',')}</li>
                 </ul>
             </div>
             
-            <div class="mb-6" style="font-size: 1.1rem;">
-                <h2 class="font-bold mb-2" style="font-weight: 800;">2. Registro del mes</h2>
-                <table class="w-full border-collapse border-[2px] border-black font-semibold text-center mb-6">
+            <!-- 2. REGISTRO DEL MES -->
+            <div style="font-size: 15px; margin-bottom: 6px;">
+                <div style="font-weight: 800; margin-bottom: 8px;">2. Registro del mes</div>
+                
+                <!-- TABLA OFRENDAS -->
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 14px;">
                     <thead>
                         <tr>
-                            <th class="p-2 border border-black bg-white">Fecha</th>
-                            <th class="p-2 border border-black bg-white">Ofrenda</th>
-                            <th class="p-2 border border-black bg-white">Diezmo</th>
-                            <th class="p-2 border border-black bg-white">Ofrenda Total</th>
+                            <th style="border: 1.5px solid #000; padding: 8px 12px; text-align: center; font-weight: 700;">Fecha</th>
+                            <th style="border: 1.5px solid #000; padding: 8px 12px; text-align: center; font-weight: 700;">Ofrenda</th>
+                            <th style="border: 1.5px solid #000; padding: 8px 12px; text-align: center; font-weight: 700;">Diezmo</th>
+                            <th style="border: 1.5px solid #000; padding: 8px 12px; text-align: center; font-weight: 700;">Ofrenda Total</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -213,17 +226,19 @@ async function generarVistaPreviaInforme() {
                     </tbody>
                 </table>
 
-                <div class="border-[2px] border-black bg-slate-100 text-center font-bold p-1 mb-2">
+                <!-- BANNER ACTIVIDADES -->
+                <div style="border: 1.5px solid #000; text-align: center; font-weight: 700; padding: 6px 0; margin-bottom: 4px; font-size: 14px;">
                     Actividades económicas
                 </div>
                 
-                <table class="w-full border-collapse border-[2px] border-black font-semibold text-center">
+                <!-- TABLA ACTIVIDADES -->
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
                     <thead>
                         <tr>
-                            <th class="p-2 border border-black bg-white">Actividad</th>
-                            <th class="p-2 border border-black bg-white">Egreso/Gasto</th>
-                            <th class="p-2 border border-black bg-white">Ingreso</th>
-                            <th class="p-2 border border-black bg-white">Ganancia</th>
+                            <th style="border: 1.5px solid #000; padding: 8px 12px; text-align: center; font-weight: 700;">Actividad</th>
+                            <th style="border: 1.5px solid #000; padding: 8px 12px; text-align: center; font-weight: 700;">Egreso/Gasto</th>
+                            <th style="border: 1.5px solid #000; padding: 8px 12px; text-align: center; font-weight: 700;">Ingreso</th>
+                            <th style="border: 1.5px solid #000; padding: 8px 12px; text-align: center; font-weight: 700;">Ganancia</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -232,63 +247,83 @@ async function generarVistaPreviaInforme() {
                 </table>
             </div>
 
-            <div class="mb-6" style="font-size: 1.1rem;">
-                <h2 class="font-bold mb-2" style="font-weight: 800;">3. Diezmo de las ganancias de actividades económicas</h2>
-                <p class="mb-6 pl-4">${stringGananciasSuma} = $ ${totalActGanancias.toFixed(2).replace('.', ',')} % 10 de Diezmo es = <strong style="font-weight: 900;">$ ${diezmoGanancias.toFixed(2).replace('.', ',')}</strong></p>
-
-                <h2 class="font-bold mb-2" style="font-weight: 800;">4. Ganancia/ Ingreso restante de las Actividades</h2>
-                <p class="mb-6 pl-4">$ ${totalActGanancias.toFixed(2).replace('.', ',')} - $ ${diezmoGanancias.toFixed(2).replace('.', ',')} = <strong style="font-weight: 900;">$ ${gananciaRestante.toFixed(2).replace('.', ',')}</strong></p>
-
-                <h2 class="font-bold mb-2" style="font-weight: 800;">5. Diezmo Total del mes</h2>
-                <p class="mb-6 pl-4">$ ${diezmoGanancias.toFixed(2).replace('.', ',')} Actividades + $ ${diezmoOfrendas.toFixed(2).replace('.', ',')} Ofrendas = <strong style="font-weight: 900;">$ ${diezmoTotal.toFixed(2).replace('.', ',')}</strong></p>
+            <!-- 3. DIEZMO GANANCIAS -->
+            <div style="font-size: 15px; margin-bottom: 14px;">
+                <div style="font-weight: 800; margin-bottom: 4px;">3. Diezmo de las ganancias de actividades económicas</div>
+                <div style="padding-left: 8px;">${stringGananciasSuma} = $ ${totalActGanancias.toFixed(2).replace('.', ',')} % 10 de Diezmo es = <strong style="font-weight: 900;">$ ${diezmoGanancias.toFixed(2).replace('.', ',')}</strong></div>
             </div>
 
-            <div class="mb-6" style="font-size: 1.1rem;">
-                <h2 class="font-bold mb-2" style="font-weight: 800;">6. Observaciones</h2>
-                <ul class="list-disc pl-8 mb-6">
+            <!-- 4. GANANCIA RESTANTE -->
+            <div style="font-size: 15px; margin-bottom: 14px;">
+                <div style="font-weight: 800; margin-bottom: 4px;">4. Ganacia/ Ingreso restante de las Actividades</div>
+                <div style="padding-left: 8px;">$ ${totalActGanancias.toFixed(2).replace('.', ',')} − $ ${diezmoGanancias.toFixed(2).replace('.', ',')} = <strong style="font-weight: 900;">$ ${gananciaRestante.toFixed(2).replace('.', ',')}</strong></div>
+            </div>
+
+            <!-- 5. DIEZMO TOTAL -->
+            <div style="font-size: 15px; margin-bottom: 14px;">
+                <div style="font-weight: 800; margin-bottom: 4px;">5. Diezmo Total del mes</div>
+                <div style="padding-left: 16px;">$ ${diezmoGanancias.toFixed(2).replace('.', ',')} Actividades + $ ${diezmoOfrendas.toFixed(2).replace('.', ',')} Ofrendas = <strong style="font-weight: 900;">$ ${diezmoTotal.toFixed(2).replace('.', ',')}</strong></div>
+            </div>
+
+            <!-- 6. OBSERVACIONES -->
+            <div style="font-size: 15px; margin-bottom: 14px;">
+                <div style="font-weight: 800; margin-bottom: 4px;">6. Observaciones</div>
+                <ul style="margin: 0 0 12px 0; padding-left: 28px;">
                     ${htmlObs}
                 </ul>
+            </div>
 
-                <p class="mb-6">${htmlNota}</p>
+            <!-- 7. NOTA -->
+            <div style="font-size: 18px; margin-bottom: 20px; padding-left: 8px;">
+                ${htmlNota}
+            </div>
 
-                <h2 class="font-bold mb-2" style="font-weight: 800;">8. Saldo final</h2>
-                <p class="pl-4 mb-8">
-                    Saldo inicial $ ${saldoIn.toFixed(2).replace('.', ',')} + Ganancias/Ingreso de Actividades <br>
-                    $ ${gananciaRestante.toFixed(2).replace('.', ',')} + Ofrendas $ ${ofrendaTotal.toFixed(2).replace('.', ',')} - Egresos $ ${totalEgresosReales.toFixed(2).replace('.', ',')} = $ ${saldoFinal.toFixed(2).replace('.', ',')}
-                </p>
-
-                <div class="font-bold italic my-12" style="font-size: 1.8rem; color: #1e3a8a;">
-                    Saldo disponible – ${mesActualStr} = $ ${saldoFinal.toFixed(2).replace('.', ',')}
+            <!-- 8. SALDO FINAL -->
+            <div style="font-size: 15px; margin-bottom: 8px;">
+                <div style="font-weight: 800; margin-bottom: 4px;">8. Saldo final</div>
+                <div style="padding-left: 8px;">
+                    Saldo inicial $ ${saldoIn.toFixed(2).replace('.', ',')}  + Ganancias/Ingreso de Actividades<br>
+                    &nbsp;&nbsp;&nbsp;$ ${gananciaRestante.toFixed(2).replace('.', ',')} + Ofrendas $ ${ofrendaTotal.toFixed(2).replace('.', ',')} - Egresos $ ${totalEgresosReales.toFixed(2).replace('.', ',')}  =  $ ${saldoFinal.toFixed(2).replace('.', ',')}
                 </div>
             </div>
 
-            <div class="mt-24">
-                <div class="font-bold text-sm mb-12">Responsables:</div>
-                <div class="grid grid-cols-3 gap-8 text-center text-sm mb-12 font-medium">
-                    <div>
-                        <div class="border-b-[2px] border-black w-full mb-1 h-8"></div>
-                        Coord Hno. Aaron Armijos
+            <!-- SALDO DISPONIBLE BIG -->
+            <div style="font-size: 28px; font-weight: 900; font-style: italic; color: #1e3a5f; margin: 30px 0 50px 0; line-height: 1.2;">
+                Saldo disponible – ${mesActualStr}  =  $ ${saldoFinal.toFixed(2).replace('.', ',')}
+            </div>
+
+            <!-- FIRMAS -->
+            <div style="margin-top: 60px;">
+                <div style="font-weight: 700; font-style: italic; font-size: 13px; margin-bottom: 30px;">Responsables:</div>
+                <div style="display: flex; justify-content: space-between; gap: 24px; margin-bottom: 24px;">
+                    <div style="flex: 1; text-align: center;">
+                        <div style="border-bottom: 1.5px solid #000; height: 30px; margin-bottom: 4px;"></div>
+                        <div style="font-size: 12px; font-style: italic;">Coord Hno. Aaron Armijos</div>
                     </div>
-                    <div>
-                        <div class="border-b-[2px] border-black w-full mb-1 h-8"></div>
-                        Sub Coord Hno. Josue Arevalo
+                    <div style="flex: 1; text-align: center;">
+                        <div style="border-bottom: 1.5px solid #000; height: 30px; margin-bottom: 4px;"></div>
+                        <div style="font-size: 12px; font-style: italic;">Sub Coord Hno. Josue Arevalo</div>
                     </div>
-                    <div>
-                        <div class="border-b-[2px] border-black w-full mb-1 h-8"></div>
-                        Tesorera Hna. Dayanna Ortiz
+                    <div style="flex: 1; text-align: center;">
+                        <div style="border-bottom: 1.5px solid #000; height: 30px; margin-bottom: 4px;"></div>
+                        <div style="font-size: 12px; font-style: italic;">Tesorera Hna. Dayanna Ortiz</div>
                     </div>
                 </div>
 
-                <div class="font-bold text-sm mb-12 mt-16">Recibido por.</div>
-                <div class="w-[45%] text-center text-sm font-medium">
-                    <div class="border-b-[2px] border-black w-full mb-1 h-8"></div>
-                    Pastor Víctor Cañar
+                <div style="font-weight: 700; font-style: italic; font-size: 13px; margin-top: 30px; margin-bottom: 20px;">Recibido por:</div>
+                <div style="width: 40%; text-align: center; margin-left: 30%;">
+                    <div style="border-bottom: 1.5px solid #000; height: 30px; margin-bottom: 4px;"></div>
+                    <div style="font-size: 12px; font-style: italic;">Pastor Víctor Cañar</div>
                 </div>
             </div>
             
-            <div class="flex justify-between text-xs mt-16 pt-4 border-t-[2px] border-slate-300 text-slate-500 font-bold">
-                <div>${footerDateStr}</div>
-                <div class="uppercase">Departamento de Jóvenes</div>
+            <!-- FOOTER -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 50px; padding-top: 8px; border-top: 1.5px solid #ccc; font-size: 11px; color: #666;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <div style="width: 14px; height: 14px; background: #2563eb; border-radius: 2px;"></div>
+                    <span>${footerDateStr}</span>
+                </div>
+                <div style="letter-spacing: 1px;">DEPARTAMENTO DE JOVENES</div>
             </div>
 
         </div>
