@@ -32,6 +32,14 @@ function canEditTreasury() {
     return role === 'admin' || role === 'tesorero';
 }
 
+window.getActiveTreasuryContainer = function() {
+    const opView = document.getElementById('view-operaciones');
+    if (opView && !opView.classList.contains('hidden')) {
+        return document.getElementById('operacionesSubContent');
+    }
+    return document.getElementById('treasurySubContent');
+};
+
 function initTreasury() {
     if (!hasPermission('tesoreria')) return;
     

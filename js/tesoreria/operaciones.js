@@ -373,9 +373,10 @@ function actualizarUIOpChecklist(periodo) {
             const comprado = item.comprado;
             html += `
                 <div class="flex items-center gap-3 py-2 px-2 rounded-lg ${comprado ? 'bg-green-50/50' : 'bg-white'} hover:bg-slate-50 transition-colors">
-                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${comprado ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-500'}">
-                        ${comprado ? '<i class="fas fa-check"></i>' : '?'}
-                    </div>
+                    <button ${!comprado && !item.actCerrada ? `onclick="iniciarCompraChecklistGlobal('${item.actId}', '${item.gastoId}')"` : 'disabled'} 
+                        class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${comprado ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-500 hover:bg-blue-100 hover:text-blue-600 cursor-pointer transition-colors'}">
+                        ${comprado ? '<i class="fas fa-check"></i>' : (item.actCerrada ? '<i class="fas fa-lock"></i>' : '<i class="fas fa-square text-slate-300"></i>')}
+                    </button>
                     <div class="flex-1">
                         <div class="font-bold text-slate-800 text-sm ${comprado ? 'line-through text-slate-400' : ''}">${escHtml(item.ingrediente || item.descripcion || 'Sin nombre')}</div>
                         <div class="text-[10px] text-slate-400 font-bold">${item.cantidad || ''} ${item.unidad || ''} | $${(parseFloat(item.precio) || 0).toFixed(2)} c/u</div>
@@ -429,11 +430,16 @@ function actualizarUIOpInventario() {
     }
 
     let html = `
-        <div class="mb-4">
-            <h3 class="font-black text-slate-800 uppercase text-sm">
-                <i class="fas fa-boxes text-purple-700 mr-1"></i> Inventario de la Tesorería
-            </h3>
-            <p class="text-xs text-slate-500">${items.length} artículo(s) registrados</p>
+        <div class="mb-4 flex justify-between items-end">
+            <div>
+                <h3 class="font-black text-slate-800 uppercase text-sm">
+                    <i class="fas fa-boxes text-purple-700 mr-1"></i> Inventario de la Tesorería
+                </h3>
+                <p class="text-xs text-slate-500">${items.length} artículo(s) registrados</p>
+            </div>
+            <button onclick="abrirModalNuevoInventario()" class="bg-purple-700 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors text-sm">
+                <i class="fas fa-plus"></i> Añadir Artículo
+            </button>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
     `;
@@ -446,7 +452,11 @@ function actualizarUIOpInventario() {
             <div class="bg-white p-4 rounded-xl border ${stockBajo ? 'border-red-200 bg-red-50/30' : 'border-slate-200'} shadow-sm">
                 <div class="flex justify-between items-start mb-2">
                     <h4 class="font-black text-slate-800 text-sm uppercase">${escHtml(item.descripcion || 'Sin nombre')}</h4>
-                    ${stockBajo ? '<span class="text-[9px] font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded animate-pulse">BAJO</span>' : ''}
+                    <div class="flex gap-2">
+                        ${stockBajo ? '<span class="text-[9px] font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded animate-pulse">BAJO</span>' : ''}
+                        <button onclick="editarInventario('${id}')" class="text-blue-500 hover:text-blue-700 text-xs" title="Editar"><i class="fas fa-edit"></i></button>
+                        <button onclick="eliminarInventario('${id}')" class="text-red-500 hover:text-red-700 text-xs" title="Eliminar"><i class="fas fa-trash"></i></button>
+                    </div>
                 </div>
                 <div class="flex items-baseline gap-1">
                     <span class="text-2xl font-black ${stockBajo ? 'text-red-600' : 'text-slate-800'}">${cant}</span>
@@ -506,8 +516,13 @@ function actualizarUIOpCobros(deudas) {
                 </h3>
                 <p class="text-xs text-slate-500">${pendientes.length} pendiente(s), ${pagadas.length} pagada(s)</p>
             </div>
-            <div class="bg-orange-100 text-orange-800 px-4 py-2 rounded-xl font-black text-sm">
-                Total Pendiente: $${totalPendiente.toFixed(2)}
+            <div class="flex gap-2">
+                <button onclick="abrirNuevaDeuda()" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors text-sm">
+                    <i class="fas fa-plus"></i> Nueva Deuda
+                </button>
+                <div class="bg-orange-100 text-orange-800 px-4 py-2 rounded-xl font-black text-sm">
+                    Pendiente: $${totalPendiente.toFixed(2)}
+                </div>
             </div>
         </div>
     `;
@@ -527,7 +542,14 @@ function actualizarUIOpCobros(deudas) {
                             <h4 class="font-black text-slate-800 text-sm">${escHtml(d.nombre || 'Sin nombre')}</h4>
                             <div class="text-[10px] text-slate-400 font-bold">${escHtml(d.concepto || '')}</div>
                         </div>
-                        <span class="font-black text-orange-600">$${restante.toFixed(2)}</span>
+                        <div class="flex items-center gap-3">
+                            <span class="font-black text-orange-600 text-lg">$${restante.toFixed(2)}</span>
+                            <div class="flex flex-col gap-1 shrink-0">
+                                <button onclick="abrirPagoDeuda('${id}')" class="text-green-600 hover:text-green-800 text-xs" title="Abonar/Pagar"><i class="fas fa-hand-holding-usd"></i></button>
+                                <button onclick="abrirEditarDeuda('${id}')" class="text-blue-500 hover:text-blue-700 text-xs" title="Editar"><i class="fas fa-edit"></i></button>
+                                <button onclick="eliminarDeuda('${id}')" class="text-red-500 hover:text-red-700 text-xs" title="Eliminar"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
                     </div>
                     <div class="w-full bg-slate-200 rounded-full h-2 mb-1">
                         <div class="bg-orange-500 h-2 rounded-full transition-all" style="width:${progreso}%"></div>

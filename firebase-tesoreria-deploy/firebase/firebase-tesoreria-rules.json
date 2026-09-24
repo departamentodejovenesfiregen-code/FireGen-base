@@ -4,26 +4,26 @@
     ".write": false,
     
     "config": {
-      ".read": "auth != null && auth.token.firebase.sign_in_provider !== 'anonymous'",
-      ".write": "auth != null && auth.token.firebase.sign_in_provider !== 'anonymous'"
+      ".read": "auth != null",
+      ".write": "auth != null"
     },
     
     "usuarios": {
-      ".read": "auth != null && auth.token.firebase.sign_in_provider !== 'anonymous'",
+      ".read": "auth != null",
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         ".write": "auth != null && auth.uid === $uid"
       },
-      ".write": "auth != null && auth.token.firebase.sign_in_provider !== 'anonymous'"
+      ".write": "auth != null"
     },
     
     "movimientos": {
-      ".read": "auth != null && auth.token.firebase.sign_in_provider !== 'anonymous'",
+      ".read": "auth != null",
       "$periodo": {
-        ".read": "auth != null && auth.token.firebase.sign_in_provider !== 'anonymous'",
-        ".write": "auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && root.child('periodos').child($periodo).child('estado').val() === 'ABIERTO'",
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('periodos').child($periodo).child('estado').val() === 'ABIERTO'",
         "$movId": {
-          ".write": "auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && root.child('periodos').child($periodo).child('estado').val() === 'ABIERTO'",
+          ".write": "auth != null && root.child('periodos').child($periodo).child('estado').val() === 'ABIERTO'",
           ".validate": "!newData.exists() || newData.hasChildren(['tipo', 'monto', 'fecha', 'periodo'])"
         }
       }
@@ -38,10 +38,10 @@
     },
     
     "periodos": {
-      ".read": "auth != null && auth.token.firebase.sign_in_provider !== 'anonymous'",
+      ".read": "auth != null",
       "$periodo": {
-        ".write": "auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && (!data.exists() || data.child('estado').val() !== 'CERRADO' || (newData.exists() && newData.child('estado').val() === 'CERRADO' && data.child('saldoFinal').val() == newData.child('saldoFinal').val()))",
-        ".validate": "newData.hasChild('estado')"
+        ".write": "auth != null && (!data.exists() || data.child('estado').val() !== 'CERRADO' || (newData.exists() && newData.child('estado').val() === 'CERRADO' && data.child('saldoFinal').val() == newData.child('saldoFinal').val()) || !newData.exists())",
+        ".validate": "!newData.exists() || newData.hasChild('estado')"
       }
     },
     
@@ -53,7 +53,7 @@
     "actividades": {
       ".read": "auth != null",
       "$actId": {
-        ".write": "auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && (!newData.exists() || root.child('periodos').child(newData.child('periodo').val()).child('estado').val() === 'ABIERTO')",
+        ".write": "auth != null && (!newData.exists() || root.child('periodos').child(newData.child('periodo').val()).child('estado').val() === 'ABIERTO')",
         ".validate": "!newData.exists() || (newData.hasChildren(['nombre', 'periodo']) && (!newData.hasChild('platosVendidos') || newData.child('platosVendidos').val() <= newData.child('platosPreparados').val()) && (!newData.hasChild('platosCobrados') || newData.child('platosCobrados').val() <= newData.child('platosVendidos').val()))"
       }
     },
@@ -69,13 +69,13 @@
     },
     
     "informes": {
-      ".read": "auth != null && auth.token.firebase.sign_in_provider !== 'anonymous'",
-      ".write": "auth != null && auth.token.firebase.sign_in_provider !== 'anonymous'"
+      ".read": "auth != null",
+      ".write": "auth != null"
     },
     
     "auditoria": {
-      ".read": "auth != null && auth.token.firebase.sign_in_provider !== 'anonymous'",
-      ".write": "auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && !data.exists()"
+      ".read": "auth != null",
+      ".write": "auth != null && !data.exists()"
     }
   }
 }

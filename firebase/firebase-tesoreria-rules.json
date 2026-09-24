@@ -40,8 +40,8 @@
     "periodos": {
       ".read": "auth != null",
       "$periodo": {
-        ".write": "auth != null && (!data.exists() || data.child('estado').val() !== 'CERRADO' || (newData.exists() && newData.child('estado').val() === 'CERRADO' && data.child('saldoFinal').val() == newData.child('saldoFinal').val()))",
-        ".validate": "newData.hasChild('estado')"
+        ".write": "auth != null && (!data.exists() || data.child('estado').val() !== 'CERRADO' || (newData.exists() && newData.child('estado').val() === 'CERRADO' && data.child('saldoFinal').val() == newData.child('saldoFinal').val()) || !newData.exists())",
+        ".validate": "!newData.exists() || newData.hasChild('estado')"
       }
     },
     
