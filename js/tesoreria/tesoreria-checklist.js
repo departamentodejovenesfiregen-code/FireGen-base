@@ -138,7 +138,13 @@ function actualizarUIChecklistGlobal() {
 }
 
 function iniciarCompraChecklistGlobal(actId, gastoId) {
-    const item = checklistItemsGlobal.find(i => i.actId === actId && i.gastoId === gastoId);
+    let item = null;
+    if (typeof checklistItemsGlobal !== 'undefined') {
+        item = checklistItemsGlobal.find(i => i.actId === actId && i.gastoId === gastoId);
+    }
+    if (!item && typeof opChecklistItems !== 'undefined') {
+        item = opChecklistItems.find(i => i.actId === actId && i.gastoId === gastoId);
+    }
     if (!item) return;
     
     // Ensure the modal for compra exists
@@ -189,7 +195,13 @@ async function guardarCompraChecklistGlobal(e) {
     const actId = document.getElementById('tCompradoActId').value;
     const gastoId = document.getElementById('tCompradoGastoId').value;
     
-    const item = checklistItemsGlobal.find(i => i.actId === actId && i.gastoId === gastoId);
+    let item = null;
+    if (typeof checklistItemsGlobal !== 'undefined') {
+        item = checklistItemsGlobal.find(i => i.actId === actId && i.gastoId === gastoId);
+    }
+    if (!item && typeof opChecklistItems !== 'undefined') {
+        item = opChecklistItems.find(i => i.actId === actId && i.gastoId === gastoId);
+    }
     if (!item) return;
     
     try {

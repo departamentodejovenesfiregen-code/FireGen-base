@@ -26,8 +26,13 @@ window.formatDateShort = window.formatDateShort || function(dateStr) {
     } catch(e) { return dateStr; }
 };
 
-// REGLA 1: Solo admin y tesorero pueden editar tesorería
+// REGLA 1: Solo admin y tesorero pueden editar tesorería directamente.
+// Los usuarios en la vista Operaciones también tienen permisos para sus módulos.
 function canEditTreasury() {
+    const opView = document.getElementById('view-operaciones');
+    if (opView && !opView.classList.contains('hidden')) {
+        return true;
+    }
     const role = window.currentUserRole || 'pendiente';
     return role === 'admin' || role === 'tesorero';
 }
@@ -171,27 +176,27 @@ async function renderTreasuryDashboard() {
     }
     
     container.innerHTML = `
-        <div class="max-w-4xl mx-auto bg-white shadow-md border border-slate-200 p-6 sm:p-12 rounded-sm print:shadow-none print:border-none print:p-0">
+        <div class="max-w-4xl mx-auto bg-white shadow-md border-x-0 sm:border border-slate-200 p-4 sm:p-12 sm:rounded-sm print:shadow-none print:border-none print:p-0">
             <!-- ENCABEZADO TIPO INFORME -->
-            <div class="flex justify-between items-start border-b-[3px] border-blue-900 pb-6 mb-8">
+            <div class="flex justify-between items-start border-b-[3px] border-blue-900 pb-4 sm:pb-6 mb-6 sm:mb-8">
                 <div class="flex gap-4 sm:gap-6 items-stretch">
                     <div class="w-3 bg-blue-900 hidden sm:block"></div>
                     <div>
-                        <p class="text-sm tracking-widest text-slate-500 mb-1 uppercase font-semibold">Departamento de Jóvenes</p>
-                        <h1 class="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight uppercase">Informe Financiero</h1>
-                        <div class="mt-4 text-slate-800 text-sm sm:text-base space-y-2">
-                            <div class="flex items-center gap-2">
-                                <span class="font-bold">Mes/Período:</span> 
-                                <span class="font-bold print:inline mr-2 text-lg text-blue-900">${mesActualStr}</span>
-                                <button id="btnSeleccionarMes" onclick="abrirModalSeleccionarMes()" class="bg-blue-100 hover:bg-blue-200 text-blue-900 text-xs font-bold py-1 px-3 rounded shadow transition-colors print:hidden">
-                                    <i class="fas fa-calendar mr-1"></i> SELECCIONAR MES
+                        <p class="text-xs sm:text-sm tracking-widest text-slate-500 mb-1 uppercase font-semibold">Departamento de Jóvenes</p>
+                        <h1 class="text-2xl sm:text-5xl font-black text-slate-900 tracking-tight uppercase leading-none">Informe Financiero</h1>
+                        <div class="mt-4 text-slate-800 text-xs sm:text-base space-y-2">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="font-bold shrink-0">Mes/Período:</span> 
+                                <span class="font-bold print:inline text-base sm:text-lg text-blue-900">${mesActualStr}</span>
+                                <button id="btnSeleccionarMes" onclick="abrirModalSeleccionarMes()" class="bg-blue-100 hover:bg-blue-200 text-blue-900 text-[10px] sm:text-xs font-bold py-1 px-2 sm:px-3 rounded shadow transition-colors print:hidden shrink-0 ml-auto sm:ml-2">
+                                    <i class="fas fa-calendar mr-1"></i> <span class="hidden sm:inline">SELECCIONAR MES</span><span class="sm:hidden">CAMBIAR</span>
                                 </button>
                             </div>
-                            <p><span class="font-bold">Responsable:</span> ${emailUsuario}</p>
-                            <p class="flex items-center gap-3">
-                                <span class="font-bold">Estado del período:</span> 
+                            <p class="truncate"><span class="font-bold">Responsable:</span> ${emailUsuario}</p>
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                                <span class="font-bold shrink-0">Estado del período:</span> 
                                 <span id="treasuryPeriodStatus" class="font-bold text-slate-500 uppercase">VERIFICANDO...</span>
-                            </p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -202,11 +207,12 @@ async function renderTreasuryDashboard() {
             </div>
 
             <!-- NAVEGACIÓN DOCUMENTAL -->
-            <div class="flex flex-wrap gap-4 sm:gap-6 mb-8 print:hidden border-b border-slate-300 pb-3 text-sm">
-                <button onclick="switchTreasurySubTab('caja')" id="tsub-caja" class="tsub-btn font-bold text-slate-500 hover:text-blue-900 uppercase tracking-wider transition-colors pb-1"><i class="fas fa-file-invoice-dollar mr-1"></i> Caja</button>
-                <button onclick="switchTreasurySubTab('actividades')" id="tsub-actividades" class="tsub-btn font-bold text-slate-500 hover:text-blue-900 uppercase tracking-wider transition-colors pb-1"><i class="fas fa-store mr-1"></i> Actividades</button>
-                <button onclick="switchTreasurySubTab('inventario')" id="tsub-inventario" class="tsub-btn font-bold text-slate-500 hover:text-blue-900 uppercase tracking-wider transition-colors pb-1"><i class="fas fa-boxes mr-1"></i> Inventario</button>
-                <button onclick="switchTreasurySubTab('informes')" id="tsub-informes" class="tsub-btn font-bold text-slate-500 hover:text-blue-900 uppercase tracking-wider transition-colors pb-1"><i class="fas fa-print mr-1"></i> Informes</button>
+            <div class="flex overflow-x-auto whitespace-nowrap gap-4 sm:gap-6 mb-6 sm:mb-8 print:hidden border-b border-slate-300 pb-3 text-xs sm:text-sm hide-scrollbar" style="scrollbar-width: none; -ms-overflow-style: none;">
+                <style>.hide-scrollbar::-webkit-scrollbar { display: none; }</style>
+                <button onclick="switchTreasurySubTab('caja')" id="tsub-caja" class="tsub-btn font-bold text-slate-500 hover:text-blue-900 uppercase tracking-wider transition-colors pb-1 shrink-0"><i class="fas fa-file-invoice-dollar mr-1"></i> Caja</button>
+                <button onclick="switchTreasurySubTab('actividades')" id="tsub-actividades" class="tsub-btn font-bold text-slate-500 hover:text-blue-900 uppercase tracking-wider transition-colors pb-1 shrink-0"><i class="fas fa-store mr-1"></i> Actividades</button>
+                <button onclick="switchTreasurySubTab('inventario')" id="tsub-inventario" class="tsub-btn font-bold text-slate-500 hover:text-blue-900 uppercase tracking-wider transition-colors pb-1 shrink-0"><i class="fas fa-boxes mr-1"></i> Inventario</button>
+                <button onclick="switchTreasurySubTab('informes')" id="tsub-informes" class="tsub-btn font-bold text-slate-500 hover:text-blue-900 uppercase tracking-wider transition-colors pb-1 shrink-0"><i class="fas fa-print mr-1"></i> Informes</button>
             </div>
             
             <div id="treasurySubContent" class="space-y-10 text-slate-800">

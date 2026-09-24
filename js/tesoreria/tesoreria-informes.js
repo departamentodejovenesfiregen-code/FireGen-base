@@ -25,8 +25,10 @@ function renderTesoreriaInformes() {
             ` : ''}
         </div>
         
-        <div id="vistaPreviaInformeContainer" class="bg-white border border-slate-200 rounded-sm shadow-lg overflow-hidden hidden max-w-[800px] mx-auto p-12 text-slate-900" style="font-family: Arial, sans-serif;">
-            <!-- Documento Renderizado -->
+        <div class="w-full overflow-x-auto pb-4 bg-slate-100/50 p-2 sm:p-6 rounded">
+            <div id="vistaPreviaInformeContainer" class="bg-white border border-slate-300 rounded shadow-lg hidden mx-auto text-slate-900 print:shadow-none print:border-none print:m-0 print:p-0" style="font-family: Arial, sans-serif; width: 794px; min-width: 794px; min-height: 1123px; padding: 48px; box-sizing: border-box;">
+                <!-- Documento Renderizado -->
+            </div>
         </div>
     `;
     

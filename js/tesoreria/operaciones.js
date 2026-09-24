@@ -15,10 +15,11 @@ let opTreasuryUser = null;
 let opActsListener = null;
 let opInvListener = null;
 let opChecklistListener = null;
-let opActiveSubTab = 'actividades';
+let opActiveSubTab = 'checklist';
 let opCurrentActividades = {};
 let opCurrentInventario = {};
 let opChecklistItems = [];
+let opSelectedPeriodo = null;
 
 async function initOperaciones() {
     const container = document.getElementById('operacionesMainContent');
@@ -71,10 +72,6 @@ function renderOperacionesDashboard() {
 
         <!-- Sub-tabs de Operaciones -->
         <div class="flex bg-white rounded-2xl shadow-sm border p-1.5 mb-6 overflow-x-auto">
-            <button onclick="switchOpSubTab('actividades')" id="op-tab-actividades"
-                class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 ${opActiveSubTab === 'actividades' ? 'bg-orange-600 text-white shadow' : 'text-slate-500 hover:bg-slate-50'}">
-                <i class="fas fa-store mr-1"></i> Historial de Actividades
-            </button>
             <button onclick="switchOpSubTab('checklist')" id="op-tab-checklist"
                 class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 ${opActiveSubTab === 'checklist' ? 'bg-orange-600 text-white shadow' : 'text-slate-500 hover:bg-slate-50'}">
                 <i class="fas fa-tasks mr-1"></i> Checklist
@@ -86,6 +83,10 @@ function renderOperacionesDashboard() {
             <button onclick="switchOpSubTab('cobros')" id="op-tab-cobros"
                 class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 ${opActiveSubTab === 'cobros' ? 'bg-orange-600 text-white shadow' : 'text-slate-500 hover:bg-slate-50'}">
                 <i class="fas fa-hand-holding-usd mr-1"></i> Cobros
+            </button>
+            <button onclick="switchOpSubTab('actividades')" id="op-tab-actividades"
+                class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 ${opActiveSubTab === 'actividades' ? 'bg-orange-600 text-white shadow' : 'text-slate-500 hover:bg-slate-50'}">
+                <i class="fas fa-store mr-1"></i> Historial de Actividades
             </button>
         </div>
 
@@ -166,126 +167,147 @@ function actualizarUIOpActividades() {
     // Ordenar periodos de más reciente a más antiguo
     const periodosOrdenados = Object.keys(porPeriodo).sort((a, b) => b.localeCompare(a));
 
-    let html = '';
+    if (!opSelectedPeriodo || !periodosOrdenados.includes(opSelectedPeriodo)) {
+        opSelectedPeriodo = periodosOrdenados[0];
+    }
 
-    periodosOrdenados.forEach(periodo => {
-        const acts = porPeriodo[periodo];
-        let totalInversion = 0;
-        let totalIngreso = 0;
-        let totalGanancia = 0;
-
-        acts.forEach(act => {
-            let inversionAct = 0;
-            if (act.gastos) {
-                Object.values(act.gastos).forEach(g => {
-                    if (g.origen === 'comprar' && g.comprado) {
-                        inversionAct += parseFloat(g.cantidad) * parseFloat(g.precio);
-                    }
-                });
-            }
-            const pCob = parseInt(act.platosCobrados) || 0;
-            const precio = parseFloat(act.precio) || 0;
-            const ingresoAct = pCob * precio;
-
-            act._inversion = inversionAct;
-            act._ingreso = ingresoAct;
-            act._ganancia = ingresoAct - inversionAct;
-
-            totalInversion += inversionAct;
-            totalIngreso += ingresoAct;
-            totalGanancia += act._ganancia;
-        });
-
-        html += `
-        <div class="mb-8">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="font-black text-slate-800 text-lg uppercase tracking-wider flex items-center gap-2">
-                    <i class="fas fa-calendar-alt text-orange-500"></i> ${escHtml(periodo)}
-                </h3>
-                <span class="text-xs font-bold ${totalGanancia >= 0 ? 'text-green-700 bg-green-100' : 'text-red-700 bg-red-100'} px-3 py-1 rounded-full">
-                    Rentabilidad: $${totalGanancia.toFixed(2)}
-                </span>
+    let selectorHtml = `
+        <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <div>
+                <h3 class="font-black text-slate-800 text-sm"><i class="fas fa-calendar-alt text-orange-500 mr-2"></i>Seleccionar Mes</h3>
+                <p class="text-xs text-slate-500 mt-1">Elige el periodo para ver sus actividades</p>
             </div>
+            <select id="opPeriodoSelect" onchange="cambiarPeriodoOpActividades(this.value)" class="w-full sm:w-auto bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-lg focus:ring-orange-500 focus:border-orange-500 block p-2.5 font-bold">
+                ${periodosOrdenados.map(p => `<option value="${p}" ${p === opSelectedPeriodo ? 'selected' : ''}>${p}</option>`).join('')}
+            </select>
+        </div>
+    `;
 
-            <!-- KPIs del periodo -->
-            <div class="grid grid-cols-3 gap-3 mb-4">
-                <div class="bg-red-50 p-3 rounded-xl border border-red-200 text-center">
-                    <div class="text-[10px] font-bold text-red-600 uppercase">Inversión</div>
-                    <div class="text-lg font-black text-red-700">$${totalInversion.toFixed(2)}</div>
-                </div>
-                <div class="bg-green-50 p-3 rounded-xl border border-green-200 text-center">
-                    <div class="text-[10px] font-bold text-green-600 uppercase">Ingreso</div>
-                    <div class="text-lg font-black text-green-700">$${totalIngreso.toFixed(2)}</div>
-                </div>
-                <div class="bg-blue-50 p-3 rounded-xl border border-blue-200 text-center">
-                    <div class="text-[10px] font-bold text-blue-600 uppercase">Ganancia</div>
-                    <div class="text-lg font-black ${totalGanancia >= 0 ? 'text-blue-700' : 'text-red-600'}">$${totalGanancia.toFixed(2)}</div>
-                </div>
+    let html = selectorHtml;
+
+    const periodo = opSelectedPeriodo;
+    const acts = porPeriodo[periodo];
+    let totalInversion = 0;
+    let totalIngreso = 0;
+    let totalGanancia = 0;
+
+    acts.forEach(act => {
+        let inversionAct = 0;
+        if (act.gastos) {
+            Object.values(act.gastos).forEach(g => {
+                if (g.origen === 'comprar' && g.comprado) {
+                    inversionAct += parseFloat(g.cantidad) * parseFloat(g.precio);
+                }
+            });
+        }
+        const pCob = parseInt(act.platosCobrados) || 0;
+        const precio = parseFloat(act.precio) || 0;
+        const ingresoAct = pCob * precio;
+
+        act._inversion = inversionAct;
+        act._ingreso = ingresoAct;
+        act._ganancia = ingresoAct - inversionAct;
+
+        totalInversion += inversionAct;
+        totalIngreso += ingresoAct;
+        totalGanancia += act._ganancia;
+    });
+
+    html += `
+    <div class="mb-8">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-black text-slate-800 text-lg uppercase tracking-wider flex items-center gap-2">
+                <i class="fas fa-chart-line text-orange-500"></i> Resumen ${escHtml(periodo)}
+            </h3>
+            <span class="text-xs font-bold ${totalGanancia >= 0 ? 'text-green-700 bg-green-100' : 'text-red-700 bg-red-100'} px-3 py-1 rounded-full shadow-sm">
+                Rentabilidad: $${totalGanancia.toFixed(2)}
+            </span>
+        </div>
+
+        <!-- KPIs del periodo -->
+        <div class="grid grid-cols-3 gap-3 mb-4">
+            <div class="bg-red-50 p-3 rounded-xl border border-red-200 text-center shadow-sm">
+                <div class="text-[10px] font-bold text-red-600 uppercase">Inversión</div>
+                <div class="text-lg font-black text-red-700">$${totalInversion.toFixed(2)}</div>
             </div>
-
-            <!-- Tarjetas de actividades -->
-            <div class="space-y-3">
-        `;
-
-        acts.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')).forEach(act => {
-            const estadoBadge = act.estado === 'CERRADA'
-                ? '<span class="text-[9px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded">✓ CERRADA</span>'
-                : act.estado === 'EN_CURSO'
-                    ? '<span class="text-[9px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">EN CURSO</span>'
-                    : '<span class="text-[9px] font-bold text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded">PENDIENTE</span>';
-
-            const platosPrep = parseInt(act.platosPreparados) || 0;
-            const platosVend = parseInt(act.platosVendidos) || 0;
-            const platosCob = parseInt(act.platosCobrados) || 0;
-
-            html += `
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                    <div class="flex justify-between items-start mb-3">
-                        <div>
-                            <h4 class="font-black text-slate-800 uppercase text-sm">${escHtml(act.nombre)}</h4>
-                            <div class="text-[10px] text-slate-400 font-bold">${act.fecha ? formatDateShort(act.fecha) : 'Sin fecha'}</div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            ${estadoBadge}
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-3 gap-2 text-xs mb-3">
-                        <div class="bg-slate-50 p-2 rounded-lg text-center">
-                            <div class="text-[9px] text-slate-400 uppercase font-bold">Preparados</div>
-                            <div class="font-black text-slate-700">${platosPrep}</div>
-                        </div>
-                        <div class="bg-slate-50 p-2 rounded-lg text-center">
-                            <div class="text-[9px] text-slate-400 uppercase font-bold">Vendidos</div>
-                            <div class="font-black text-slate-700">${platosVend}</div>
-                        </div>
-                        <div class="bg-slate-50 p-2 rounded-lg text-center">
-                            <div class="text-[9px] text-slate-400 uppercase font-bold">Cobrados</div>
-                            <div class="font-black text-slate-700">${platosCob}</div>
-                        </div>
-                    </div>
-
-                    <div class="flex justify-between items-center border-t border-slate-100 pt-2">
-                        <div class="flex gap-4 text-xs">
-                            <span class="text-red-600 font-bold"><i class="fas fa-arrow-down mr-0.5"></i>$${act._inversion.toFixed(2)}</span>
-                            <span class="text-green-600 font-bold"><i class="fas fa-arrow-up mr-0.5"></i>$${act._ingreso.toFixed(2)}</span>
-                        </div>
-                        <span class="font-black text-sm ${act._ganancia >= 0 ? 'text-blue-700' : 'text-red-600'}">
-                            ${act._ganancia >= 0 ? '+' : ''}$${act._ganancia.toFixed(2)}
-                        </span>
-                    </div>
-                </div>
-            `;
-        });
-
-        html += `
+            <div class="bg-green-50 p-3 rounded-xl border border-green-200 text-center shadow-sm">
+                <div class="text-[10px] font-bold text-green-600 uppercase">Ingreso</div>
+                <div class="text-lg font-black text-green-700">$${totalIngreso.toFixed(2)}</div>
+            </div>
+            <div class="bg-blue-50 p-3 rounded-xl border border-blue-200 text-center shadow-sm">
+                <div class="text-[10px] font-bold text-blue-600 uppercase">Ganancia</div>
+                <div class="text-lg font-black ${totalGanancia >= 0 ? 'text-blue-700' : 'text-red-600'}">$${totalGanancia.toFixed(2)}</div>
             </div>
         </div>
+
+        <!-- Tarjetas de actividades -->
+        <div class="space-y-3">
+    `;
+
+    acts.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')).forEach(act => {
+        const estadoBadge = act.estado === 'CERRADA'
+            ? '<span class="text-[9px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded">✓ CERRADA</span>'
+            : act.estado === 'EN_CURSO'
+                ? '<span class="text-[9px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">EN CURSO</span>'
+                : '<span class="text-[9px] font-bold text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded">PENDIENTE</span>';
+
+        const platosPrep = parseInt(act.platosPreparados) || 0;
+        const platosVend = parseInt(act.platosVendidos) || 0;
+        const platosCob = parseInt(act.platosCobrados) || 0;
+
+        html += `
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <h4 class="font-black text-slate-800 uppercase text-sm">${escHtml(act.nombre)}</h4>
+                        <div class="text-[10px] text-slate-400 font-bold">${act.fecha ? formatDateShort(act.fecha) : 'Sin fecha'}</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        ${estadoBadge}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 text-xs mb-3">
+                    <div class="bg-slate-50 p-2 rounded-lg text-center">
+                        <div class="text-[9px] text-slate-400 uppercase font-bold">Preparados</div>
+                        <div class="font-black text-slate-700">${platosPrep}</div>
+                    </div>
+                    <div class="bg-slate-50 p-2 rounded-lg text-center">
+                        <div class="text-[9px] text-slate-400 uppercase font-bold">Vendidos</div>
+                        <div class="font-black text-slate-700">${platosVend}</div>
+                    </div>
+                    <div class="bg-slate-50 p-2 rounded-lg text-center">
+                        <div class="text-[9px] text-slate-400 uppercase font-bold">Cobrados</div>
+                        <div class="font-black text-slate-700">${platosCob}</div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center border-t border-slate-100 pt-2">
+                    <div class="flex gap-4 text-xs">
+                        <span class="text-red-600 font-bold"><i class="fas fa-arrow-down mr-0.5"></i>$${act._inversion.toFixed(2)}</span>
+                        <span class="text-green-600 font-bold"><i class="fas fa-arrow-up mr-0.5"></i>$${act._ingreso.toFixed(2)}</span>
+                    </div>
+                    <span class="font-black text-sm ${act._ganancia >= 0 ? 'text-blue-700' : 'text-red-600'}">
+                        ${act._ganancia >= 0 ? '+' : ''}$${act._ganancia.toFixed(2)}
+                    </span>
+                </div>
+            </div>
         `;
     });
 
+    html += `
+        </div>
+    </div>
+    `;
+
     subContent.innerHTML = html;
 }
+
+window.cambiarPeriodoOpActividades = function (p) {
+    opSelectedPeriodo = p;
+    actualizarUIOpActividades();
+}
+
 
 // ══════════════════════════════════════════════════════════════
 // CHECKLIST (Solo lectura — extraída de actividades)
@@ -455,7 +477,6 @@ function actualizarUIOpInventario() {
                     <div class="flex gap-2">
                         ${stockBajo ? '<span class="text-[9px] font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded animate-pulse">BAJO</span>' : ''}
                         <button onclick="editarInventario('${id}')" class="text-blue-500 hover:text-blue-700 text-xs" title="Editar"><i class="fas fa-edit"></i></button>
-                        <button onclick="eliminarInventario('${id}')" class="text-red-500 hover:text-red-700 text-xs" title="Eliminar"><i class="fas fa-trash"></i></button>
                     </div>
                 </div>
                 <div class="flex items-baseline gap-1">
@@ -517,7 +538,7 @@ function actualizarUIOpCobros(deudas) {
                 <p class="text-xs text-slate-500">${pendientes.length} pendiente(s), ${pagadas.length} pagada(s)</p>
             </div>
             <div class="flex gap-2">
-                <button onclick="abrirNuevaDeuda()" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors text-sm">
+                <button onclick="abrirModalNuevaDeuda()" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors text-sm">
                     <i class="fas fa-plus"></i> Nueva Deuda
                 </button>
                 <div class="bg-orange-100 text-orange-800 px-4 py-2 rounded-xl font-black text-sm">
@@ -545,9 +566,7 @@ function actualizarUIOpCobros(deudas) {
                         <div class="flex items-center gap-3">
                             <span class="font-black text-orange-600 text-lg">$${restante.toFixed(2)}</span>
                             <div class="flex flex-col gap-1 shrink-0">
-                                <button onclick="abrirPagoDeuda('${id}')" class="text-green-600 hover:text-green-800 text-xs" title="Abonar/Pagar"><i class="fas fa-hand-holding-usd"></i></button>
-                                <button onclick="abrirEditarDeuda('${id}')" class="text-blue-500 hover:text-blue-700 text-xs" title="Editar"><i class="fas fa-edit"></i></button>
-                                <button onclick="eliminarDeuda('${id}')" class="text-red-500 hover:text-red-700 text-xs" title="Eliminar"><i class="fas fa-trash"></i></button>
+                                <button onclick="abrirModalPago('${id}', ${restante})" class="text-green-600 hover:text-green-800 text-xs" title="Abonar/Pagar"><i class="fas fa-hand-holding-usd"></i> Registrar Pago</button>
                             </div>
                         </div>
                     </div>

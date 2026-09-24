@@ -918,17 +918,33 @@ async function reabrirActividad(actId) {
         return;
     }
     
-    if (confirm(`¿Estás seguro de que deseas reabrir la actividad "${act.nombre}"?\nEsto eliminará el registro de ganancia en la Caja, permitiéndote editar la producción. Si también deseas editar ingredientes, luego deberás dar clic en "Deshacer Confirmación".`)) {
+    if (confirm(`¿Estás seguro de que deseas reabrir la actividad "${act.nombre}"?\nEsto eliminará el registro de ganancia en la Caja, devolverá los ingredientes al inventario y te permitirá editar todo (ingredientes y producción).`)) {
         try {
+            // 1. Devolver items al inventario
+            if (act.gastos) {
+                for (let gId in act.gastos) {
+                    const g = act.gastos[gId];
+                    if (g.origen === 'inventario' && g.inventarioItemId) {
+                        await treasuryDb.ref(`inventario/${g.inventarioItemId}/cantidad`).transaction(currentQty => {
+                            const c = parseInt(currentQty) || 0;
+                            const req = parseInt(g.cantidad) || 0;
+                            return c + req;
+                        });
+                    }
+                }
+            }
+
             const updates = {};
             
-            // Revertir estado de la actividad
+            // Revertir estado de la actividad y consumo
             updates[`actividades/${actId}/estado`] = 'ABIERTA';
+            updates[`actividades/${actId}/consumoConfirmado`] = false;
             
             // Eliminar el movimiento de ganancia
             updates[`movimientos/${treasuryCurrentPeriod}/ganancia_${actId}`] = null;
             
             // Eliminar movimientos legacy por si acaso
+            updates[`movimientos/${treasuryCurrentPeriod}/consumo_${actId}`] = null;
             updates[`movimientos/${treasuryCurrentPeriod}/ingreso_${actId}`] = null;
             
             await treasuryDb.ref().update(updates);
@@ -937,7 +953,7 @@ async function reabrirActividad(actId) {
             await registrarAuditoriaTesoreria(
                 'REAPERTURA ACTIVIDAD', 
                 'Actividades', 
-                `Se reabrió la actividad: ${act.nombre}`, 
+                `Se reabrió la actividad y se devolvió inventario: ${act.nombre}`, 
                 actId
             );
         } catch(e) {
@@ -1003,8 +1019,22 @@ async function revertirConsumoActividad(actId) {
         return;
     }
     
-    if (confirm(`¿Estás seguro de que deseas deshacer la confirmación de consumo de la actividad "${act.nombre}"? Esto eliminará el movimiento de ganancia de la Caja y te permitirá seguir editando.`)) {
+    if (confirm(`¿Estás seguro de que deseas deshacer la confirmación de consumo de la actividad "${act.nombre}"? Esto devolverá los ítems al inventario, eliminará el movimiento de ganancia de la Caja (si estaba cerrada) y te permitirá seguir editando ingredientes.`)) {
         try {
+            // 1. Devolver items al inventario
+            if (act.gastos) {
+                for (let gId in act.gastos) {
+                    const g = act.gastos[gId];
+                    if (g.origen === 'inventario' && g.inventarioItemId) {
+                        await treasuryDb.ref(`inventario/${g.inventarioItemId}/cantidad`).transaction(currentQty => {
+                            const c = parseInt(currentQty) || 0;
+                            const req = parseInt(g.cantidad) || 0;
+                            return c + req;
+                        });
+                    }
+                }
+            }
+
             const updates = {};
             
             // Revertir estado de la actividad
@@ -1030,7 +1060,7 @@ async function revertirConsumoActividad(actId) {
             await registrarAuditoriaTesoreria(
                 'REVERSIÓN ACTIVIDAD', 
                 'Actividades', 
-                `Se revirtió la confirmación/cierre de la actividad: ${act.nombre}`, 
+                `Se revirtió la confirmación/cierre de la actividad y se devolvió inventario: ${act.nombre}`, 
                 actId
             );
         } catch(e) {
